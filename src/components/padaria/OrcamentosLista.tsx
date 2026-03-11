@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Search, RefreshCw, Eye, Check, X, FileText, Calendar, Trash2,
-  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer
+  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,6 +190,62 @@ export default function OrcamentosLista() {
       title: 'Impressão iniciada!',
       description: `Cupom do orçamento enviado para impressão.`,
     });
+  };
+
+  // Enviar orçamento via WhatsApp
+  const handleEnviarWhatsApp = (orcamento: Orcamento) => {
+    const telefone = orcamento.cliente.telefone.replace(/\D/g, '');
+    const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
+    
+    // Montar mensagem cordial
+    let mensagem = `🍰 *Padaria e Confeitaria Paula*\n\n`;
+    mensagem += `Olá, *${orcamento.cliente.nome}*! Tudo bem?\n\n`;
+    mensagem += `Preparamos um orçamento especial para você:\n`;
+    mensagem += `📋 *Orçamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
+    
+    // Itens
+    mensagem += `*Itens:*\n`;
+    orcamento.itens.forEach(item => {
+      const qtd = item.quantidade % 1 === 0 
+        ? item.quantidade.toString() 
+        : item.quantidade.toFixed(2).replace('.', ',');
+      const tipo = item.produto.tipoVenda === 'KG' ? 'kg' : 'un';
+      mensagem += `• ${item.produto.nome}${item.tamanho ? ` (${item.tamanho})` : ''} - ${qtd}${tipo === 'kg' ? 'kg' : tipo === 'un' ? 'x' : ''} = R$ ${item.subtotal.toFixed(2).replace('.', ',')}\n`;
+      if (item.observacao) {
+        mensagem += `  _${item.observacao}_\n`;
+      }
+    });
+    
+    mensagem += `\n💰 *Total: R$ ${orcamento.total.toFixed(2).replace('.', ',')}*\n\n`;
+    
+    // Entrega
+    mensagem += `📅 *Entrega:* ${formatarDataEntrega(orcamento.dataEntrega)}`;
+    if (orcamento.horarioEntrega) {
+      mensagem += ` às ${orcamento.horarioEntrega}`;
+    }
+    mensagem += `\n`;
+    
+    if (orcamento.tipoEntrega === 'RETIRA') {
+      mensagem += `📍 *Retirada no local*\n`;
+    } else {
+      mensagem += `🚚 *Tele Entrega*`;
+      if (orcamento.enderecoEntrega) {
+        mensagem += `\n📍 ${orcamento.enderecoEntrega}`;
+        if (orcamento.bairroEntrega) {
+          mensagem += ` - ${orcamento.bairroEntrega}`;
+        }
+      }
+      mensagem += `\n`;
+    }
+    
+    if (orcamento.observacoes) {
+      mensagem += `\n📝 *Obs:* ${orcamento.observacoes}\n`;
+    }
+    
+    mensagem += `\n✨ *Aguardamos sua aprovação!* Se precisar de qualquer alteração, é só nos chamar. Obrigada pela preferência! 💕`;
+    
+    const mensagemCodificada = encodeURIComponent(mensagem);
+    window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
   };
 
   // Aprovar orçamento e converter para pedido
@@ -561,8 +617,19 @@ export default function OrcamentosLista() {
                   <span className="text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
                 </div>
 
-                {/* Botão de impressão */}
+                {/* Botão de enviar via WhatsApp */}
                 <div className="mt-4 pt-3 border-t border-border">
+                  <Button
+                    onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Enviar Orçamento via WhatsApp
+                  </Button>
+                </div>
+
+                {/* Botão de impressão */}
+                <div className="mt-2">
                   <Button
                     onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
                     variant="outline"

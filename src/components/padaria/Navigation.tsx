@@ -6,7 +6,6 @@
 import { useAppStore, Tela } from '@/store/useAppStore';
 import { usePedidoStore } from '@/store/usePedidoStore';
 import { 
-  Home, 
   ShoppingBag, 
   History, 
   Settings,
@@ -28,32 +27,22 @@ export default function Navigation() {
   const { telaAtual, setTela } = useAppStore();
   const { itens, cliente } = usePedidoStore();
 
-  // Itens de navegação - Produtos só aparece se tiver cliente
+  // Itens de navegação - sem "novo pedido"
   const navItems: NavItem[] = [
-    { id: 'novo-pedido', label: 'Novo Pedido', shortLabel: 'Novo', icon: <Home className="w-6 h-6 sm:w-5 sm:h-5" /> },
     { id: 'clientes', label: 'Clientes', shortLabel: 'Clientes', icon: <Users className="w-6 h-6 sm:w-5 sm:h-5" /> },
-    { id: 'produtos', label: 'Produtos', shortLabel: 'Produtos', icon: <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5" />, requiresClient: true },
     { id: 'orcamentos', label: 'Orçamentos', shortLabel: 'Orçamentos', icon: <FileText className="w-6 h-6 sm:w-5 sm:h-5" /> },
-    { id: 'entregas', label: 'Entregas', shortLabel: 'Entregas', icon: <Truck className="w-6 h-6 sm:w-5 sm:h-5" /> },
     { id: 'historico', label: 'Histórico', shortLabel: 'Histórico', icon: <History className="w-6 h-6 sm:w-5 sm:h-5" /> },
+    { id: 'entregas', label: 'Entregas', shortLabel: 'Entregas', icon: <Truck className="w-6 h-6 sm:w-5 sm:h-5" /> },
     { id: 'admin', label: 'Administrativo', shortLabel: 'Admin', icon: <Settings className="w-6 h-6 sm:w-5 sm:h-5" /> },
   ];
-
-  // Filtrar itens que requerem cliente
-  const visibleNavItems = navItems.filter(item => {
-    if (item.requiresClient && !cliente) return false;
-    return true;
-  });
 
   return (
     <nav className="bg-card border-b border-border sticky top-0 z-50">
       {/* Mobile: Menu grande com ícones */}
       <div className="lg:hidden">
-        {/* Grid de navegação */}
         <div className="flex overflow-x-auto gap-0.5 p-1 scrollbar-hide">
-          {visibleNavItems.map((item) => {
+          {navItems.map((item) => {
             const isActive = telaAtual === item.id;
-            const isProdutosComItens = item.id === 'produtos' && itens.length > 0;
             
             return (
               <button
@@ -67,14 +56,6 @@ export default function Navigation() {
               >
                 <div className="relative">
                   {item.icon}
-                  {isProdutosComItens && (
-                    <Badge 
-                      variant="secondary" 
-                      className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs font-bold bg-accent text-accent-foreground"
-                    >
-                      {itens.length}
-                    </Badge>
-                  )}
                 </div>
                 <span className="text-xs mt-1 font-medium whitespace-nowrap">{item.shortLabel}</span>
               </button>
@@ -86,11 +67,9 @@ export default function Navigation() {
       {/* Desktop/Tablet: Menu horizontal tradicional */}
       <div className="hidden lg:block container mx-auto px-4">
         <div className="flex items-center justify-center h-12">
-          {/* Navegação Principal */}
           <div className="flex items-center gap-1">
-            {visibleNavItems.map((item) => {
+            {navItems.map((item) => {
               const isActive = telaAtual === item.id;
-              const isProdutosComItens = item.id === 'produtos' && itens.length > 0;
               
               return (
                 <button
@@ -104,14 +83,6 @@ export default function Navigation() {
                 >
                   {item.icon}
                   <span className="font-medium">{item.label}</span>
-                  {isProdutosComItens && (
-                    <Badge 
-                      variant="secondary" 
-                      className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                    >
-                      {itens.length}
-                    </Badge>
-                  )}
                 </button>
               );
             })}

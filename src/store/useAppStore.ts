@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 
-export type Tela = 'novo-pedido' | 'produtos' | 'resumo' | 'impressao' | 'historico' | 'admin' | 'clientes' | 'entregas' | 'orcamentos' | 'novo-orcamento';
+export type Tela = 'produtos' | 'resumo' | 'impressao' | 'historico' | 'admin' | 'clientes' | 'entregas' | 'orcamentos' | 'novo-orcamento';
 
 interface AppState {
   telaAtual: Tela;
@@ -15,7 +15,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  telaAtual: 'novo-pedido',
+  telaAtual: 'clientes', // Tela inicial
   setTela: (tela) => set({ telaAtual: tela }),
   
   pedidoParaImpressao: null,

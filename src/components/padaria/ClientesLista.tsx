@@ -1,13 +1,13 @@
 'use client';
 
 // ClientesLista - Padaria Paula
-// Lista de clientes cadastrados com opção de criar pedido
+// Lista de clientes cadastrados com opção de criar orçamento
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Phone, ShoppingBag, Plus, Edit, Trash2, AlertTriangle, MapPin, MessageCircle, FileText } from 'lucide-react';
+import { Search, Phone, Plus, Edit, Trash2, AlertTriangle, MapPin, MessageCircle, FileText, ChevronRight, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -23,10 +23,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { usePedidoStore } from '@/store/usePedidoStore';
 import { useOrcamentoStore } from '@/store/useOrcamentoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { formatarMoeda } from '@/store/usePedidoStore';
 
 interface Cliente {
   id: string;
@@ -40,8 +40,17 @@ interface Cliente {
   _count?: { pedidos: number };
 }
 
+interface PedidoCliente {
+  id: string;
+  numero: number;
+  createdAt: string;
+  total: number;
+  status: string;
+  dataEntrega: string;
+  tipoEntrega: string;
+}
+
 export default function ClientesLista() {
-  const { setCliente } = usePedidoStore();
   const { setCliente: setClienteOrcamento } = useOrcamentoStore();
   const { setTela } = useAppStore();
   const { toast } = useToast();
@@ -54,6 +63,12 @@ export default function ClientesLista() {
   const [modalAberto, setModalAberto] = useState(false);
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  
+  // Estado para modal de detalhes do cliente
+  const [clienteDetalhes, setClienteDetalhes] = useState<Cliente | null>(null);
+  const [pedidosCliente, setPedidosCliente] = useState<PedidoCliente[]>([]);
+  const [loadingPedidos, setLoadingPedidos] = useState(false);
+  const [modalDetalhesOpen, setModalDetalhesOpen] = useState(false);
 
   // Configuração para mensagem WhatsApp
   const [mensagemWhatsApp, setMensagemWhatsApp] = useState<string>('Olá {nome}! Como posso ajudar?');
@@ -99,7 +114,6 @@ export default function ClientesLista() {
     try {
       const response = await fetch('/api/clientes');
       const data = await response.json();
-      // Garantir que seja um array
       setClientes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
@@ -114,6 +128,28 @@ export default function ClientesLista() {
     }
   };
 
+  // Carregar pedidos do cliente
+  const carregarPedidosCliente = async (clienteId: string) => {
+    setLoadingPedidos(true);
+    try {
+      const response = await fetch(`/api/pedidos?clienteId=${clienteId}&limite=10`);
+      const data = await response.json();
+      setPedidosCliente(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao carregar pedidos:', error);
+      setPedidosCliente([]);
+    } finally {
+      setLoadingPedidos(false);
+    }
+  };
+
+  // Abrir detalhes do cliente
+  const handleVerDetalhes = (cliente: Cliente) => {
+    setClienteDetalhes(cliente);
+    setModalDetalhesOpen(true);
+    carregarPedidosCliente(cliente.id);
+  };
+
   // Filtrar clientes
   const clientesFiltrados = useMemo(() => {
     if (!Array.isArray(clientes)) return [];
@@ -125,31 +161,8 @@ export default function ClientesLista() {
     );
   }, [clientes, busca]);
 
-  // Iniciar novo pedido para cliente - seleciona cliente e vai para tela de novo pedido
-  const handleNovoPedido = (cliente: Cliente) => {
-    // Salva os dados do cliente incluindo endereço
-    setCliente({
-      id: cliente.id,
-      nome: cliente.nome,
-      telefone: cliente.telefone,
-      cpfCnpj: cliente.cpfCnpj || '',
-      tipoPessoa: (cliente.tipoPessoa as 'CPF' | 'CNPJ') || 'CPF',
-      endereco: cliente.endereco,
-      bairro: cliente.bairro,
-    });
-    
-    toast({
-      title: 'Cliente selecionado',
-      description: `Iniciando pedido para ${cliente.nome}`,
-    });
-    
-    // Vai para tela de novo pedido para preencher dados de entrega
-    setTela('novo-pedido');
-  };
-
   // Iniciar novo orçamento para cliente
   const handleNovoOrcamento = (cliente: Cliente) => {
-    // Salva os dados do cliente
     setClienteOrcamento({
       id: cliente.id,
       nome: cliente.nome,
@@ -165,7 +178,6 @@ export default function ClientesLista() {
       description: `Iniciando orçamento para ${cliente.nome}`,
     });
     
-    // Vai para tela de novo orçamento
     setTela('novo-orcamento');
   };
 
@@ -399,6 +411,28 @@ export default function ClientesLista() {
     }
   };
 
+  // Formatar status
+  const formatarStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'PENDENTE': 'Pendente',
+      'EM_PRODUCAO': 'Em Produção',
+      'PRONTO': 'Pronto',
+      'ENTREGUE': 'Entregue',
+    };
+    return statusMap[status] || status;
+  };
+
+  // Cor do status
+  const corStatus = (status: string) => {
+    const cores: Record<string, string> = {
+      'PENDENTE': 'bg-yellow-100 text-yellow-800',
+      'EM_PRODUCAO': 'bg-blue-100 text-blue-800',
+      'PRONTO': 'bg-green-100 text-green-800',
+      'ENTREGUE': 'bg-gray-100 text-gray-800',
+    };
+    return cores[status] || 'bg-gray-100 text-gray-800';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -436,14 +470,20 @@ export default function ClientesLista() {
             <Card key={cliente.id} className="card-padaria hover:shadow-md transition-shadow">
               <CardContent className="p-3">
                 {/* Dados do cliente */}
-                <div className="mb-2">
-                  <h4 className="font-semibold text-sm">{cliente.nome}</h4>
+                <button 
+                  onClick={() => handleVerDetalhes(cliente)}
+                  className="w-full text-left mb-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">{cliente.nome}</h4>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
                   {cliente._count && cliente._count.pedidos > 0 && (
                     <Badge variant="secondary" className="text-[10px] mt-0.5">
                       {cliente._count.pedidos} pedido{cliente._count.pedidos > 1 ? 's' : ''}
                     </Badge>
                   )}
-                </div>
+                </button>
                 
                 <div className="space-y-0.5 text-xs text-muted-foreground mb-3">
                   <div className="flex items-center gap-1.5">
@@ -468,26 +508,16 @@ export default function ClientesLista() {
                 </div>
 
                 <div className="flex gap-1.5">
-                  {/* Botão Pedido - MAIOR */}
+                  {/* Botão Orçamento */}
                   <Button
                     size="sm"
-                    className="flex-[2] btn-padaria h-9 text-xs"
-                    onClick={() => handleNovoPedido(cliente)}
-                  >
-                    <ShoppingBag className="w-4 h-4 mr-1" />
-                    Pedido
-                  </Button>
-                  {/* Botão Orçamento - MENOR */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-9 text-xs"
+                    className="flex-1 btn-padaria h-9 text-xs"
                     onClick={() => handleNovoOrcamento(cliente)}
                   >
-                    <FileText className="w-3 h-3 mr-1" />
-                    Orç.
+                    <FileText className="w-4 h-4 mr-1" />
+                    Orçamento
                   </Button>
-                  {/* Botões de ação */}
+                  {/* WhatsApp */}
                   <Button
                     size="sm"
                     variant="outline"
@@ -497,6 +527,7 @@ export default function ClientesLista() {
                   >
                     <MessageCircle className="w-4 h-4" />
                   </Button>
+                  {/* Editar */}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -506,6 +537,7 @@ export default function ClientesLista() {
                   >
                     <Edit className="w-3.5 h-3.5" />
                   </Button>
+                  {/* Excluir */}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -527,6 +559,101 @@ export default function ClientesLista() {
           </div>
         )}
       </ScrollArea>
+
+      {/* Modal de detalhes do cliente */}
+      <Dialog open={modalDetalhesOpen} onOpenChange={setModalDetalhesOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{clienteDetalhes?.nome}</DialogTitle>
+            <DialogDescription>
+              Detalhes do cliente e histórico de pedidos
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Dados do cliente */}
+            <div className="space-y-1 text-sm">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-green-600" />
+                <span>{clienteDetalhes?.telefone}</span>
+              </div>
+              {clienteDetalhes?.cpfCnpj && (
+                <div className="text-muted-foreground">
+                  {clienteDetalhes.tipoPessoa || 'CPF'}: {clienteDetalhes.cpfCnpj}
+                </div>
+              )}
+              {(clienteDetalhes?.endereco || clienteDetalhes?.bairro) && (
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>
+                    {clienteDetalhes?.endereco}
+                    {clienteDetalhes?.bairro && clienteDetalhes?.endereco && ', '}
+                    {clienteDetalhes?.bairro}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Histórico de pedidos */}
+            <div>
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Últimos Pedidos
+              </h4>
+              
+              {loadingPedidos ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+              ) : pedidosCliente.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado</p>
+              ) : (
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-2">
+                    {pedidosCliente.map((pedido) => (
+                      <div key={pedido.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm">
+                        <div>
+                          <div className="font-medium">#{pedido.numero.toString().padStart(4, '0')}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(pedido.createdAt).toLocaleDateString('pt-BR')}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-primary">{formatarMoeda(pedido.total)}</div>
+                          <Badge className={`text-[10px] ${corStatus(pedido.status)}`}>
+                            {formatarStatus(pedido.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+
+            {/* Botões */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setModalDetalhesOpen(false)}
+              >
+                Fechar
+              </Button>
+              <Button
+                className="flex-1 btn-padaria"
+                onClick={() => {
+                  if (clienteDetalhes) {
+                    handleNovoOrcamento(clienteDetalhes);
+                    setModalDetalhesOpen(false);
+                  }
+                }}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Novo Orçamento
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de edição/criação */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>

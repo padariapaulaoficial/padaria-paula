@@ -116,7 +116,7 @@ export default function NovoOrcamento() {
   const [etapa, setEtapa] = useState<'cliente' | 'produtos'>('cliente');
   
   // Estado unificado para seleções - mais eficiente
-  const [selecoes, setSelecoes] = useState<Record<string, {quantidade: number, tamanho?: string}>>({});
+  const [selecoes, setSelecoes] = useState<Record<string, {quantidade: number, tamanho?: string, observacao?: string}>>({});
 
   // Carregar produtos
   useEffect(() => {
@@ -305,6 +305,7 @@ export default function NovoOrcamento() {
         tipoVenda: 'UNIDADE',
         subtotal: preco,
         tamanho: selecao.tamanho,
+        observacao: selecao.observacao || undefined,
       });
 
       limparSelecao(produto.id);
@@ -403,92 +404,104 @@ export default function NovoOrcamento() {
     return (
       <div 
         key={produto.id}
-        className="flex items-center gap-2 p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
+        className="p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
       >
-        {/* Nome e preço */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm truncate">{produto.nome}</span>
+        <div className="flex items-center gap-2">
+          {/* Nome e preço */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm truncate">{produto.nome}</span>
+              {produto.tipoProduto === 'ESPECIAL' ? (
+                <Badge className="text-[10px] px-1 py-0 h-4 bg-primary text-primary-foreground">Torta</Badge>
+              ) : (
+                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                  {produto.tipoVenda === 'KG' ? <Scale className="w-3 h-3 mr-0.5" /> : <Hash className="w-3 h-3 mr-0.5" />}
+                  {produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                </Badge>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+                <span className="text-primary font-medium">
+                  {Object.entries(produto.precosTamanhos)
+                    .filter(([, preco]) => preco)
+                    .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
+                    .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
+                    .join(' ')}
+                </span>
+              ) : (
+                <span className="text-primary font-semibold">{formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Seletor */}
+          <div className="flex items-center gap-1 shrink-0">
             {produto.tipoProduto === 'ESPECIAL' ? (
-              <Badge className="text-[10px] px-1 py-0 h-4 bg-primary text-primary-foreground">Torta</Badge>
+              <>
+                {['P', 'M', 'G', 'GG']
+                  .filter(tam => produto.tamanhos?.includes(tam))
+                  .map(tam => (
+                    <Button
+                      key={tam}
+                      type="button"
+                      variant={selecao.tamanho === tam ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-7 w-7 p-0 text-xs ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
+                      onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
+                    >
+                      {tam}
+                    </Button>
+                  ))}
+              </>
+            ) : produto.tipoVenda === 'KG' ? (
+              <Select
+                value={selecao.quantidade?.toString() || '0'}
+                onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
+              >
+                <SelectTrigger className="h-7 w-20 text-xs">
+                  <SelectValue placeholder="Qtd" />
+                </SelectTrigger>
+                <SelectContent className="max-h-48">
+                  {OPCOES_KG.map((opcao) => (
+                    <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-xs">
+                      {opcao.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
-              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
-                {produto.tipoVenda === 'KG' ? <Scale className="w-3 h-3 mr-0.5" /> : <Hash className="w-3 h-3 mr-0.5" />}
-                {produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-              </Badge>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Qtd"
+                className="h-7 w-16 text-xs text-center"
+                value={selecao.quantidade || ''}
+                onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
+              />
             )}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-              <span className="text-primary font-medium">
-                {Object.entries(produto.precosTamanhos)
-                  .filter(([, preco]) => preco)
-                  .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
-                  .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
-                  .join(' ')}
-              </span>
-            ) : (
-              <span className="text-primary font-semibold">{formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}</span>
-            )}
-          </div>
-        </div>
 
-        {/* Seletor */}
-        <div className="flex items-center gap-1 shrink-0">
-          {produto.tipoProduto === 'ESPECIAL' ? (
-            <>
-              {['P', 'M', 'G', 'GG']
-                .filter(tam => produto.tamanhos?.includes(tam))
-                .map(tam => (
-                  <Button
-                    key={tam}
-                    type="button"
-                    variant={selecao.tamanho === tam ? 'default' : 'outline'}
-                    size="sm"
-                    className={`h-7 w-7 p-0 text-xs ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
-                    onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
-                  >
-                    {tam}
-                  </Button>
-                ))}
-            </>
-          ) : produto.tipoVenda === 'KG' ? (
-            <Select
-              value={selecao.quantidade?.toString() || '0'}
-              onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
+            {/* Botão adicionar */}
+            <Button
+              onClick={() => handleAdicionarProduto(produto)}
+              className="h-7 w-7 p-0 btn-padaria shrink-0"
+              disabled={!temSelecao}
             >
-              <SelectTrigger className="h-7 w-20 text-xs">
-                <SelectValue placeholder="Qtd" />
-              </SelectTrigger>
-              <SelectContent className="max-h-48">
-                {OPCOES_KG.map((opcao) => (
-                  <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-xs">
-                    {opcao.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              type="number"
-              min="1"
-              step="1"
-              placeholder="Qtd"
-              className="h-7 w-16 text-xs text-center"
-              value={selecao.quantidade || ''}
-              onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
-            />
-          )}
-
-          {/* Botão adicionar */}
-          <Button
-            onClick={() => handleAdicionarProduto(produto)}
-            className="h-7 w-7 p-0 btn-padaria shrink-0"
-            disabled={!temSelecao}
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
+        
+        {/* Campo observação para torta especial */}
+        {produto.tipoProduto === 'ESPECIAL' && selecao.tamanho && (
+          <Input
+            placeholder="Observação (ex: sem cebola, mais queijo...)"
+            className="h-7 text-xs mt-2"
+            value={selecao.observacao || ''}
+            onChange={(e) => atualizarSelecao(produto.id, { observacao: e.target.value })}
+          />
+        )}
       </div>
     );
   }, [selecoes, atualizarSelecao, handleAdicionarProduto]);
