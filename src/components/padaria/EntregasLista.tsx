@@ -4,7 +4,7 @@
 // Lista de pedidos TELE ENTREGA pendentes
 
 import { useState, useEffect } from 'react';
-import { Truck, RefreshCw, Eye, Check, MapPin, Phone, MessageCircle, Clock, Calendar } from 'lucide-react';
+import { Truck, RefreshCw, Eye, Check, MapPin, Phone, Clock, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,15 +50,6 @@ interface Pedido {
   createdAt: string;
 }
 
-interface Configuracao {
-  id?: string;
-  nomeLoja: string;
-  endereco: string;
-  telefone: string;
-  cnpj: string;
-  mensagemWhatsApp?: string | null;
-}
-
 export default function EntregasLista() {
   const { toast } = useToast();
 
@@ -66,15 +57,6 @@ export default function EntregasLista() {
   const [loading, setLoading] = useState(true);
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [config, setConfig] = useState<Configuracao | null>(null);
-
-  // Carregar configurações
-  useEffect(() => {
-    fetch('/api/configuracao')
-      .then(res => res.json())
-      .then(setConfig)
-      .catch(console.error);
-  }, []);
 
   // Carregar pedidos TELE_ENTREGA pendentes
   const carregarPedidos = async () => {
@@ -175,25 +157,6 @@ export default function EntregasLista() {
     }
   };
 
-  // Abrir WhatsApp
-  const handleAbrirWhatsApp = (pedido: Pedido) => {
-    // Limpar telefone (remover caracteres não numéricos)
-    const telefone = pedido.cliente.telefone.replace(/\D/g, '');
-    // Adicionar código do Brasil se necessário
-    const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
-
-    // Substituir variáveis na mensagem
-    let mensagem = config?.mensagemWhatsApp || 'Olá {nome}! Seu pedido está pronto para entrega.';
-    mensagem = mensagem.replace('{nome}', pedido.cliente.nome);
-    mensagem = mensagem.replace('{pedido}', formatarNumeroPedido(pedido.numero));
-
-    // Codificar mensagem para URL
-    const mensagemCodificada = encodeURIComponent(mensagem);
-
-    // Abrir WhatsApp
-    window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
-  };
-
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
@@ -276,15 +239,6 @@ export default function EntregasLista() {
 
                     {/* Ações */}
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAbrirWhatsApp(pedido)}
-                        className="h-9 text-green-600 border-green-300 hover:bg-green-50"
-                      >
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        WhatsApp
-                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -399,14 +353,6 @@ export default function EntregasLista() {
 
               {/* Ações */}
               <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 text-green-600 border-green-300 hover:bg-green-50"
-                  onClick={() => handleAbrirWhatsApp(pedidoSelecionado)}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  WhatsApp
-                </Button>
                 <Button
                   className="flex-1 btn-padaria"
                   onClick={() => handleMarcarEntregue(pedidoSelecionado)}

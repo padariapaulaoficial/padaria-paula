@@ -4,11 +4,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// Mensagens padrão
+const MENSAGENS_PADRAO = {
+  mensagemOrcamento: 'Olá {nome}! Segue seu orçamento.',
+  mensagemProntoRetirada: 'Olá {nome}! Seu pedido #{pedido} está *PRONTO* e esperando por você! Pode vir buscar quando quiser. 🍰 Agradecemos pela preferência! 🙏',
+  mensagemProntoEntrega: 'Olá {nome}! Seu pedido #{pedido} está *PRONTO* e já está a caminho! 🚚 Agradecemos pela preferência! 🙏',
+};
+
 // GET - Buscar configurações
 export async function GET() {
   try {
     let config = await db.configuracao.findFirst();
-    
+
     // Criar configuração padrão se não existir
     if (!config) {
       try {
@@ -19,6 +26,9 @@ export async function GET() {
             telefone: '(11) 99999-9999',
             senha: '2026',
             senhaAdmin: '2026',
+            mensagemOrcamento: MENSAGENS_PADRAO.mensagemOrcamento,
+            mensagemProntoRetirada: MENSAGENS_PADRAO.mensagemProntoRetirada,
+            mensagemProntoEntrega: MENSAGENS_PADRAO.mensagemProntoEntrega,
           },
         });
       } catch (createError) {
@@ -32,14 +42,14 @@ export async function GET() {
           cnpj: '',
           logoUrl: null,
           mensagemWhatsApp: null,
-          mensagemOrcamento: null,
-          mensagemProntoRetirada: null,
-          mensagemProntoEntrega: null,
+          mensagemOrcamento: MENSAGENS_PADRAO.mensagemOrcamento,
+          mensagemProntoRetirada: MENSAGENS_PADRAO.mensagemProntoRetirada,
+          mensagemProntoEntrega: MENSAGENS_PADRAO.mensagemProntoEntrega,
         });
       }
     }
-    
-    // Garantir que todos os campos existam
+
+    // Garantir que todos os campos existam com valores padrão
     const configCompleta = {
       id: config.id,
       nomeLoja: config.nomeLoja || 'Padaria e Confeitaria Paula',
@@ -48,11 +58,11 @@ export async function GET() {
       cnpj: (config as any).cnpj || '',
       logoUrl: (config as any).logoUrl || null,
       mensagemWhatsApp: (config as any).mensagemWhatsApp || null,
-      mensagemOrcamento: (config as any).mensagemOrcamento || null,
-      mensagemProntoRetirada: (config as any).mensagemProntoRetirada || null,
-      mensagemProntoEntrega: (config as any).mensagemProntoEntrega || null,
+      mensagemOrcamento: (config as any).mensagemOrcamento || MENSAGENS_PADRAO.mensagemOrcamento,
+      mensagemProntoRetirada: (config as any).mensagemProntoRetirada || MENSAGENS_PADRAO.mensagemProntoRetirada,
+      mensagemProntoEntrega: (config as any).mensagemProntoEntrega || MENSAGENS_PADRAO.mensagemProntoEntrega,
     };
-    
+
     return NextResponse.json(configCompleta);
   } catch (error) {
     console.error('Erro ao buscar configurações:', error);
@@ -101,6 +111,10 @@ export async function PUT(request: NextRequest) {
           telefone,
           cnpj,
           logoUrl,
+          mensagemWhatsApp,
+          mensagemOrcamento,
+          mensagemProntoRetirada,
+          mensagemProntoEntrega,
         },
       });
       return NextResponse.json(config);
