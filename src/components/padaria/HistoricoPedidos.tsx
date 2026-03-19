@@ -1006,10 +1006,27 @@ export default function HistoricoPedidos() {
                 {/* Interface de adição de produtos */}
                 {modoAdicao && (
                   <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border space-y-3">
-                    <h5 className="font-semibold text-sm flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
-                      Adicionar Produto
-                    </h5>
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-semibold text-sm flex items-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        Adicionar Produto
+                      </h5>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setModoAdicao(false);
+                          setProdutoSelecionado(null);
+                          setQuantidadeAdicionar('');
+                          setTamanhoSelecionado('');
+                          setObservacaoNovoItem('');
+                          setBuscaProduto('');
+                        }}
+                        className="h-7 w-7 p-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
                     
                     {/* Busca de produto */}
                     <div className="relative">
