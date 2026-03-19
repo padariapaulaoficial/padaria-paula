@@ -165,7 +165,7 @@ export default function CategoriasPDV() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in pb-24 lg:pb-0">
+    <div className="space-y-4 animate-fade-in">
       {/* Cliente Selecionado + Dados de Entrega */}
       {cliente && (
         <Card className="card-padaria border-primary/30 bg-primary/5">
@@ -311,40 +311,6 @@ export default function CategoriasPDV() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-
-      {/* Carrinho Resumo - Mobile */}
-      {itens.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-40 safe-area-bottom">
-          <div className="p-2 space-y-2">
-            {/* Total */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">{itens.length} {itens.length === 1 ? 'item' : 'itens'}</Badge>
-              </div>
-              <span className="font-bold text-lg text-primary">{formatarMoeda(total)}</span>
-            </div>
-
-            {/* Botões */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 h-9"
-                onClick={() => setTela('novo-pedido')}
-              >
-                Cliente
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1 btn-padaria h-9"
-                onClick={() => setTela('resumo')}
-              >
-                Ver Pedido
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
