@@ -231,8 +231,9 @@ export function gerarCupomCliente(
   
   for (const item of pedido.itens) {
     // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
-      ? `${item.produto.nome} (${item.tamanho})`
+      ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
     const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
@@ -299,8 +300,9 @@ export function gerarCupomCozinha(
   // Itens
   for (const item of pedido.itens) {
     // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
-      ? `${item.produto.nome} (${item.tamanho})`
+      ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
     const nome = truncar(nomeCompleto.toUpperCase(), 36).padEnd(36);
     const qtdProd = item.quantidadePedida || item.quantidade;
@@ -372,8 +374,9 @@ export function gerarCupomCozinhaGrande(
     }
     
     // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
-      ? `${item.produto.nome} (${item.tamanho})`
+      ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
     const produto = nomeCompleto.toUpperCase();
     linhas.push(`  ${qtdStr}  ${produto}`);
@@ -583,8 +586,9 @@ export function gerarCupomOrcamento(
   
   for (const item of orcamento.itens) {
     // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
-      ? `${item.produto.nome} (${item.tamanho})`
+      ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
     const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
