@@ -11,7 +11,8 @@ import {
   Settings,
   Users,
   Truck,
-  FileText
+  FileText,
+  Home
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -27,8 +28,9 @@ export default function Navigation() {
   const { telaAtual, setTela } = useAppStore();
   const { itens, cliente } = usePedidoStore();
 
-  // Itens de navegação - sem "novo pedido"
+  // Itens de navegação
   const navItems: NavItem[] = [
+    { id: 'novo-pedido', label: 'PDV', shortLabel: 'PDV', icon: <Home className="w-6 h-6 sm:w-5 sm:h-5" /> },
     { id: 'clientes', label: 'Clientes', shortLabel: 'Clientes', icon: <Users className="w-6 h-6 sm:w-5 sm:h-5" /> },
     { id: 'orcamentos', label: 'Orçamentos', shortLabel: 'Orçamentos', icon: <FileText className="w-6 h-6 sm:w-5 sm:h-5" /> },
     { id: 'historico', label: 'Histórico', shortLabel: 'Histórico', icon: <History className="w-6 h-6 sm:w-5 sm:h-5" /> },

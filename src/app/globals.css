@@ -144,9 +144,9 @@
   --sidebar-ring: #D7A86E;
 }
 
-/* Zoom padrão de 80% para visualização */
+/* Visualização em 100% */
 html {
-  zoom: 0.8;
+  zoom: 1;
 }
 
 @layer base {
