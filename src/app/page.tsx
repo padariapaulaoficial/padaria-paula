@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import Header from '@/components/padaria/Header';
 import NovoPedido from '@/components/padaria/NovoPedido';
-import ProdutosLista from '@/components/padaria/ProdutosLista';
+import CategoriasPDV from '@/components/padaria/CategoriasPDV';
 import Carrinho from '@/components/padaria/Carrinho';
 import ResumoPedido from '@/components/padaria/ResumoPedido';
 import ImpressaoManager from '@/components/padaria/ImpressaoManager';
@@ -92,7 +92,7 @@ export default function Page() {
         return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 h-full">
             <div className={`lg:col-span-2 ${itens.length > 0 ? 'pb-20 lg:pb-0' : ''}`}>
-              <ProdutosLista />
+              <CategoriasPDV />
             </div>
             <div className="lg:col-span-1 hidden lg:block">
               <Carrinho />
