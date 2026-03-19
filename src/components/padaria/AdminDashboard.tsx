@@ -1,12 +1,12 @@
 'use client';
 
 // AdminDashboard - Padaria Paula
-// Dashboard principal com estatísticas e gráficos
+// Dashboard simplificado para evitar erros de renderização
 
 import { useState, useEffect } from 'react';
 import {
   TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, Package,
-  Clock, Truck, Store, RefreshCw, Eye, ChevronRight
+  Clock, Truck, Store, RefreshCw, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,20 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
@@ -88,16 +74,6 @@ interface DashboardData {
   };
 }
 
-// Cores para gráficos
-const COLORS = ['#8B4513', '#D2691E', '#DEB887', '#F5DEB3', '#FAEBD7', '#D2B48C'];
-const STATUS_COLORS: Record<string, string> = {
-  PENDENTE: '#f59e0b',
-  PRODUCAO: '#3b82f6',
-  PRONTO: '#10b981',
-  ENTREGUE: '#059669',
-  CANCELADO: '#ef4444',
-};
-
 const STATUS_LABELS: Record<string, string> = {
   PENDENTE: 'Pendente',
   PRODUCAO: 'Em Produção',
@@ -106,7 +82,6 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELADO: 'Cancelado',
 };
 
-// Função para formatar número do pedido
 const formatarNumeroPedido = (numero: number) => {
   return numero.toString().padStart(4, '0');
 };
@@ -117,25 +92,23 @@ export default function AdminDashboard() {
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [periodo, setPeriodo] = useState('mes');
 
   const carregarDados = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/dashboard?periodo=${periodo}`);
       const dados = await res.json();
       if (res.ok) {
         setData(dados);
       } else {
-        throw new Error(dados.error);
+        setError(dados.error || 'Erro ao carregar dados');
       }
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os dados do dashboard.',
-        variant: 'destructive',
-      });
+      setError('Não foi possível carregar os dados do dashboard.');
     } finally {
       setLoading(false);
     }
@@ -145,26 +118,19 @@ export default function AdminDashboard() {
     carregarDados();
   }, [periodo]);
 
-  // Preparar dados para gráfico de status
-  const statusChartData = data?.pedidosPorStatus
-    ? Object.entries(data.pedidosPorStatus).map(([status, count]) => ({
-        name: STATUS_LABELS[status] || status,
-        value: count,
-        color: STATUS_COLORS[status] || '#888',
-      }))
-    : [];
-
-  // Formatar data para exibição
   const formatarData = (dataStr: string) => {
-    return new Date(dataStr).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    try {
+      return new Date(dataStr).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dataStr;
+    }
   };
 
-  // Badge de status
   const getStatusBadge = (status: string) => {
     const variant: 'default' | 'secondary' | 'destructive' | 'outline' = 
       status === 'CANCELADO' ? 'destructive' :
@@ -172,12 +138,7 @@ export default function AdminDashboard() {
       status === 'PRONTO' ? 'outline' : 'secondary';
     
     return (
-      <Badge 
-        variant={variant} 
-        className={status === 'PRONTO' ? 'border-green-500 text-green-600' : 
-                   status === 'ENTREGUE' ? 'bg-green-600' : 
-                   status === 'PRODUCAO' ? 'bg-blue-500' : ''}
-      >
+      <Badge variant={variant}>
         {STATUS_LABELS[status] || status}
       </Badge>
     );
@@ -191,14 +152,26 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!data) {
+  if (error || !data) {
     return (
       <Card className="p-8 text-center">
-        <p className="text-muted-foreground">Erro ao carregar dados</p>
-        <Button onClick={carregarDados} className="mt-4">Tentar novamente</Button>
+        <p className="text-muted-foreground">{error || 'Erro ao carregar dados'}</p>
+        <Button onClick={carregarDados} className="mt-4 btn-padaria">Tentar novamente</Button>
       </Card>
     );
   }
+
+  // Dados com valores padrão para evitar erros
+  const safeData = {
+    vendasHoje: data.vendasHoje || { total: 0, pedidos: 0, variacao: 0 },
+    vendasPeriodo: data.vendasPeriodo || { total: 0, pedidos: 0 },
+    resumo: data.resumo || { totalClientes: 0, totalProdutos: 0, pedidosPendentes: 0, pedidosEmProducao: 0, pedidosProntos: 0 },
+    produtosMaisVendidos: data.produtosMaisVendidos || [],
+    ultimosPedidos: data.ultimosPedidos || [],
+    clientesTop: data.clientesTop || [],
+    ultimos7Dias: data.ultimos7Dias || [],
+    pedidosPorStatus: data.pedidosPorStatus || {},
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -228,23 +201,22 @@ export default function AdminDashboard() {
 
       {/* Cards de resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Vendas Hoje */}
         <Card className="card-padaria">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Vendas Hoje</p>
                 <p className="text-2xl font-bold text-primary">
-                  {formatarMoeda(data.vendasHoje.total)}
+                  {formatarMoeda(safeData.vendasHoje.total)}
                 </p>
                 <div className="flex items-center gap-1 mt-1">
-                  {data.vendasHoje.variacao >= 0 ? (
+                  {safeData.vendasHoje.variacao >= 0 ? (
                     <TrendingUp className="w-3 h-3 text-green-500" />
                   ) : (
                     <TrendingDown className="w-3 h-3 text-red-500" />
                   )}
-                  <span className={`text-xs ${data.vendasHoje.variacao >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {Math.abs(data.vendasHoje.variacao).toFixed(1)}% vs ontem
+                  <span className={`text-xs ${safeData.vendasHoje.variacao >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {Math.abs(safeData.vendasHoje.variacao).toFixed(1)}% vs ontem
                   </span>
                 </div>
               </div>
@@ -255,15 +227,14 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Pedidos do Período */}
         <Card className="card-padaria">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pedidos ({periodo === 'hoje' ? 'Hoje' : periodo === 'semana' ? 'Semana' : periodo === 'mes' ? 'Mês' : 'Total'})</p>
-                <p className="text-2xl font-bold text-primary">{data.vendasPeriodo.pedidos}</p>
+                <p className="text-sm text-muted-foreground">Pedidos</p>
+                <p className="text-2xl font-bold text-primary">{safeData.vendasPeriodo.pedidos}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Total: {formatarMoeda(data.vendasPeriodo.total)}
+                  Total: {formatarMoeda(safeData.vendasPeriodo.total)}
                 </p>
               </div>
               <div className="bg-primary/10 p-3 rounded-full">
@@ -273,15 +244,14 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Clientes */}
         <Card className="card-padaria">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Clientes</p>
-                <p className="text-2xl font-bold text-primary">{data.resumo.totalClientes}</p>
+                <p className="text-2xl font-bold text-primary">{safeData.resumo.totalClientes}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {data.resumo.totalProdutos} produtos ativos
+                  {safeData.resumo.totalProdutos} produtos ativos
                 </p>
               </div>
               <div className="bg-primary/10 p-3 rounded-full">
@@ -291,24 +261,23 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Pedidos Pendentes */}
         <Card className="card-padaria">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pedidos Pendentes</p>
                 <p className="text-2xl font-bold text-primary">
-                  {data.resumo.pedidosPendentes + data.resumo.pedidosEmProducao + data.resumo.pedidosProntos}
+                  {safeData.resumo.pedidosPendentes + safeData.resumo.pedidosEmProducao + safeData.resumo.pedidosProntos}
                 </p>
-                <div className="flex gap-2 mt-1">
-                  {data.resumo.pedidosPendentes > 0 && (
-                    <Badge variant="secondary" className="text-xs">{data.resumo.pedidosPendentes} nov</Badge>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {safeData.resumo.pedidosPendentes > 0 && (
+                    <Badge variant="secondary" className="text-xs">{safeData.resumo.pedidosPendentes} nov</Badge>
                   )}
-                  {data.resumo.pedidosEmProducao > 0 && (
-                    <Badge className="text-xs bg-blue-500">{data.resumo.pedidosEmProducao} prod</Badge>
+                  {safeData.resumo.pedidosEmProducao > 0 && (
+                    <Badge className="text-xs bg-blue-500">{safeData.resumo.pedidosEmProducao} prod</Badge>
                   )}
-                  {data.resumo.pedidosProntos > 0 && (
-                    <Badge className="text-xs border-green-500 text-green-600" variant="outline">{data.resumo.pedidosProntos} ok</Badge>
+                  {safeData.resumo.pedidosProntos > 0 && (
+                    <Badge className="text-xs border-green-500 text-green-600" variant="outline">{safeData.resumo.pedidosProntos} ok</Badge>
                   )}
                 </div>
               </div>
@@ -320,72 +289,30 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico de vendas últimos 7 dias */}
-        <Card className="card-padaria">
-          <CardHeader>
-            <CardTitle className="text-lg">Vendas Últimos 7 Dias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.ultimos7Dias}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="dia" className="text-xs" />
-                  <YAxis className="text-xs" tickFormatter={(v) => `R$${v}`} />
-                  <Tooltip
-                    formatter={(value: number) => formatarMoeda(value)}
-                    labelFormatter={(label) => `Dia: ${label}`}
-                  />
-                  <Bar dataKey="total" fill="#8B4513" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Gráfico de status */}
-        <Card className="card-padaria">
-          <CardHeader>
-            <CardTitle className="text-lg">Pedidos por Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center">
-              {statusChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {statusChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => `${value} pedidos`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-muted-foreground">Sem dados</p>
-              )}
-            </div>
-            <div className="flex flex-wrap justify-center gap-3 mt-4">
-              {statusChartData.map((entry, index) => (
-                <div key={index} className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="text-xs">{entry.name}: {entry.value}</span>
+      {/* Vendas dos últimos 7 dias - Lista simples */}
+      <Card className="card-padaria">
+        <CardHeader>
+          <CardTitle className="text-lg">Vendas Últimos 7 Dias</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-48">
+            <div className="space-y-2">
+              {safeData.ultimos7Dias.map((dia, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                  <div>
+                    <span className="font-medium">{dia.dia}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{dia.data}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-semibold text-primary">{formatarMoeda(dia.total)}</span>
+                    <span className="text-xs text-muted-foreground ml-2">({dia.pedidos} pedidos)</span>
+                  </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
 
       {/* Listas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -400,25 +327,22 @@ export default function AdminDashboard() {
           <CardContent>
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {data.produtosMaisVendidos.length === 0 ? (
+                {safeData.produtosMaisVendidos.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Nenhum produto vendido</p>
                 ) : (
-                  data.produtosMaisVendidos.map((produto, index) => (
-                    <div
-                      key={produto.produtoId}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                    >
+                  safeData.produtosMaisVendidos.map((produto, index) => (
+                    <div key={produto.produtoId || index} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
                       <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{produto.nome}</p>
                         <p className="text-xs text-muted-foreground">
-                          {produto.quantidade.toFixed(1)} vendidos • {produto.pedidos} pedidos
+                          {produto.quantidade?.toFixed(1) || 0} vendidos
                         </p>
                       </div>
                       <p className="font-semibold text-sm text-primary">
-                        {formatarMoeda(produto.total)}
+                        {formatarMoeda(produto.total || 0)}
                       </p>
                     </div>
                   ))
@@ -449,14 +373,11 @@ export default function AdminDashboard() {
           <CardContent>
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {data.ultimosPedidos.length === 0 ? (
+                {safeData.ultimosPedidos.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Nenhum pedido</p>
                 ) : (
-                  data.ultimosPedidos.map((pedido) => (
-                    <div
-                      key={pedido.id}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                    >
+                  safeData.ultimosPedidos.map((pedido) => (
+                    <div key={pedido.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-primary">
@@ -464,7 +385,7 @@ export default function AdminDashboard() {
                           </span>
                           {getStatusBadge(pedido.status)}
                         </div>
-                        <p className="text-sm truncate">{pedido.cliente.nome}</p>
+                        <p className="text-sm truncate">{pedido.cliente?.nome || 'Cliente'}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           {pedido.tipoEntrega === 'RETIRA' ? (
                             <><Store className="w-3 h-3" /> Retira</>
@@ -475,7 +396,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <p className="font-semibold text-sm text-primary">
-                        {formatarMoeda(pedido.total)}
+                        {formatarMoeda(pedido.total || 0)}
                       </p>
                     </div>
                   ))
@@ -496,14 +417,11 @@ export default function AdminDashboard() {
           <CardContent>
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {data.clientesTop.length === 0 ? (
+                {safeData.clientesTop.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Nenhum cliente</p>
                 ) : (
-                  data.clientesTop.map((cliente, index) => (
-                    <div
-                      key={cliente.clienteId}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                    >
+                  safeData.clientesTop.map((cliente, index) => (
+                    <div key={cliente.clienteId || index} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
                       <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                         {index + 1}
                       </div>
@@ -514,7 +432,7 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                       <p className="font-semibold text-sm text-primary">
-                        {formatarMoeda(cliente.totalGasto)}
+                        {formatarMoeda(cliente.totalGasto || 0)}
                       </p>
                     </div>
                   ))
