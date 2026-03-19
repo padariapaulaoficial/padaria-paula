@@ -144,11 +144,6 @@
   --sidebar-ring: #D7A86E;
 }
 
-/* Zoom padrão de 80% para visualização */
-html {
-  zoom: 0.8;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;

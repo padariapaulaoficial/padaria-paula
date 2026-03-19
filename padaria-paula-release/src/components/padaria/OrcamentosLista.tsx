@@ -1,13 +1,14 @@
 'use client';
 
 // OrcamentosLista - Padaria Paula
-// Lista de orçamentos com ações de aprovar/rejeitar
+// Lista de orçamentos com ações de aprovar/rejeitar e compartilhar
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Search, RefreshCw, Eye, Check, X, FileText, Calendar, Trash2,
-  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send
+  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, Share2
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +28,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
-import { useAppStore } from '@/store/useAppStore';
 import {
   gerarCupomOrcamento,
   imprimirViaDialogo,
@@ -84,6 +84,8 @@ export default function OrcamentosLista() {
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [config, setConfig] = useState<ConfiguracaoCupom | null>(null);
+  const [compartilhando, setCompartilhando] = useState(false);
+  const orcamentoRef = useRef<HTMLDivElement>(null);
 
   // Carregar configurações
   useEffect(() => {
@@ -193,62 +195,6 @@ export default function OrcamentosLista() {
     });
   };
 
-  // Enviar orçamento via WhatsApp
-  const handleEnviarWhatsApp = (orcamento: Orcamento) => {
-    const telefone = orcamento.cliente.telefone.replace(/\D/g, '');
-    const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
-    
-    // Montar mensagem cordial
-    let mensagem = `*Padaria e Confeitaria Paula*\n\n`;
-    mensagem += `Ola, *${orcamento.cliente.nome}*! Tudo bem?\n\n`;
-    mensagem += `Preparamos um orcamento especial para voce:\n`;
-    mensagem += `*Orcamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
-    
-    // Itens
-    mensagem += `*Itens:*\n`;
-    orcamento.itens.forEach(item => {
-      const qtd = item.quantidade % 1 === 0
-        ? item.quantidade.toString()
-        : item.quantidade.toFixed(2).replace('.', ',');
-      const tipo = item.produto.tipoVenda === 'KG' ? 'kg' : 'un';
-      mensagem += `• ${item.produto.nome}${item.tamanho ? ` (${item.tamanho})` : ''} - ${qtd} ${tipo === 'kg' ? 'kg' : 'unidades'} = R$ ${item.subtotal.toFixed(2).replace('.', ',')}\n`;
-      if (item.observacao) {
-        mensagem += `  _${item.observacao}_\n`;
-      }
-    });
-    
-    mensagem += `\n*Total: R$ ${orcamento.total.toFixed(2).replace('.', ',')}*\n\n`;
-    
-    // Entrega
-    mensagem += `*Entrega:* ${formatarDataEntrega(orcamento.dataEntrega)}`;
-    if (orcamento.horarioEntrega) {
-      mensagem += ` as ${orcamento.horarioEntrega}`;
-    }
-    mensagem += `\n`;
-    
-    if (orcamento.tipoEntrega === 'RETIRA') {
-      mensagem += `Retirada no local\n`;
-    } else {
-      mensagem += `Tele Entrega`;
-      if (orcamento.enderecoEntrega) {
-        mensagem += `\n${orcamento.enderecoEntrega}`;
-        if (orcamento.bairroEntrega) {
-          mensagem += ` - ${orcamento.bairroEntrega}`;
-        }
-      }
-      mensagem += `\n`;
-    }
-    
-    if (orcamento.observacoes) {
-      mensagem += `\nObs: ${orcamento.observacoes}\n`;
-    }
-    
-    mensagem += `\nAguardamos sua aprovacao! Se precisar de qualquer alteracao, e so nos chamar. Obrigada pela preferencia!`;
-    
-    const mensagemCodificada = encodeURIComponent(mensagem);
-    window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
-  };
-
   // Aprovar orçamento e converter para pedido
   const handleAprovar = async (orcamento: Orcamento) => {
     setProcessando(true);
@@ -277,10 +223,6 @@ export default function OrcamentosLista() {
       // Remover da lista local
       setOrcamentos(prev => prev.filter(o => o.id !== orcamento.id));
       setDialogOpen(false);
-      
-      // Direcionar para histórico
-      const { setTela } = useAppStore.getState();
-      setTela('historico');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
       toast({
@@ -368,6 +310,154 @@ export default function OrcamentosLista() {
         description: 'Não foi possível excluir o orçamento.',
         variant: 'destructive',
       });
+    }
+  };
+
+  // Compartilhar orçamento via WhatsApp
+  const handleCompartilharWhatsApp = async (orcamento: Orcamento) => {
+    setCompartilhando(true);
+    try {
+      // Criar elemento temporário para gerar imagem
+      const tempDiv = document.createElement('div');
+      tempDiv.style.cssText = `
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+        width: 400px;
+        padding: 20px;
+        background: white;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+      
+      // Formatar data
+      const dataFormatada = new Date(orcamento.createdAt).toLocaleDateString('pt-BR');
+      const dataEntrega = orcamento.dataEntrega 
+        ? new Date(orcamento.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR') 
+        : '';
+      
+      // Gerar HTML do orçamento
+      tempDiv.innerHTML = `
+        <div style="font-family: system-ui, -apple-system, sans-serif;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="font-size: 20px; font-weight: bold; margin: 0; color: #8B4513;">
+              ${config?.nomeLoja || 'Padaria Paula'}
+            </h1>
+            <p style="font-size: 12px; color: #666; margin: 5px 0;">
+              ORÇAMENTO #${orcamento.numero.toString().padStart(4, '0')}
+            </p>
+            <p style="font-size: 12px; color: #666; margin: 5px 0;">
+              ${dataFormatada}
+            </p>
+          </div>
+          
+          <div style="border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; padding: 10px 0; margin-bottom: 15px;">
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Cliente:</strong> ${orcamento.cliente.nome}</p>
+            <p style="margin: 5px 0; font-size: 14px;"><strong>Telefone:</strong> ${orcamento.cliente.telefone}</p>
+            <p style="margin: 5px 0; font-size: 14px;">
+              <strong>Entrega:</strong> 
+              ${orcamento.tipoEntrega === 'RETIRA' ? 'Cliente Retira' : 'Tele Entrega'}
+              ${dataEntrega ? ` - ${dataEntrega}` : ''}
+              ${orcamento.horarioEntrega ? ` às ${orcamento.horarioEntrega}` : ''}
+            </p>
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #333;">ITENS</h3>
+            ${orcamento.itens.map(item => `
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                <div>
+                  <p style="margin: 0; font-size: 14px; font-weight: 500;">${item.produto.nome}</p>
+                  <p style="margin: 0; font-size: 12px; color: #666;">
+                    ${formatarQuantidade(item.quantidade, item.produto.tipoVenda)} × ${formatarMoeda(item.valorUnit)}
+                    ${item.observacao ? `<br/><em>(${item.observacao})</em>` : ''}
+                  </p>
+                </div>
+                <p style="margin: 0; font-size: 14px; font-weight: 500;">${formatarMoeda(item.subtotal)}</p>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; text-align: right;">
+            <p style="margin: 0; font-size: 18px; font-weight: bold; color: #8B4513;">
+              TOTAL: ${formatarMoeda(orcamento.total)}
+            </p>
+          </div>
+          
+          ${orcamento.observacoes ? `
+            <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px;">
+              <p style="margin: 0; font-size: 12px; color: #856404;">
+                <strong>Obs:</strong> ${orcamento.observacoes}
+              </p>
+            </div>
+          ` : ''}
+          
+          <div style="margin-top: 15px; text-align: center;">
+            <p style="font-size: 12px; color: #8B4513; margin: 0;">
+              ✨ Aguardando aprovação ✨
+            </p>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(tempDiv);
+      
+      // Gerar imagem com html2canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+      });
+      
+      // Remover elemento temporário
+      document.body.removeChild(tempDiv);
+      
+      // Converter para blob e fazer download
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        
+        try {
+          // Compartilhar via Web Share API (funciona no mobile)
+          if (navigator.share && navigator.canShare) {
+            const file = new File([blob], `orcamento-${orcamento.numero}.png`, { type: 'image/png' });
+            await navigator.share({
+              title: `Orçamento #${orcamento.numero.toString().padStart(4, '0')}`,
+              text: `Orçamento para ${orcamento.cliente.nome} - ${formatarMoeda(orcamento.total)}`,
+              files: [file],
+            });
+            toast({
+              title: 'Compartilhado!',
+              description: 'Orçamento compartilhado com sucesso.',
+            });
+          } else {
+            // Fallback: abrir WhatsApp com texto
+            const telefone = orcamento.cliente.telefone.replace(/\D/g, '');
+            const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
+            const mensagem = encodeURIComponent(
+              `*Orçamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n` +
+              `Cliente: ${orcamento.cliente.nome}\n` +
+              `Valor: ${formatarMoeda(orcamento.total)}\n\n` +
+              `Itens:\n${orcamento.itens.map(i => `- ${i.produto.nome} (${formatarQuantidade(i.quantidade, i.produto.tipoVenda)})`).join('\n')}\n\n` +
+              `Aguardando aprovação!`
+            );
+            window.open(`https://wa.me/${telefoneCompleto}?text=${mensagem}`, '_blank');
+            toast({
+              title: 'WhatsApp aberto!',
+              description: 'Envie a mensagem com os detalhes do orçamento.',
+            });
+          }
+        } catch (shareError) {
+          console.log('Share cancelled or failed:', shareError);
+        }
+      }, 'image/png');
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      toast({
+        title: 'Erro ao compartilhar',
+        description: 'Não foi possível compartilhar o orçamento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCompartilhando(false);
     }
   };
 
@@ -480,6 +570,16 @@ export default function OrcamentosLista() {
                           >
                             <Printer className="w-4 h-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCompartilharWhatsApp(orcamento)}
+                            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            title="Compartilhar WhatsApp"
+                            disabled={compartilhando}
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </Button>
                           {orcamento.status === 'PENDENTE' && (
                             <>
                               <Button
@@ -524,9 +624,9 @@ export default function OrcamentosLista() {
 
       {/* Dialog de detalhes */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="flex items-center gap-2 text-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
               Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
             </DialogTitle>
@@ -536,120 +636,112 @@ export default function OrcamentosLista() {
           </DialogHeader>
 
           {orcamentoSelecionado && (
-            <div className="space-y-3">
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                {getStatusBadge(orcamentoSelecionado.status)}
-              </div>
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full flex flex-col">
+                {/* Status */}
+                <div className="flex items-center gap-2 mb-4">
+                  {getStatusBadge(orcamentoSelecionado.status)}
+                </div>
 
-              {/* Dados do cliente */}
-              <div className="bg-muted/30 rounded-lg p-3">
-                <h4 className="font-semibold text-sm mb-1">Cliente</h4>
-                <p className="text-sm"><strong>Nome:</strong> {orcamentoSelecionado.cliente.nome}</p>
-                <p className="text-sm"><strong>Telefone:</strong> {orcamentoSelecionado.cliente.telefone}</p>
-                
-                {/* Dados de Entrega */}
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2 text-sm">
-                    {orcamentoSelecionado.tipoEntrega === 'RETIRA' ? (
-                      <>
-                        <Store className="w-4 h-4 text-primary" />
-                        <span className="font-medium">Cliente Retira</span>
-                      </>
-                    ) : (
-                      <>
-                        <Truck className="w-4 h-4 text-primary" />
-                        <span className="font-medium">Tele Entrega</span>
-                      </>
-                    )}
-                  </div>
-                  {orcamentoSelecionado.dataEntrega && (
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatarDataEntrega(orcamentoSelecionado.dataEntrega)}</span>
-                      </div>
-                      {orcamentoSelecionado.horarioEntrega && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          <span>{orcamentoSelecionado.horarioEntrega}</span>
-                        </div>
+                {/* Dados do cliente */}
+                <div className="bg-muted/30 rounded-lg p-3 mb-4">
+                  <h4 className="font-semibold text-sm mb-2">Cliente</h4>
+                  <p className="text-sm"><strong>Nome:</strong> {orcamentoSelecionado.cliente.nome}</p>
+                  <p className="text-sm"><strong>Telefone:</strong> {orcamentoSelecionado.cliente.telefone}</p>
+                  
+                  {/* Dados de Entrega */}
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <div className="flex items-center gap-2 text-sm">
+                      {orcamentoSelecionado.tipoEntrega === 'RETIRA' ? (
+                        <>
+                          <Store className="w-4 h-4 text-primary" />
+                          <span className="font-medium">Cliente Retira</span>
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="w-4 h-4 text-primary" />
+                          <span className="font-medium">Tele Entrega</span>
+                        </>
                       )}
                     </div>
-                  )}
-                  {orcamentoSelecionado.tipoEntrega === 'TELE_ENTREGA' && orcamentoSelecionado.enderecoEntrega && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      <MapPin className="w-3 h-3" />
-                      {orcamentoSelecionado.enderecoEntrega}
-                      {orcamentoSelecionado.bairroEntrega && ` - ${orcamentoSelecionado.bairroEntrega}`}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Itens */}
-              <div>
-                <h4 className="font-semibold text-sm mb-2">Itens</h4>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {orcamentoSelecionado.itens.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-1.5 border-b border-border/50">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.produto.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                          {item.observacao && <span className="ml-2 text-primary">({item.observacao})</span>}
-                        </p>
+                    {orcamentoSelecionado.dataEntrega && (
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatarDataEntrega(orcamentoSelecionado.dataEntrega)}</span>
+                        </div>
+                        {orcamentoSelecionado.horarioEntrega && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{orcamentoSelecionado.horarioEntrega}</span>
+                          </div>
+                        )}
                       </div>
-                      <p className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</p>
-                    </div>
-                  ))}
+                    )}
+                    {orcamentoSelecionado.tipoEntrega === 'TELE_ENTREGA' && orcamentoSelecionado.enderecoEntrega && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3" />
+                        {orcamentoSelecionado.enderecoEntrega}
+                        {orcamentoSelecionado.bairroEntrega && ` - ${orcamentoSelecionado.bairroEntrega}`}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Observações */}
-              {orcamentoSelecionado.observacoes && (
-                <div className="p-2 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground">
-                    <strong>Obs:</strong> {orcamentoSelecionado.observacoes}
-                  </p>
+                {/* Itens */}
+                <div className="flex-1 overflow-y-auto">
+                  <h4 className="font-semibold text-sm mb-2">Itens</h4>
+                  <div className="space-y-2">
+                    {orcamentoSelecionado.itens.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center py-2 border-b border-border/50">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.produto.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
+                            {item.observacao && <span className="ml-2 text-primary">({item.observacao})</span>}
+                          </p>
+                        </div>
+                        <p className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
 
-              {/* Total */}
-              <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border">
-                <span>Total:</span>
-                <span className="text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
-              </div>
+                {/* Observações */}
+                {orcamentoSelecionado.observacoes && (
+                  <div className="mt-3 p-2 bg-muted/30 rounded-lg">
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Obs:</strong> {orcamentoSelecionado.observacoes}
+                    </p>
+                  </div>
+                )}
 
-              {/* Botões de ação - sempre visíveis */}
-              <div className="space-y-2 pt-2 border-t border-border">
-                {/* Botão de enviar via WhatsApp */}
-                <Button
-                  onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Enviar Orçamento via WhatsApp
-                </Button>
+                {/* Total */}
+                <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border mt-2">
+                  <span>Total:</span>
+                  <span className="text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
+                </div>
 
                 {/* Botão de impressão */}
-                <Button
-                  onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
-                  variant="outline"
-                  className="w-full h-11"
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Imprimir Orçamento
-                </Button>
+                <div className="mt-4 pt-3 border-t border-border">
+                  <Button
+                    onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Imprimir Orçamento
+                  </Button>
+                </div>
 
-                {/* Botões de aprovação/rejeição */}
+                {/* Botões de ação */}
                 {orcamentoSelecionado.status === 'PENDENTE' && (
-                  <div className="flex gap-2">
+                  <DialogFooter className="mt-4 pt-3 border-t border-border">
                     <Button
                       variant="outline"
                       onClick={() => handleRejeitar(orcamentoSelecionado)}
                       disabled={processando}
-                      className="flex-1 h-11 text-destructive border-destructive hover:bg-destructive/10"
+                      className="text-destructive border-destructive hover:bg-destructive/10"
                     >
                       <X className="w-4 h-4 mr-2" />
                       Rejeitar
@@ -657,7 +749,7 @@ export default function OrcamentosLista() {
                     <Button
                       onClick={() => handleAprovar(orcamentoSelecionado)}
                       disabled={processando}
-                      className="flex-1 h-11 btn-padaria"
+                      className="btn-padaria"
                     >
                       {processando ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -666,7 +758,7 @@ export default function OrcamentosLista() {
                       )}
                       Aprovar e Criar Pedido
                     </Button>
-                  </div>
+                  </DialogFooter>
                 )}
               </div>
             </div>

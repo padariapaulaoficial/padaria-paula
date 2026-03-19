@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model Configuracao {
+  id               String   @id @default(cuid())
+  nomeLoja         String   @default("Padaria e Confeitaria Paula")
+  endereco         String   @default("Rua das Flores, 123")
+  telefone         String   @default("(11) 99999-9999")
+  cnpj             String   @default("")
+  logoUrl          String?
+  senha            String   @default("2026")
+  senhaAdmin       String?
+  mensagemWhatsApp String?  @default("Olá {nome}! Seu pedido está pronto para entrega.")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Cliente {
+  id         String       @id @default(cuid())
+  nome       String
+  telefone   String       @unique
+  cpfCnpj    String?      @unique
+  tipoPessoa String       @default("CPF")
+  endereco   String?
+  bairro     String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  pedidos    Pedido[]
+  orcamentos Orcamento[]
+}
+
+model Produto {
+  id             String          @id @default(cuid())
+  nome           String
+  descricao      String?
+  tipoVenda      String
+  valorUnit      Float
+  ativo          Boolean         @default(true)
+  categoria      String?
+  imagem         String?
+  tipoProduto    String          @default("NORMAL")
+  tamanhos       String?
+  precosTamanhos String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  itensPedido    ItemPedido[]
+  itensOrcamento ItemOrcamento[]
+}
+
+model Pedido {
+  id              String       @id @default(cuid())
+  numero          Int
+  clienteId       String
+  observacoes     String?
+  total           Float
+  totalPedida     Float        @default(0)
+  status          String       @default("PENDENTE")
+  impresso        Boolean      @default(false)
+  tipoEntrega     String       @default("RETIRA")
+  dataEntrega     String
+  horarioEntrega  String?
+  enderecoEntrega String?
+  bairroEntrega   String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  itens           ItemPedido[]
+  cliente         Cliente      @relation(fields: [clienteId], references: [id])
+
+  @@index([numero])
+  @@index([clienteId])
+  @@index([createdAt])
+}
+
+model ItemPedido {
+  id               String  @id @default(cuid())
+  pedidoId         String
+  produtoId        String
+  quantidadePedida Float   @default(0)
+  quantidade       Float
+  valorUnit        Float
+  subtotalPedida   Float   @default(0)
+  subtotal         Float
+  observacao       String?
+  tamanho          String?
+  pedido           Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto          Produto @relation(fields: [produtoId], references: [id])
+
+  @@index([pedidoId])
+  @@index([produtoId])
+}
+
+model Orcamento {
+  id              String          @id @default(cuid())
+  numero          Int
+  clienteId       String
+  observacoes     String?
+  total           Float
+  status          String          @default("PENDENTE")
+  tipoEntrega     String          @default("RETIRA")
+  dataEntrega     String
+  horarioEntrega  String?
+  enderecoEntrega String?
+  bairroEntrega   String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  itens           ItemOrcamento[]
+  cliente         Cliente         @relation(fields: [clienteId], references: [id])
+
+  @@index([numero])
+  @@index([clienteId])
+  @@index([status])
+}
+
+model ItemOrcamento {
+  id          String    @id @default(cuid())
+  orcamentoId String
+  produtoId   String
+  quantidade  Float
+  valorUnit   Float
+  subtotal    Float
+  observacao  String?
+  tamanho     String?
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  produto     Produto   @relation(fields: [produtoId], references: [id])
+
+  @@index([orcamentoId])
+  @@index([produtoId])
+}
