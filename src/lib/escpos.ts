@@ -50,6 +50,7 @@ export type PedidoCompleto = {
     subtotal: number;
     subtotalPedida?: number;
     observacao?: string | null;
+    tamanho?: string | null;
   }[];
 };
 
@@ -229,7 +230,11 @@ export function gerarCupomCliente(
   linhas.push(linhaDivisoria('-'));
   
   for (const item of pedido.itens) {
-    const nome = truncar(item.produto.nome, 22).padEnd(22);
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} (${item.tamanho})`
+      : item.produto.nome;
+    const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);
@@ -293,7 +298,11 @@ export function gerarCupomCozinha(
   
   // Itens
   for (const item of pedido.itens) {
-    const nome = truncar(item.produto.nome.toUpperCase(), 36).padEnd(36);
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} (${item.tamanho})`
+      : item.produto.nome;
+    const nome = truncar(nomeCompleto.toUpperCase(), 36).padEnd(36);
     const qtdProd = item.quantidadePedida || item.quantidade;
     const qtd = formatarQuantidadeProduto(qtdProd, item.produto.tipoVenda).toUpperCase().padStart(12);
     
@@ -362,7 +371,11 @@ export function gerarCupomCozinhaGrande(
       qtdStr = `${Math.round(qtdProd)} UN`;
     }
     
-    const produto = item.produto.nome.toUpperCase();
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} (${item.tamanho})`
+      : item.produto.nome;
+    const produto = nomeCompleto.toUpperCase();
     linhas.push(`  ${qtdStr}  ${produto}`);
     
     if (item.observacao) {
@@ -473,6 +486,7 @@ export type OrcamentoCompleto = {
     valorUnit: number;
     subtotal: number;
     observacao?: string | null;
+    tamanho?: string | null;
   }[];
   observacoes?: string | null;
   total: number;
@@ -568,7 +582,11 @@ export function gerarCupomOrcamento(
   linhas.push(linhaDivisoria('-'));
   
   for (const item of orcamento.itens) {
-    const nome = truncar(item.produto.nome, 22).padEnd(22);
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} (${item.tamanho})`
+      : item.produto.nome;
+    const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);

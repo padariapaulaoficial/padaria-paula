@@ -295,7 +295,11 @@ export default function NovoOrcamento() {
         return;
       }
 
-      const preco = produto.precosTamanhos?.[selecao.tamanho] || produto.valorUnit;
+      const precoTamanho = produto.precosTamanhos?.[selecao.tamanho];
+      // Garantir que o preço é um número válido
+      const preco = (precoTamanho !== undefined && precoTamanho !== null && !isNaN(precoTamanho) && precoTamanho > 0)
+        ? precoTamanho
+        : produto.valorUnit;
       
       adicionarItem({
         produtoId: produto.id,
@@ -397,9 +401,16 @@ export default function NovoOrcamento() {
       ? !!selecao.tamanho 
       : (selecao.quantidade && selecao.quantidade > 0);
     
-    const subtotal = produto.tipoProduto === 'ESPECIAL' && selecao.tamanho
-      ? produto.precosTamanhos?.[selecao.tamanho] || 0
-      : (selecao.quantidade || 0) * produto.valorUnit;
+    // Calcular subtotal com verificação de preço válido
+    let subtotal = 0;
+    if (produto.tipoProduto === 'ESPECIAL' && selecao.tamanho) {
+      const precoTamanho = produto.precosTamanhos?.[selecao.tamanho];
+      subtotal = (precoTamanho !== undefined && precoTamanho !== null && !isNaN(precoTamanho) && precoTamanho > 0)
+        ? precoTamanho
+        : 0;
+    } else {
+      subtotal = (selecao.quantidade || 0) * produto.valorUnit;
+    }
 
     return (
       <div 
@@ -423,7 +434,11 @@ export default function NovoOrcamento() {
             {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
               <span className="text-primary font-medium">
                 {Object.entries(produto.precosTamanhos)
-                  .filter(([, preco]) => preco)
+                  .filter(([tam, preco]) => {
+                    // Filtrar apenas tamanhos válidos (P, M, G, GG) e preços válidos
+                    const tamanhosValidos = ['P', 'M', 'G', 'GG'];
+                    return tamanhosValidos.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                  })
                   .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
                   .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
                   .join(' ')}
@@ -439,7 +454,12 @@ export default function NovoOrcamento() {
           {produto.tipoProduto === 'ESPECIAL' ? (
             <div className="flex items-center gap-1 flex-1">
               {['P', 'M', 'G', 'GG']
-                .filter(tam => produto.tamanhos?.includes(tam))
+                .filter(tam => {
+                  const temTamanho = produto.tamanhos?.includes(tam);
+                  const preco = produto.precosTamanhos?.[tam];
+                  const temPrecoValido = preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                  return temTamanho && temPrecoValido;
+                })
                 .map(tam => (
                   <Button
                     key={tam}

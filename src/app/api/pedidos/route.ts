@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, impresso, itens } = body;
+    const { id, status, impresso, itens, novosItens } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -239,7 +239,7 @@ export async function PUT(request: NextRequest) {
     
     // Se houver itens para atualizar
     if (itens && Array.isArray(itens)) {
-      // Atualizar cada item
+      // Atualizar cada item existente
       for (const item of itens) {
         if (item.id) {
           await db.itemPedido.update({
@@ -251,13 +251,37 @@ export async function PUT(request: NextRequest) {
           });
         }
       }
-      
-      // Recalcular total do pedido
+    }
+    
+    // Se houver novos itens para adicionar
+    if (novosItens && Array.isArray(novosItens) && novosItens.length > 0) {
+      for (const item of novosItens) {
+        if (item.produtoId) {
+          await db.itemPedido.create({
+            data: {
+              pedidoId: id,
+              produtoId: item.produtoId,
+              quantidadePedida: item.quantidade || 0,
+              quantidade: item.quantidade || 0,
+              valorUnit: item.valorUnit || 0,
+              subtotalPedida: item.subtotal || 0,
+              subtotal: item.subtotal || 0,
+              observacao: item.observacao || null,
+              tamanho: item.tamanho || null,
+            },
+          });
+        }
+      }
+    }
+    
+    // Recalcular total do pedido se houve alterações em itens
+    if ((itens && Array.isArray(itens)) || (novosItens && Array.isArray(novosItens) && novosItens.length > 0)) {
       const itensAtualizados = await db.itemPedido.findMany({
         where: { pedidoId: id },
       });
       const novoTotal = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
       data.total = novoTotal;
+      data.totalPedida = novoTotal;
     }
     
     const pedido = await db.pedido.update({

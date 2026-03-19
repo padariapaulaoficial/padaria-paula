@@ -640,7 +640,10 @@ export default function AdminProdutos() {
                           {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
                             <span className="font-semibold text-primary">
                               {Object.entries(produto.precosTamanhos)
-                                .filter(([tam, preco]) => preco !== undefined && preco !== null && !isNaN(preco))
+                                .filter(([tam, preco]) => {
+                                  const tamanhosValidos = ['P', 'M', 'G', 'GG'];
+                                  return tamanhosValidos.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                                })
                                 .sort((a, b) => TAMANHOS_FIXOS.indexOf(a[0]) - TAMANHOS_FIXOS.indexOf(b[0]))
                                 .map(([tam, preco]) => `${tam}: ${formatarMoeda(preco)}`)
                                 .join(' | ')}

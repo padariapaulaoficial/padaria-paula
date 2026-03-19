@@ -3,14 +3,15 @@
 // HistoricoPedidos - Padaria Paula
 // Lista de pedidos com edição de itens e reimpressão
 
-import { useState, useEffect, useRef } from 'react';
-import { Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, FileText, Edit2, Scale, Check, X, MapPin, Truck, Store, Lock, Loader2, Clock, Package, MessageCircle, Plus } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, FileText, Edit2, Scale, Check, X, MapPin, Truck, Store, Lock, Loader2, Clock, Package, MessageCircle, Plus, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import {
@@ -85,6 +93,37 @@ interface Configuracao {
   updatedAt?: Date;
 }
 
+interface Produto {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipoVenda: 'KG' | 'UNIDADE';
+  valorUnit: number;
+  categoria: string | null;
+  ativo: boolean;
+  tipoProduto: 'NORMAL' | 'ESPECIAL';
+  tamanhos: string[] | null;
+  precosTamanhos: Record<string, number> | null;
+}
+
+// Opções de KG
+const OPCOES_KG = [
+  { valor: 0, label: 'Selecione' },
+  { valor: 0.5, label: '500g' },
+  { valor: 1.0, label: '1 kg' },
+  { valor: 1.5, label: '1,5 kg' },
+  { valor: 2.0, label: '2 kg' },
+  { valor: 2.5, label: '2,5 kg' },
+  { valor: 3.0, label: '3 kg' },
+  { valor: 4.0, label: '4 kg' },
+  { valor: 5.0, label: '5 kg' },
+  { valor: 6.0, label: '6 kg' },
+  { valor: 7.0, label: '7 kg' },
+  { valor: 8.0, label: '8 kg' },
+  { valor: 9.0, label: '9 kg' },
+  { valor: 10.0, label: '10 kg' },
+];
+
 export default function HistoricoPedidos() {
   const { toast } = useToast();
   
@@ -107,6 +146,16 @@ export default function HistoricoPedidos() {
   const [pinParaExcluir, setPinParaExcluir] = useState(['', '', '', '']);
   const [verificandoPin, setVerificandoPin] = useState(false);
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Adicionar produtos ao pedido
+  const [modoAdicao, setModoAdicao] = useState(false);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [buscaProduto, setBuscaProduto] = useState('');
+  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
+  const [quantidadeAdicionar, setQuantidadeAdicionar] = useState('');
+  const [tamanhoSelecionado, setTamanhoSelecionado] = useState('');
+  const [observacaoNovoItem, setObservacaoNovoItem] = useState('');
+  const [adicionandoProduto, setAdicionandoProduto] = useState(false);
 
   // Carregar configurações
   useEffect(() => {
@@ -115,6 +164,23 @@ export default function HistoricoPedidos() {
       .then(setConfig)
       .catch(console.error);
   }, []);
+  
+  // Carregar produtos para adição
+  useEffect(() => {
+    if (modoAdicao) {
+      fetch('/api/produtos?ativo=true')
+        .then(res => res.json())
+        .then(data => setProdutos(data))
+        .catch(console.error);
+    }
+  }, [modoAdicao]);
+
+  // Filtrar produtos pela busca
+  const produtosFiltrados = useMemo(() => {
+    if (!buscaProduto) return produtos.slice(0, 20);
+    const termo = buscaProduto.toLowerCase();
+    return produtos.filter(p => p.nome.toLowerCase().includes(termo)).slice(0, 20);
+  }, [produtos, buscaProduto]);
 
   // Carregar pedidos
   const carregarPedidos = async () => {
@@ -503,6 +569,107 @@ export default function HistoricoPedidos() {
       description: `WhatsApp aberto para ${pedido.cliente.nome}`,
     });
   };
+  
+  // Adicionar produto ao pedido existente
+  const handleAdicionarProduto = async () => {
+    if (!pedidoSelecionado || !produtoSelecionado) return;
+    
+    // Verificar se o pedido já foi entregue
+    if (pedidoSelecionado.status === 'ENTREGUE' || pedidoSelecionado.status === 'CANCELADO') {
+      toast({
+        title: 'Não permitido',
+        description: 'Não é possível adicionar itens a um pedido já entregue ou cancelado.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    let quantidade = 0;
+    let valorUnit = 0;
+    let tamanho: string | undefined = undefined;
+    
+    if (produtoSelecionado.tipoProduto === 'ESPECIAL') {
+      if (!tamanhoSelecionado) {
+        toast({
+          title: 'Selecione o tamanho',
+          description: 'Escolha um tamanho para a torta.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const precoTamanho = produtoSelecionado.precosTamanhos?.[tamanhoSelecionado];
+      valorUnit = (precoTamanho !== undefined && precoTamanho !== null && !isNaN(precoTamanho) && precoTamanho > 0)
+        ? precoTamanho
+        : produtoSelecionado.valorUnit;
+      quantidade = 1;
+      tamanho = tamanhoSelecionado;
+    } else {
+      quantidade = parseFloat(quantidadeAdicionar.replace(',', '.')) || 0;
+      valorUnit = produtoSelecionado.valorUnit;
+      
+      if (quantidade <= 0) {
+        toast({
+          title: 'Quantidade inválida',
+          description: 'Digite uma quantidade maior que zero.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    
+    const subtotal = quantidade * valorUnit;
+    
+    setAdicionandoProduto(true);
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          novosItens: [{
+            produtoId: produtoSelecionado.id,
+            quantidade,
+            valorUnit,
+            subtotal,
+            observacao: observacaoNovoItem || undefined,
+            tamanho,
+          }],
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(pedidoAtualizado.error || 'Erro ao adicionar produto');
+      }
+      
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      
+      // Limpar formulário
+      setProdutoSelecionado(null);
+      setQuantidadeAdicionar('');
+      setTamanhoSelecionado('');
+      setObservacaoNovoItem('');
+      setBuscaProduto('');
+      setModoAdicao(false);
+      
+      toast({
+        title: 'Produto adicionado!',
+        description: `${produtoSelecionado.nome} foi adicionado ao pedido.`,
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+      toast({
+        title: 'Erro ao adicionar',
+        description: 'Não foi possível adicionar o produto ao pedido.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAdicionandoProduto(false);
+    }
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -820,6 +987,188 @@ export default function HistoricoPedidos() {
                       )}
                       Salvar
                     </Button>
+                  </div>
+                )}
+                
+                {/* Botão para adicionar produtos - só aparece se não estiver entregue/cancelado */}
+                {!modoEdicao && !modoAdicao && pedidoSelecionado.status !== 'ENTREGUE' && pedidoSelecionado.status !== 'CANCELADO' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setModoAdicao(true)}
+                    className="w-full h-9 mt-2 border-dashed border-2"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Adicionar Produto
+                  </Button>
+                )}
+                
+                {/* Interface de adição de produtos */}
+                {modoAdicao && (
+                  <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border space-y-3">
+                    <h5 className="font-semibold text-sm flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Adicionar Produto
+                    </h5>
+                    
+                    {/* Busca de produto */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar produto..."
+                        className="pl-10 h-9"
+                        value={buscaProduto}
+                        onChange={(e) => setBuscaProduto(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Lista de produtos */}
+                    <ScrollArea className="h-32">
+                      <div className="space-y-1">
+                        {produtosFiltrados.map(produto => (
+                          <button
+                            key={produto.id}
+                            type="button"
+                            onClick={() => setProdutoSelecionado(produto)}
+                            className={`w-full p-2 text-left rounded-lg transition-colors ${
+                              produtoSelecionado?.id === produto.id 
+                                ? 'bg-primary/20 border border-primary' 
+                                : 'bg-card hover:bg-muted border border-border/50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium text-sm">{produto.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {produto.tipoProduto === 'ESPECIAL' ? (
+                                    produto.precosTamanhos && Object.entries(produto.precosTamanhos)
+                                      .filter(([tam, preco]) => {
+                                        const tamanhosValidos = ['P', 'M', 'G', 'GG'];
+                                        return tamanhosValidos.includes(tam) && preco && !isNaN(preco) && preco > 0;
+                                      })
+                                      .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
+                                      .map(([tam, preco]) => `${tam}: ${formatarMoeda(preco)}`)
+                                      .join(' | ')
+                                  ) : (
+                                    `${formatarMoeda(produto.valorUnit)}/${produto.tipoVenda === 'KG' ? 'kg' : 'un'}`
+                                  )}
+                                </p>
+                              </div>
+                              {produto.tipoProduto === 'ESPECIAL' ? (
+                                <Badge className="text-[10px] bg-primary text-primary-foreground">Torta</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {produto.tipoVenda === 'KG' ? <Scale className="w-3 h-3 mr-0.5" /> : <Hash className="w-3 h-3 mr-0.5" />}
+                                  {produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                                </Badge>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                    
+                    {/* Configuração do produto selecionado */}
+                    {produtoSelecionado && (
+                      <div className="space-y-2 pt-2 border-t border-border/50">
+                        {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
+                          <>
+                            {/* Seleção de tamanho para torta */}
+                            <Label className="text-xs">Tamanho:</Label>
+                            <div className="flex gap-1">
+                              {['P', 'M', 'G', 'GG']
+                                .filter(tam => {
+                                  const temTamanho = produtoSelecionado.tamanhos?.includes(tam);
+                                  const preco = produtoSelecionado.precosTamanhos?.[tam];
+                                  return temTamanho && preco && !isNaN(preco) && preco > 0;
+                                })
+                                .map(tam => (
+                                  <Button
+                                    key={tam}
+                                    type="button"
+                                    variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                                    size="sm"
+                                    className={`h-8 flex-1 ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                                    onClick={() => setTamanhoSelecionado(tam)}
+                                  >
+                                    {tam}
+                                  </Button>
+                                ))}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Quantidade para produtos normais */}
+                            <Label className="text-xs">Quantidade:</Label>
+                            {produtoSelecionado.tipoVenda === 'KG' ? (
+                              <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Selecione o peso" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {OPCOES_KG.filter(op => op.valor > 0).map(op => (
+                                    <SelectItem key={op.valor} value={op.valor.toString()}>
+                                      {op.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="Quantidade"
+                                className="h-9"
+                                value={quantidadeAdicionar}
+                                onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                              />
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Observação */}
+                        <Input
+                          placeholder="Observação (opcional)"
+                          className="h-9"
+                          value={observacaoNovoItem}
+                          onChange={(e) => setObservacaoNovoItem(e.target.value)}
+                        />
+                        
+                        {/* Botões de ação */}
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setModoAdicao(false);
+                              setProdutoSelecionado(null);
+                              setQuantidadeAdicionar('');
+                              setTamanhoSelecionado('');
+                              setObservacaoNovoItem('');
+                              setBuscaProduto('');
+                            }}
+                            className="flex-1 h-9"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleAdicionarProduto}
+                            className="flex-1 btn-padaria h-9"
+                            disabled={adicionandoProduto}
+                          >
+                            {adicionandoProduto ? (
+                              <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                              <Check className="w-4 h-4 mr-1" />
+                            )}
+                            Adicionar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

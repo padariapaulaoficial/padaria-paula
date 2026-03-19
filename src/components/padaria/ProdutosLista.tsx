@@ -153,7 +153,11 @@ export default function ProdutosLista() {
         return;
       }
 
-      const preco = produto.precosTamanhos?.[tamanho] || produto.valorUnit;
+      const precoTamanho = produto.precosTamanhos?.[tamanho];
+      // Garantir que o preço é um número válido
+      const preco = (precoTamanho !== undefined && precoTamanho !== null && !isNaN(precoTamanho) && precoTamanho > 0)
+        ? precoTamanho
+        : produto.valorUnit;
       const observacao = observacoes[produto.id] || '';
 
       adicionarItem({
@@ -266,7 +270,11 @@ export default function ProdutosLista() {
     if (produto.tipoProduto === 'ESPECIAL') {
       const tamanho = tamanhosSelecionados[produto.id];
       if (tamanho && produto.precosTamanhos) {
-        return produto.precosTamanhos[tamanho];
+        const preco = produto.precosTamanhos[tamanho];
+        // Retornar apenas se o preço for válido
+        if (preco !== undefined && preco !== null && !isNaN(preco) && preco > 0) {
+          return preco;
+        }
       }
       return null;
     }
@@ -510,10 +518,15 @@ function ProdutoCard({
   temQuantidade,
   subtotal
 }: ProdutoCardProps) {
-  // Ordenar tamanhos
+  // Ordenar tamanhos e filtrar apenas os que têm preço válido
   const ordemTamanhos = ['P', 'M', 'G', 'GG'];
   const tamanhosOrdenados = produto.tamanhos
-    ? [...produto.tamanhos].sort((a, b) => ordemTamanhos.indexOf(a) - ordemTamanhos.indexOf(b))
+    ? [...produto.tamanhos]
+        .filter(tam => {
+          const preco = produto.precosTamanhos?.[tam];
+          return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+        })
+        .sort((a, b) => ordemTamanhos.indexOf(a) - ordemTamanhos.indexOf(b))
     : [];
 
   return (
@@ -542,11 +555,16 @@ function ProdutoCard({
         {/* Preço */}
         {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
           <div className="mb-3 text-xs text-muted-foreground">
-            {tamanhosOrdenados.map(tam => (
-              <span key={tam} className="mr-2">
-                <strong className="text-primary">{tam}</strong>: {formatarMoeda(produto.precosTamanhos![tam])}
-              </span>
-            ))}
+            {tamanhosOrdenados
+              .filter(tam => {
+                const preco = produto.precosTamanhos?.[tam];
+                return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+              })
+              .map(tam => (
+                <span key={tam} className="mr-2">
+                  <strong className="text-primary">{tam}</strong>: {formatarMoeda(produto.precosTamanhos![tam])}
+                </span>
+              ))}
           </div>
         ) : (
           <div className="flex items-center gap-1 mb-3">
