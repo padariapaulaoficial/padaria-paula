@@ -4,7 +4,7 @@
 // Lista de pedidos com edição de itens e reimpressão
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, FileText, Edit2, Scale, Check, X, MapPin, Truck, Store, Lock, Loader2, Clock, Package } from 'lucide-react';
+import { Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, FileText, Edit2, Scale, Check, X, MapPin, Truck, Store, Lock, Loader2, Clock, Package, MessageCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +43,7 @@ interface ItemPedido {
   subtotal: number;
   subtotalPedida: number;
   observacao?: string;
+  tamanho?: string;
 }
 
 interface Pedido {
@@ -474,6 +475,35 @@ export default function HistoricoPedidos() {
     }, 0);
   };
 
+  // Enviar mensagem quando status PRONTO
+  const handleEnviarMensagemPronto = (pedido: Pedido) => {
+    const telefone = pedido.cliente.telefone.replace(/\D/g, '');
+    const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
+    
+    const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
+    
+    let mensagem = `*Padaria e Confeitaria Paula*\n\n`;
+    mensagem += `Olá, *${pedido.cliente.nome}*!\n\n`;
+    
+    if (tipoEntrega === 'RETIRA') {
+      mensagem += `Seu pedido #${formatarNumeroPedido(pedido.numero)} está *PRONTO* e esperando por você!\n\n`;
+      mensagem += `Pode vir buscar quando quiser. 🥖\n\n`;
+    } else {
+      mensagem += `Seu pedido #${formatarNumeroPedido(pedido.numero)} está *PRONTO* e já está a caminho!\n\n`;
+      mensagem += `Em breve você receberá. 🚚\n\n`;
+    }
+    
+    mensagem += `Agradecemos pela preferência! 💛`;
+    
+    const mensagemCodificada = encodeURIComponent(mensagem);
+    window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
+    
+    toast({
+      title: 'Mensagem enviada!',
+      description: `WhatsApp aberto para ${pedido.cliente.nome}`,
+    });
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Filtros */}
@@ -723,7 +753,10 @@ export default function HistoricoPedidos() {
                   {pedidoSelecionado.itens.map((item) => (
                     <div key={item.id} className="flex justify-between items-center py-1.5 border-b border-border/50">
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{item.produto.nome}</p>
+                        <p className="font-medium text-sm">
+                          {item.produto.nome}
+                          {item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}
+                        </p>
                         
                         {/* Modo edição para qualquer tipo de produto */}
                         {modoEdicao ? (
@@ -747,6 +780,7 @@ export default function HistoricoPedidos() {
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
+                            {item.observacao && <span className="ml-2 text-primary italic">({item.observacao})</span>}
                           </p>
                         )}
                       </div>
@@ -799,6 +833,17 @@ export default function HistoricoPedidos() {
                   )}
                 </span>
               </div>
+
+              {/* Botão de mensagem quando PRONTO */}
+              {pedidoSelecionado.status === 'PRONTO' && (
+                <Button 
+                  onClick={() => handleEnviarMensagemPronto(pedidoSelecionado)} 
+                  className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Avisar Cliente via WhatsApp
+                </Button>
+              )}
 
               {/* Botões de impressão */}
               <div className="space-y-2 pt-2 border-t border-border">

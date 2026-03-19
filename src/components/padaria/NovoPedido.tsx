@@ -41,6 +41,30 @@ const HORARIOS_COMERCIAIS = [
   '19:00', '19:30', '20:00', '20:30', '21:00'
 ];
 
+// Função para verificar se horário já passou
+const horarioJaPassou = (horario: string, dataEntrega: string): boolean => {
+  if (!dataEntrega) return false;
+  
+  const hoje = new Date();
+  const dataEntregaDate = new Date(dataEntrega + 'T00:00:00');
+  
+  // Se a data de entrega é hoje, verificar horário
+  if (dataEntregaDate.toDateString() === hoje.toDateString()) {
+    const [hora, minuto] = horario.split(':').map(Number);
+    const agora = hoje.getHours() * 60 + hoje.getMinutes();
+    const horarioMinutos = hora * 60 + minuto;
+    
+    return horarioMinutos <= agora;
+  }
+  
+  // Se a data de entrega é anterior a hoje, todos os horários já passaram
+  if (dataEntregaDate < hoje) {
+    return true;
+  }
+  
+  return false;
+};
+
 export default function NovoPedido() {
   const { cliente, setCliente, entrega, setEntrega, clearCliente } = usePedidoStore();
   const { setTela } = useAppStore();
@@ -374,7 +398,12 @@ export default function NovoPedido() {
                 </SelectTrigger>
                 <SelectContent>
                   {HORARIOS_COMERCIAIS.map((h) => (
-                    <SelectItem key={h} value={h}>
+                    <SelectItem 
+                      key={h} 
+                      value={h}
+                      disabled={horarioJaPassou(h, dataEntrega)}
+                      className={horarioJaPassou(h, dataEntrega) ? 'opacity-40' : ''}
+                    >
                       {h}
                     </SelectItem>
                   ))}
