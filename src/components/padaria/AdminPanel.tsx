@@ -73,6 +73,9 @@ interface Configuracao {
   cnpj: string;
   logoUrl: string | null;
   mensagemWhatsApp?: string | null;
+  mensagemOrcamento?: string | null;
+  mensagemProntoRetirada?: string | null;
+  mensagemProntoEntrega?: string | null;
 }
 
 const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
@@ -119,6 +122,9 @@ export default function AdminPanel() {
     telefone: '',
     cnpj: '',
     mensagemWhatsApp: '',
+    mensagemOrcamento: '',
+    mensagemProntoRetirada: '',
+    mensagemProntoEntrega: '',
   });
 
   // Estados de senha do app
@@ -165,6 +171,9 @@ export default function AdminPanel() {
         telefone: data.telefone || '',
         cnpj: data.cnpj || '',
         mensagemWhatsApp: data.mensagemWhatsApp || '',
+        mensagemOrcamento: data.mensagemOrcamento || '',
+        mensagemProntoRetirada: data.mensagemProntoRetirada || '',
+        mensagemProntoEntrega: data.mensagemProntoEntrega || '',
       });
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -969,19 +978,53 @@ export default function AdminPanel() {
                 />
               </div>
               {/* Mensagem WhatsApp */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-green-600" />
-                  Mensagem Padrão WhatsApp
-                </Label>
-                <Textarea
-                  className="input-padaria min-h-[100px]"
-                  value={configEditada.mensagemWhatsApp || ''}
-                  onChange={(e) => setConfigEditada({ ...configEditada, mensagemWhatsApp: e.target.value })}
-                  placeholder="Olá {nome}! Seu pedido está pronto..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use <strong>{'{nome}'}</strong> para inserir o nome do cliente na mensagem
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                  <MessageCircle className="w-4 h-4" />
+                  Mensagens do WhatsApp
+                </h4>
+                
+                {/* Mensagem para Orçamento */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem de Orçamento</Label>
+                  <Textarea
+                    className="input-padaria min-h-[80px]"
+                    value={configEditada.mensagemOrcamento || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemOrcamento: e.target.value })}
+                    placeholder="Olá {nome}! Segue seu orçamento..."
+                  />
+                </div>
+                
+                {/* Mensagem para Pedido Pronto - Retirada */}
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-2">
+                    <Store className="w-3 h-3" />
+                    Mensagem "Pronto" - Cliente Retira
+                  </Label>
+                  <Textarea
+                    className="input-padaria min-h-[80px]"
+                    value={configEditada.mensagemProntoRetirada || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemProntoRetirada: e.target.value })}
+                    placeholder="Olá {nome}! Seu pedido está PRONTO e esperando por você!"
+                  />
+                </div>
+                
+                {/* Mensagem para Pedido Pronto - Entrega */}
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-2">
+                    <Truck className="w-3 h-3" />
+                    Mensagem "Pronto" - Tele Entrega
+                  </Label>
+                  <Textarea
+                    className="input-padaria min-h-[80px]"
+                    value={configEditada.mensagemProntoEntrega || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemProntoEntrega: e.target.value })}
+                    placeholder="Olá {nome}! Seu pedido está PRONTO e já está a caminho!"
+                  />
+                </div>
+                
+                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                  <strong>Dica:</strong> Use <code className="bg-muted px-1 rounded">{'{nome}'}</code> para inserir o nome do cliente automaticamente.
                 </p>
               </div>
               <Button onClick={handleSalvarConfig} className="btn-padaria">

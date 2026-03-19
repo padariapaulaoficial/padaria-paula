@@ -35,7 +35,10 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, nomeLoja, endereco, telefone, cnpj, logoUrl, mensagemWhatsApp } = body;
+    const { 
+      id, nomeLoja, endereco, telefone, cnpj, logoUrl, 
+      mensagemWhatsApp, mensagemOrcamento, mensagemProntoRetirada, mensagemProntoEntrega 
+    } = body;
 
     if (!id) {
       // Criar nova configuração
@@ -47,6 +50,9 @@ export async function PUT(request: NextRequest) {
           cnpj: cnpj || '',
           logoUrl: logoUrl || null,
           mensagemWhatsApp: mensagemWhatsApp || null,
+          mensagemOrcamento: mensagemOrcamento || null,
+          mensagemProntoRetirada: mensagemProntoRetirada || null,
+          mensagemProntoEntrega: mensagemProntoEntrega || null,
         },
       });
       return NextResponse.json(config);
@@ -61,6 +67,9 @@ export async function PUT(request: NextRequest) {
         cnpj,
         logoUrl,
         mensagemWhatsApp,
+        mensagemOrcamento,
+        mensagemProntoRetirada,
+        mensagemProntoEntrega,
       },
     });
 

@@ -26,7 +26,8 @@ export const metadata: Metadata = {
   keywords: ["padaria", "pedidos", "cupom fiscal", "ESC/POS", "impressora térmica", "Elgin"],
   authors: [{ name: "Padaria Paula" }],
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {

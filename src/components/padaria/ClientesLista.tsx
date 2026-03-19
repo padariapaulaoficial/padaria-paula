@@ -4,7 +4,7 @@
 // Lista de clientes cadastrados com opção de criar orçamento
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, AlertTriangle, MapPin, MessageCircle, FileText, ChevronRight, Package } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, AlertTriangle, MapPin, MessageCircle, FileText, ChevronRight, Package, Eye, Clock, Calendar, Truck, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +27,12 @@ import { useOrcamentoStore } from '@/store/useOrcamentoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda } from '@/store/usePedidoStore';
+import {
+  gerarCupomCliente,
+  gerarCupomCozinhaGrande,
+  imprimirViaDialogo,
+  formatarNumeroPedido
+} from '@/lib/escpos';
 
 interface Cliente {
   id: string;
@@ -45,9 +51,35 @@ interface PedidoCliente {
   numero: number;
   createdAt: string;
   total: number;
+  totalPedida: number;
   status: string;
   dataEntrega: string;
+  horarioEntrega: string | null;
   tipoEntrega: string;
+  enderecoEntrega: string | null;
+  bairroEntrega: string | null;
+  observacoes: string | null;
+  cliente: {
+    nome: string;
+    telefone: string;
+    cpfCnpj?: string | null;
+    tipoPessoa?: string;
+    endereco?: string | null;
+    bairro?: string | null;
+  };
+  itens: {
+    id: string;
+    produto: {
+      nome: string;
+      tipoVenda: string;
+    };
+    quantidade: number;
+    quantidadePedida: number;
+    valorUnit: number;
+    subtotal: number;
+    observacao?: string | null;
+    tamanho?: string | null;
+  }[];
 }
 
 export default function ClientesLista() {
@@ -69,6 +101,11 @@ export default function ClientesLista() {
   const [pedidosCliente, setPedidosCliente] = useState<PedidoCliente[]>([]);
   const [loadingPedidos, setLoadingPedidos] = useState(false);
   const [modalDetalhesOpen, setModalDetalhesOpen] = useState(false);
+  
+  // Estado para modal de detalhes do pedido
+  const [pedidoDetalhes, setPedidoDetalhes] = useState<PedidoCliente | null>(null);
+  const [modalPedidoDetalhesOpen, setModalPedidoDetalhesOpen] = useState(false);
+  const [config, setConfig] = useState<{ nomeLoja: string; endereco: string; telefone: string; cnpj: string } | null>(null);
 
   // Form state - dados do cliente
   const [formNome, setFormNome] = useState('');
@@ -81,7 +118,18 @@ export default function ClientesLista() {
   // Carregar clientes
   useEffect(() => {
     carregarClientes();
+    carregarConfig();
   }, []);
+
+  const carregarConfig = async () => {
+    try {
+      const res = await fetch('/api/configuracao');
+      const data = await res.json();
+      setConfig(data);
+    } catch (error) {
+      console.error('Erro ao carregar configuração:', error);
+    }
+  };
 
   const carregarClientes = async () => {
     try {
@@ -121,6 +169,39 @@ export default function ClientesLista() {
     setClienteDetalhes(cliente);
     setModalDetalhesOpen(true);
     carregarPedidosCliente(cliente.id);
+  };
+
+  // Ver detalhes do pedido
+  const handleVerPedidoDetalhes = async (pedidoId: string) => {
+    try {
+      const response = await fetch(`/api/pedidos?id=${pedidoId}`);
+      const data = await response.json();
+      setPedidoDetalhes(data);
+      setModalPedidoDetalhesOpen(true);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do pedido:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os detalhes do pedido.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Imprimir cupom do pedido
+  const handleImprimirCupom = (pedido: PedidoCliente) => {
+    if (!config) return;
+    
+    const cupom = gerarCupomCliente(pedido as Parameters<typeof gerarCupomCliente>[0], config);
+    imprimirViaDialogo(cupom, `Cupom Cliente #${formatarNumeroPedido(pedido.numero)}`);
+  };
+
+  // Imprimir comanda da cozinha
+  const handleImprimirComanda = (pedido: PedidoCliente) => {
+    if (!config) return;
+    
+    const cupom = gerarCupomCozinhaGrande(pedido as Parameters<typeof gerarCupomCozinhaGrande>[0], config);
+    imprimirViaDialogo(cupom, `Comanda Cozinha #${formatarNumeroPedido(pedido.numero)}`);
   };
 
   // Filtrar clientes
@@ -574,17 +655,28 @@ export default function ClientesLista() {
                   <div className="space-y-2">
                     {pedidosCliente.map((pedido) => (
                       <div key={pedido.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm">
-                        <div>
+                        <div className="flex-1">
                           <div className="font-medium">#{pedido.numero.toString().padStart(4, '0')}</div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(pedido.createdAt).toLocaleDateString('pt-BR')}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-primary">{formatarMoeda(pedido.total)}</div>
-                          <Badge className={`text-[10px] ${corStatus(pedido.status)}`}>
-                            {formatarStatus(pedido.status)}
-                          </Badge>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <div className="font-semibold text-primary">{formatarMoeda(pedido.total)}</div>
+                            <Badge className={`text-[10px] ${corStatus(pedido.status)}`}>
+                              {formatarStatus(pedido.status)}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleVerPedidoDetalhes(pedido.id)}
+                            title="Ver detalhes"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -762,6 +854,106 @@ export default function ClientesLista() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de detalhes do pedido */}
+      <Dialog open={modalPedidoDetalhesOpen} onOpenChange={setModalPedidoDetalhesOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Pedido #{pedidoDetalhes && formatarNumeroPedido(pedidoDetalhes.numero)}
+            </DialogTitle>
+            <DialogDescription>
+              {pedidoDetalhes && new Date(pedidoDetalhes.createdAt).toLocaleString('pt-BR')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pedidoDetalhes && (
+            <div className="space-y-3">
+              {/* Status e tipo de entrega */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={`text-xs ${corStatus(pedidoDetalhes.status)}`}>
+                  {formatarStatus(pedidoDetalhes.status)}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  {pedidoDetalhes.tipoEntrega === 'RETIRA' ? (
+                    <><Store className="w-3 h-3 mr-1" />Cliente Retira</>
+                  ) : (
+                    <><Truck className="w-3 h-3 mr-1" />Tele Entrega</>
+                  )}
+                </Badge>
+              </div>
+
+              {/* Dados de entrega */}
+              <div className="bg-muted/30 rounded-lg p-2 text-xs space-y-1">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3 h-3" />
+                  <span>{new Date(pedidoDetalhes.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                  {pedidoDetalhes.horarioEntrega && (
+                    <>
+                      <Clock className="w-3 h-3 ml-2" />
+                      <span>{pedidoDetalhes.horarioEntrega}</span>
+                    </>
+                  )}
+                </div>
+                {pedidoDetalhes.tipoEntrega === 'TELE_ENTREGA' && pedidoDetalhes.enderecoEntrega && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-3 h-3 mt-0.5" />
+                    <span>{pedidoDetalhes.enderecoEntrega}{pedidoDetalhes.bairroEntrega && ` - ${pedidoDetalhes.bairroEntrega}`}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Itens */}
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Itens</h4>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {pedidoDetalhes.itens.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/50 text-sm">
+                      <div>
+                        <span className="font-medium">{item.produto.nome}</span>
+                        {item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}
+                        <p className="text-xs text-muted-foreground">
+                          {item.quantidade}{item.produto.tipoVenda === 'KG' ? 'kg' : 'un'} × {formatarMoeda(item.valorUnit)}
+                          {item.observacao && <span className="text-primary italic ml-1">({item.observacao})</span>}
+                        </p>
+                      </div>
+                      <span className="font-semibold">{formatarMoeda(item.subtotal)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border">
+                <span>Total:</span>
+                <span className="text-primary">{formatarMoeda(pedidoDetalhes.total)}</span>
+              </div>
+
+              {/* Botões de impressão */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => handleImprimirCupom(pedidoDetalhes)}
+                >
+                  <FileText className="w-4 h-4 mr-1" />
+                  Cupom
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 btn-padaria"
+                  onClick={() => handleImprimirComanda(pedidoDetalhes)}
+                >
+                  <Package className="w-4 h-4 mr-1" />
+                  Comanda
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

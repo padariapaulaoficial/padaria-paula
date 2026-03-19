@@ -436,11 +436,11 @@ export default function HistoricoPedidos() {
     setVerificandoPin(true);
 
     try {
-      // Verificar PIN
+      // Verificar PIN de ADMIN para exclusão
       const authRes = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senha }),
+        body: JSON.stringify({ senha, tipo: 'admin' }),
       });
 
       const authData = await authRes.json();
@@ -575,10 +575,10 @@ export default function HistoricoPedidos() {
     if (!pedidoSelecionado || !produtoSelecionado) return;
     
     // Verificar se o pedido já foi entregue
-    if (pedidoSelecionado.status === 'ENTREGUE' || pedidoSelecionado.status === 'CANCELADO') {
+    if (pedidoSelecionado.status === 'ENTREGUE') {
       toast({
         title: 'Não permitido',
-        description: 'Não é possível adicionar itens a um pedido já entregue ou cancelado.',
+        description: 'Não é possível adicionar itens a um pedido já entregue.',
         variant: 'destructive',
       });
       return;
@@ -990,8 +990,8 @@ export default function HistoricoPedidos() {
                   </div>
                 )}
                 
-                {/* Botão para adicionar produtos - só aparece se não estiver entregue/cancelado */}
-                {!modoEdicao && !modoAdicao && pedidoSelecionado.status !== 'ENTREGUE' && pedidoSelecionado.status !== 'CANCELADO' && (
+                {/* Botão para adicionar produtos - só aparece se não estiver entregue */}
+                {!modoEdicao && !modoAdicao && pedidoSelecionado.status !== 'ENTREGUE' && (
                   <Button
                     size="sm"
                     variant="outline"
