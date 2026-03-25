@@ -35,6 +35,7 @@ export interface DadosEntrega {
   horarioEntrega: string; // Horário de entrega
   enderecoEntrega: string;
   bairroEntrega: string;
+  valorTeleEntrega: number; // Valor da taxa de tele-entrega
 }
 
 interface PedidoState {
@@ -73,6 +74,7 @@ const entregaInicial: DadosEntrega = {
   horarioEntrega: '',
   enderecoEntrega: '',
   bairroEntrega: '',
+  valorTeleEntrega: 0,
 };
 
 export const usePedidoStore = create<PedidoState>((set, get) => ({

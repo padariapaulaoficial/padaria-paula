@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
       dataEntrega,
       horarioEntrega,
       enderecoEntrega,
-      bairroEntrega
+      bairroEntrega,
+      valorTeleEntrega
     } = body;
     
     // Validações
@@ -149,6 +150,7 @@ export async function POST(request: NextRequest) {
         horarioEntrega,
         enderecoEntrega: tipoEntrega === 'TELE_ENTREGA' ? enderecoEntrega : null,
         bairroEntrega: tipoEntrega === 'TELE_ENTREGA' ? bairroEntrega : null,
+        valorTeleEntrega: tipoEntrega === 'TELE_ENTREGA' && valorTeleEntrega ? parseFloat(valorTeleEntrega) : null,
         status: 'PENDENTE',
         itens: {
           create: itens.map((item: Record<string, unknown>) => ({
@@ -243,6 +245,7 @@ export async function PUT(request: NextRequest) {
           horarioEntrega: orcamentoAtual.horarioEntrega,
           enderecoEntrega: orcamentoAtual.enderecoEntrega,
           bairroEntrega: orcamentoAtual.bairroEntrega,
+          valorTeleEntrega: orcamentoAtual.valorTeleEntrega,
           status: 'PENDENTE',
           itens: {
             create: orcamentoAtual.itens.map((item) => ({

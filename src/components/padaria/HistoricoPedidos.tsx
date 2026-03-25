@@ -167,6 +167,12 @@ export default function HistoricoPedidos() {
   const [valorEntrada, setValorEntrada] = useState('');
   const [formaPagamentoEntrada, setFormaPagamentoEntrada] = useState('');
   const [salvandoEntrada, setSalvandoEntrada] = useState(false);
+  
+  // Edição de data de entrega
+  const [modoEdicaoData, setModoEdicaoData] = useState(false);
+  const [novaDataEntrega, setNovaDataEntrega] = useState('');
+  const [novoHorarioEntrega, setNovoHorarioEntrega] = useState('');
+  const [salvandoData, setSalvandoData] = useState(false);
 
   // Carregar configurações
   useEffect(() => {
@@ -758,6 +764,76 @@ export default function HistoricoPedidos() {
       setSalvandoEntrada(false);
     }
   };
+  
+  // Iniciar edição de data de entrega
+  const handleIniciarEdicaoData = () => {
+    if (pedidoSelecionado) {
+      setNovaDataEntrega(pedidoSelecionado.dataEntrega || '');
+      setNovoHorarioEntrega(pedidoSelecionado.horarioEntrega || '');
+      setModoEdicaoData(true);
+    }
+  };
+  
+  // Cancelar edição de data
+  const handleCancelarEdicaoData = () => {
+    setModoEdicaoData(false);
+    setNovaDataEntrega('');
+    setNovoHorarioEntrega('');
+  };
+  
+  // Salvar nova data de entrega
+  const handleSalvarDataEntrega = async () => {
+    if (!pedidoSelecionado) return;
+    
+    if (!novaDataEntrega) {
+      toast({
+        title: 'Data obrigatória',
+        description: 'Informe a nova data de entrega.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setSalvandoData(true);
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          dataEntrega: novaDataEntrega,
+          horarioEntrega: novoHorarioEntrega || null,
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(pedidoAtualizado.error || 'Erro ao atualizar data');
+      }
+      
+      // Atualizar lista e pedido selecionado
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      
+      setModoEdicaoData(false);
+      
+      toast({
+        title: 'Data atualizada!',
+        description: `Nova data de entrega: ${formatarDataEntrega(novaDataEntrega)}${novoHorarioEntrega ? ` às ${novoHorarioEntrega}` : ''}`,
+      });
+    } catch (error) {
+      console.error('Erro ao salvar data:', error);
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível atualizar a data de entrega.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSalvandoData(false);
+    }
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -953,39 +1029,104 @@ export default function HistoricoPedidos() {
                 {/* Dados de Entrega */}
                 {pedidoSelecionado.tipoEntrega && (
                   <div className="mt-2 pt-2 border-t border-border/50">
-                    <div className="flex items-center gap-2 text-sm">
-                      {pedidoSelecionado.tipoEntrega === 'RETIRA' ? (
-                        <>
-                          <Store className="w-4 h-4 text-primary" />
-                          <span className="font-medium">Cliente Retira</span>
-                        </>
-                      ) : (
-                        <>
-                          <Truck className="w-4 h-4 text-primary" />
-                          <span className="font-medium">Tele Entrega</span>
-                        </>
-                      )}
-                    </div>
-                    {pedidoSelecionado.dataEntrega && (
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>{formatarDataEntrega(pedidoSelecionado.dataEntrega)}</span>
-                        </div>
-                        {pedidoSelecionado.horarioEntrega && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{pedidoSelecionado.horarioEntrega}</span>
-                          </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        {pedidoSelecionado.tipoEntrega === 'RETIRA' ? (
+                          <>
+                            <Store className="w-4 h-4 text-primary" />
+                            <span className="font-medium">Cliente Retira</span>
+                          </>
+                        ) : (
+                          <>
+                            <Truck className="w-4 h-4 text-primary" />
+                            <span className="font-medium">Tele Entrega</span>
+                          </>
                         )}
                       </div>
-                    )}
-                    {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && pedidoSelecionado.enderecoEntrega && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="w-3 h-3" />
-                        {pedidoSelecionado.enderecoEntrega}
-                        {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}
-                      </p>
+                      {!modoEdicaoData && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={handleIniciarEdicaoData}
+                        >
+                          <Edit2 className="w-3 h-3 mr-1" />
+                          Editar Data
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Modo edição de data */}
+                    {modoEdicaoData ? (
+                      <div className="mt-3 p-3 bg-background rounded-lg border border-border space-y-3">
+                        <h5 className="font-medium text-sm">Editar Data de Entrega</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Data</Label>
+                            <Input
+                              type="date"
+                              className="h-9 text-sm"
+                              value={novaDataEntrega}
+                              onChange={(e) => setNovaDataEntrega(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Horário</Label>
+                            <Select value={novoHorarioEntrega} onValueChange={setNovoHorarioEntrega}>
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {['07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'].map(h => (
+                                  <SelectItem key={h} value={h}>{h}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-8"
+                            onClick={handleCancelarEdicaoData}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 btn-padaria h-8"
+                            onClick={handleSalvarDataEntrega}
+                            disabled={salvandoData || !novaDataEntrega}
+                          >
+                            {salvandoData ? 'Salvando...' : 'Salvar'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {pedidoSelecionado.dataEntrega && (
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{formatarDataEntrega(pedidoSelecionado.dataEntrega)}</span>
+                            </div>
+                            {pedidoSelecionado.horarioEntrega && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{pedidoSelecionado.horarioEntrega}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && pedidoSelecionado.enderecoEntrega && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                            <MapPin className="w-3 h-3" />
+                            {pedidoSelecionado.enderecoEntrega}
+                            {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

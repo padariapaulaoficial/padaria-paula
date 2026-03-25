@@ -110,6 +110,7 @@ export default function ResumoPedido() {
         horarioEntrega: entrega.horarioEntrega,
         enderecoEntrega: entrega.tipoEntrega === 'TELE_ENTREGA' ? entrega.enderecoEntrega : null,
         bairroEntrega: entrega.tipoEntrega === 'TELE_ENTREGA' ? entrega.bairroEntrega : null,
+        valorTeleEntrega: entrega.valorTeleEntrega || 0,
         observacoes,
         total,
         totalPedida,
@@ -409,6 +410,20 @@ export default function ResumoPedido() {
 
           {/* Totais */}
           <div className="space-y-2">
+            {/* Subtotal dos itens */}
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Subtotal dos itens:</span>
+              <span>{formatarMoeda(total)}</span>
+            </div>
+            
+            {/* Taxa de entrega */}
+            {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 && (
+              <div className="flex justify-between items-center text-sm text-primary">
+                <span>Taxa de entrega:</span>
+                <span>{formatarMoeda(entrega.valorTeleEntrega)}</span>
+              </div>
+            )}
+            
             {diferencaTotal !== 0 && (
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Total pedido:</span>
@@ -421,9 +436,11 @@ export default function ResumoPedido() {
                 <span>{diferencaTotal > 0 ? '+' : ''}{formatarMoeda(diferencaTotal)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center text-xl font-bold">
+            <div className="flex justify-between items-center text-xl font-bold pt-2 border-t border-border/50">
               <span>Total do Pedido:</span>
-              <span className="text-primary text-2xl">{formatarMoeda(total)}</span>
+              <span className="text-primary text-2xl">
+                {formatarMoeda(total + (entrega.tipoEntrega === 'TELE_ENTREGA' ? (entrega.valorTeleEntrega || 0) : 0))}
+              </span>
             </div>
           </div>
 

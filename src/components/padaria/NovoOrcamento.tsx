@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock,
-  Package, Scale, Hash, Trash2, FileText, X
+  Package, Scale, Hash, Trash2, FileText, X, DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -109,6 +109,7 @@ export default function NovoOrcamento() {
   const [horarioEntrega, setHorarioEntrega] = useState('');
   const [enderecoEntrega, setEnderecoEntrega] = useState('');
   const [bairroEntrega, setBairroEntrega] = useState('');
+  const [valorTeleEntrega, setValorTeleEntrega] = useState('');
   const [observacoesTexto, setObservacoesTexto] = useState('');
   
   // Estados de controle
@@ -264,7 +265,7 @@ export default function NovoOrcamento() {
       bairro: clienteSelecionadoLocal.bairro,
     });
     
-    setEntrega({ tipoEntrega, dataEntrega, horarioEntrega, enderecoEntrega, bairroEntrega });
+    setEntrega({ tipoEntrega, dataEntrega, horarioEntrega, enderecoEntrega, bairroEntrega, valorTeleEntrega: parseFloat(valorTeleEntrega.replace(',', '.')) || 0 });
     setEtapa('produtos');
   };
 
@@ -338,6 +339,14 @@ export default function NovoOrcamento() {
     toast({ title: 'Adicionado!', description: `${produto.nome}` });
   }, [selecoes, adicionarItem, limparSelecao, toast]);
 
+  // Calcular total com taxa de entrega
+  const totalComTaxa = useMemo(() => {
+    const taxa = entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0
+      ? entrega.valorTeleEntrega
+      : 0;
+    return total + taxa;
+  }, [total, entrega.tipoEntrega, entrega.valorTeleEntrega]);
+
   // Salvar orçamento
   const handleSalvarOrcamento = async () => {
     if (!cliente) {
@@ -366,12 +375,13 @@ export default function NovoOrcamento() {
             tamanho: item.tamanho,
           })),
           observacoes: observacoesTexto,
-          total,
+          total: totalComTaxa,
           tipoEntrega: entrega.tipoEntrega,
           dataEntrega: entrega.dataEntrega,
           horarioEntrega: entrega.horarioEntrega,
           enderecoEntrega: entrega.enderecoEntrega,
           bairroEntrega: entrega.bairroEntrega,
+          valorTeleEntrega: entrega.valorTeleEntrega || null,
         }),
       });
 
@@ -705,6 +715,21 @@ export default function NovoOrcamento() {
                         value={bairroEntrega}
                         onChange={(e) => setBairroEntrega(e.target.value)}
                       />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="valorTeleEntrega" className="text-sm flex items-center gap-2">
+                        <DollarSign className="w-3.5 h-3.5" />
+                        Taxa de Entrega
+                      </Label>
+                      <Input
+                        id="valorTeleEntrega"
+                        type="text"
+                        placeholder="R$ 0,00"
+                        className="input-padaria h-11 text-base"
+                        value={valorTeleEntrega}
+                        onChange={(e) => setValorTeleEntrega(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Valor cobrado pela entrega (será somado ao total)</p>
                     </div>
                   </div>
                 </div>

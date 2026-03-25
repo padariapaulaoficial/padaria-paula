@@ -33,6 +33,7 @@ export interface DadosEntregaOrcamento {
   horarioEntrega: string; // Horário de entrega
   enderecoEntrega: string;
   bairroEntrega: string;
+  valorTeleEntrega: number; // Valor da taxa de tele-entrega
 }
 
 interface OrcamentoState {
@@ -70,6 +71,7 @@ const entregaInicial: DadosEntregaOrcamento = {
   horarioEntrega: '',
   enderecoEntrega: '',
   bairroEntrega: '',
+  valorTeleEntrega: 0,
 };
 
 export const useOrcamentoStore = create<OrcamentoState>((set, get) => ({

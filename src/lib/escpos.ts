@@ -34,6 +34,7 @@ export type PedidoCompleto = {
   valorEntrada?: number;
   formaPagamentoEntrada?: string | null;
   dataEntrada?: string | Date | null;
+  valorTeleEntrega?: number | null; // Valor da taxa de tele-entrega
   cliente: {
     nome: string;
     telefone: string;
@@ -76,10 +77,29 @@ function linhaDivisoria(char: string = '-'): string {
   return char.repeat(LARGURA_PAPEL);
 }
 
-// Truncar texto se maior que tamanho
+// Truncar texto se maior que tamanho (NÃO usar para endereços)
 function truncar(texto: string, tamanho: number): string {
   if (texto.length <= tamanho) return texto;
   return texto.substring(0, tamanho - 2) + '..';
+}
+
+// Quebrar texto em múltiplas linhas sem truncar (para endereços)
+function quebrarLinha(texto: string, largura: number = LARGURA_PAPEL): string[] {
+  if (texto.length <= largura) return [texto];
+  const linhas: string[] = [];
+  let restante = texto;
+  while (restante.length > 0) {
+    if (restante.length <= largura) {
+      linhas.push(restante);
+      break;
+    }
+    // Tentar quebrar no último espaço antes da largura
+    let posicaoQuebra = restante.lastIndexOf(' ', largura);
+    if (posicaoQuebra <= 0) posicaoQuebra = largura;
+    linhas.push(restante.substring(0, posicaoQuebra).trim());
+    restante = restante.substring(posicaoQuebra).trim();
+  }
+  return linhas;
 }
 
 // Formatar CPF
@@ -192,15 +212,16 @@ export function gerarCupomCliente(
   linhas.push(`CLIENTE: ${truncar(pedido.cliente.nome, LARGURA_PAPEL - 9)}`);
   linhas.push(`Fone: ${formatarTelefone(pedido.cliente.telefone)}`);
   
-  // Endereço do cliente (do cadastro do cliente)
+  // Endereço do cliente (do cadastro do cliente) - SEM TRUNCAR
   if (pedido.cliente.endereco) {
     const enderecoCliente = pedido.cliente.bairro 
       ? `${pedido.cliente.endereco} - ${pedido.cliente.bairro}`
       : pedido.cliente.endereco;
-    linhas.push(truncar(`End: ${enderecoCliente}`, LARGURA_PAPEL));
+    const linhasEndereco = quebrarLinha(`End: ${enderecoCliente}`);
+    linhas.push(...linhasEndereco);
   }
   
-  // Endereço de entrega (do pedido, se diferente ou tele-entrega)
+  // Endereço de entrega (do pedido, se diferente ou tele-entrega) - SEM TRUNCAR
   if (tipoEntrega === 'TELE_ENTREGA' && pedido.enderecoEntrega) {
     const enderecoCompleto = pedido.bairroEntrega 
       ? `${pedido.enderecoEntrega} - ${pedido.bairroEntrega}`
@@ -210,7 +231,8 @@ export function gerarCupomCliente(
       ? `${pedido.cliente.endereco}${pedido.cliente.bairro ? ` - ${pedido.cliente.bairro}` : ''}`
       : '';
     if (enderecoCompleto !== enderecoClienteCompleto) {
-      linhas.push(truncar(`Entregar: ${enderecoCompleto}`, LARGURA_PAPEL));
+      const linhasEntrega = quebrarLinha(`Entregar: ${enderecoCompleto}`);
+      linhas.push(...linhasEntrega);
     }
   }
   
@@ -251,6 +273,19 @@ export function gerarCupomCliente(
   }
   
   linhas.push(linhaDivisoria('-'));
+  
+  // Subtotal dos itens
+  const subtotalItens = pedido.itens.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotalStr = formatarMoeda(subtotalItens);
+  const espacosSubtotal = LARGURA_PAPEL - 10 - subtotalStr.length;
+  linhas.push(`SUBTOTAL:${' '.repeat(Math.max(0, espacosSubtotal))}${subtotalStr}`);
+  
+  // TAXA DE ENTREGA (se houver)
+  if (pedido.tipoEntrega === 'TELE_ENTREGA' && pedido.valorTeleEntrega && pedido.valorTeleEntrega > 0) {
+    const taxaStr = formatarMoeda(pedido.valorTeleEntrega);
+    const espacosTaxa = LARGURA_PAPEL - 15 - taxaStr.length;
+    linhas.push(`TAXA DE ENTREGA:${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
+  }
   
   // TOTAL com R$
   const totalStr = formatarMoeda(pedido.total);
@@ -541,6 +576,7 @@ export type OrcamentoCompleto = {
   horarioEntrega?: string | null;
   enderecoEntrega?: string | null;
   bairroEntrega?: string | null;
+  valorTeleEntrega?: number | null; // Valor da taxa de tele-entrega
 };
 
 /**
@@ -587,15 +623,16 @@ export function gerarCupomOrcamento(
   linhas.push(`CLIENTE: ${truncar(orcamento.cliente.nome, LARGURA_PAPEL - 9)}`);
   linhas.push(`Fone: ${formatarTelefone(orcamento.cliente.telefone)}`);
   
-  // Endereço do cliente (do cadastro) - SEMPRE mostrar
+  // Endereço do cliente (do cadastro) - SEMPRE mostrar, SEM TRUNCAR
   if (orcamento.cliente.endereco) {
     const enderecoCliente = orcamento.cliente.bairro 
       ? `${orcamento.cliente.endereco} - ${orcamento.cliente.bairro}`
       : orcamento.cliente.endereco;
-    linhas.push(truncar(`End: ${enderecoCliente}`, LARGURA_PAPEL));
+    const linhasEndereco = quebrarLinha(`End: ${enderecoCliente}`);
+    linhas.push(...linhasEndereco);
   }
   
-  // Endereço de entrega para tele-entrega (se diferente do endereço do cliente)
+  // Endereço de entrega para tele-entrega (se diferente do endereço do cliente) - SEM TRUNCAR
   if (tipoEntrega === 'TELE_ENTREGA' && orcamento.enderecoEntrega) {
     const enderecoCompleto = orcamento.bairroEntrega 
       ? `${orcamento.enderecoEntrega} - ${orcamento.bairroEntrega}`
@@ -605,7 +642,8 @@ export function gerarCupomOrcamento(
       ? `${orcamento.cliente.endereco}${orcamento.cliente.bairro ? ` - ${orcamento.cliente.bairro}` : ''}`
       : '';
     if (enderecoCompleto !== enderecoClienteCompleto) {
-      linhas.push(truncar(`Entregar: ${enderecoCompleto}`, LARGURA_PAPEL));
+      const linhasEntrega = quebrarLinha(`Entregar: ${enderecoCompleto}`);
+      linhas.push(...linhasEntrega);
     }
   }
   
@@ -646,6 +684,19 @@ export function gerarCupomOrcamento(
   }
   
   linhas.push(linhaDivisoria('-'));
+  
+  // Subtotal dos itens
+  const subtotalItens = orcamento.itens.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotalStr = formatarMoeda(subtotalItens);
+  const espacosSubtotal = LARGURA_PAPEL - 10 - subtotalStr.length;
+  linhas.push(`SUBTOTAL:${' '.repeat(Math.max(0, espacosSubtotal))}${subtotalStr}`);
+  
+  // TAXA DE ENTREGA (se houver)
+  if (orcamento.tipoEntrega === 'TELE_ENTREGA' && orcamento.valorTeleEntrega && orcamento.valorTeleEntrega > 0) {
+    const taxaStr = formatarMoeda(orcamento.valorTeleEntrega);
+    const espacosTaxa = LARGURA_PAPEL - 15 - taxaStr.length;
+    linhas.push(`TAXA DE ENTREGA:${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
+  }
   
   // TOTAL com R$
   const totalStr = formatarMoeda(orcamento.total);

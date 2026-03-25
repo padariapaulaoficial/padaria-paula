@@ -4,7 +4,7 @@
 // Seleção de cliente + dados de entrega (tipo, data e horário)
 
 import { useState, useEffect } from 'react';
-import { Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock } from 'lucide-react';
+import { Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -81,6 +81,7 @@ export default function NovoPedido() {
   const [horarioEntrega, setHorarioEntrega] = useState(entrega.horarioEntrega || '');
   const [enderecoEntrega, setEnderecoEntrega] = useState(entrega.enderecoEntrega || '');
   const [bairroEntrega, setBairroEntrega] = useState(entrega.bairroEntrega || '');
+  const [valorTeleEntrega, setValorTeleEntrega] = useState(entrega.valorTeleEntrega?.toString() || '');
 
   // Se já tem cliente na store (vindo de ClientesLista), usar ele
   useEffect(() => {
@@ -214,6 +215,7 @@ export default function NovoPedido() {
       horarioEntrega,
       enderecoEntrega,
       bairroEntrega,
+      valorTeleEntrega: parseFloat(valorTeleEntrega.replace(',', '.')) || 0,
     });
     
     toast({
@@ -439,6 +441,21 @@ export default function NovoPedido() {
                     value={bairroEntrega}
                     onChange={(e) => setBairroEntrega(e.target.value)}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="valorTeleEntrega" className="text-sm flex items-center gap-2">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    Taxa de Entrega
+                  </Label>
+                  <Input
+                    id="valorTeleEntrega"
+                    type="text"
+                    placeholder="R$ 0,00"
+                    className="input-padaria h-11 text-base"
+                    value={valorTeleEntrega}
+                    onChange={(e) => setValorTeleEntrega(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Valor cobrado pela entrega (será somado ao total)</p>
                 </div>
               </div>
             </div>

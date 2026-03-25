@@ -130,7 +130,8 @@ export async function POST(request: NextRequest) {
       dataEntrega,
       horarioEntrega,
       enderecoEntrega,
-      bairroEntrega
+      bairroEntrega,
+      valorTeleEntrega
     } = body;
     
     // Validações
@@ -191,19 +192,26 @@ export async function POST(request: NextRequest) {
     });
     const novoNumero = (ultimoPedido?.numero || 0) + 1;
     
+    // Calcular total incluindo taxa de tele-entrega
+    const taxaEntrega = (tipoEntrega === 'TELE_ENTREGA' && valorTeleEntrega) 
+      ? parseFloat(valorTeleEntrega) || 0 
+      : 0;
+    const totalFinal = parseFloat(total) + taxaEntrega;
+    
     // Criar pedido com itens
     const pedido = await db.pedido.create({
       data: {
         numero: novoNumero,
         clienteId,
         observacoes: observacoes || null,
-        total: parseFloat(total) || 0,
+        total: totalFinal,
         totalPedida: parseFloat(totalPedida) || parseFloat(total) || 0,
         tipoEntrega: tipoEntrega || 'RETIRA',
         dataEntrega,
         horarioEntrega,
         enderecoEntrega: tipoEntrega === 'TELE_ENTREGA' ? enderecoEntrega : null,
         bairroEntrega: tipoEntrega === 'TELE_ENTREGA' ? bairroEntrega : null,
+        valorTeleEntrega: taxaEntrega > 0 ? taxaEntrega : null,
         status: 'PENDENTE',
         itens: {
           create: itens.map((item: Record<string, unknown>) => ({
@@ -260,7 +268,8 @@ export async function PUT(request: NextRequest) {
     const { 
       id, status, impresso, itens, novosItens,
       valorEntrada, formaPagamentoEntrada, dataEntrada,
-      alertaProducaoEnviado
+      alertaProducaoEnviado,
+      dataEntrega, horarioEntrega, valorTeleEntrega
     } = body;
     
     if (!id) {
@@ -279,6 +288,11 @@ export async function PUT(request: NextRequest) {
     if (formaPagamentoEntrada !== undefined) data.formaPagamentoEntrada = formaPagamentoEntrada;
     if (dataEntrada !== undefined) data.dataEntrada = dataEntrada ? new Date(dataEntrada) : null;
     if (alertaProducaoEnviado !== undefined) data.alertaProducaoEnviado = alertaProducaoEnviado;
+    
+    // Campos de entrega (edição de data/horário)
+    if (dataEntrega !== undefined) data.dataEntrega = dataEntrega;
+    if (horarioEntrega !== undefined) data.horarioEntrega = horarioEntrega;
+    if (valorTeleEntrega !== undefined) data.valorTeleEntrega = parseFloat(valorTeleEntrega) || 0;
     
     // Se houver itens para atualizar
     if (itens && Array.isArray(itens)) {
@@ -300,33 +314,16 @@ export async function PUT(request: NextRequest) {
     if (novosItens && Array.isArray(novosItens) && novosItens.length > 0) {
       for (const item of novosItens) {
         if (item.produtoId) {
-          // Verificar se já existe um item com o mesmo produto E tamanho (se houver)
-          const itemExistente = await db.itemPedido.findFirst({
-            where: {
-              pedidoId: id,
-              produtoId: item.produtoId,
-              tamanho: item.tamanho || null,
-            },
+          // Verificar se o produto é ESPECIAL (torta)
+          const produto = await db.produto.findUnique({
+            where: { id: item.produtoId },
+            select: { tipoProduto: true },
           });
           
-          if (itemExistente) {
-            // Se existe, somar as quantidades
-            const novaQuantidade = itemExistente.quantidade + (item.quantidade || 0);
-            const novaQuantidadePedida = itemExistente.quantidadePedida + (item.quantidade || 0);
-            const novoSubtotal = novaQuantidade * itemExistente.valorUnit;
-            const novoSubtotalPedida = novaQuantidadePedida * itemExistente.valorUnit;
-            
-            await db.itemPedido.update({
-              where: { id: itemExistente.id },
-              data: {
-                quantidade: novaQuantidade,
-                quantidadePedida: novaQuantidadePedida,
-                subtotal: novoSubtotal,
-                subtotalPedida: novoSubtotalPedida,
-              },
-            });
-          } else {
-            // Se não existe, criar novo item
+          // Para produtos ESPECIAIS (tortas), cada adição é um item separado
+          // Para produtos NORMAIS, somar quantidades se já existir o mesmo produto e tamanho
+          if (produto?.tipoProduto === 'ESPECIAL') {
+            // Criar novo item sempre para tortas (não somar)
             await db.itemPedido.create({
               data: {
                 pedidoId: id,
@@ -340,6 +337,48 @@ export async function PUT(request: NextRequest) {
                 tamanho: item.tamanho || null,
               },
             });
+          } else {
+            // Para produtos normais, verificar se já existe um item com o mesmo produto E tamanho
+            const itemExistente = await db.itemPedido.findFirst({
+              where: {
+                pedidoId: id,
+                produtoId: item.produtoId,
+                tamanho: item.tamanho || null,
+              },
+            });
+            
+            if (itemExistente) {
+              // Se existe, somar as quantidades
+              const novaQuantidade = itemExistente.quantidade + (item.quantidade || 0);
+              const novaQuantidadePedida = itemExistente.quantidadePedida + (item.quantidade || 0);
+              const novoSubtotal = novaQuantidade * itemExistente.valorUnit;
+              const novoSubtotalPedida = novaQuantidadePedida * itemExistente.valorUnit;
+              
+              await db.itemPedido.update({
+                where: { id: itemExistente.id },
+                data: {
+                  quantidade: novaQuantidade,
+                  quantidadePedida: novaQuantidadePedida,
+                  subtotal: novoSubtotal,
+                  subtotalPedida: novoSubtotalPedida,
+                },
+              });
+            } else {
+              // Se não existe, criar novo item
+              await db.itemPedido.create({
+                data: {
+                  pedidoId: id,
+                  produtoId: item.produtoId,
+                  quantidadePedida: item.quantidade || 0,
+                  quantidade: item.quantidade || 0,
+                  valorUnit: item.valorUnit || 0,
+                  subtotalPedida: item.subtotal || 0,
+                  subtotal: item.subtotal || 0,
+                  observacao: item.observacao || null,
+                  tamanho: item.tamanho || null,
+                },
+              });
+            }
           }
         }
       }

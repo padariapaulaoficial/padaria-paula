@@ -74,6 +74,7 @@ model Pedido {
   formaPagamentoEntrada String?
   dataEntrada         DateTime?
   alertaProducaoEnviado Boolean    @default(false)
+  valorTeleEntrega    Float?         // Valor da taxa de tele-entrega
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   itens               ItemPedido[]
@@ -115,6 +116,7 @@ model Orcamento {
   horarioEntrega  String?
   enderecoEntrega String?
   bairroEntrega   String?
+  valorTeleEntrega Float?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   itens           ItemOrcamento[]
