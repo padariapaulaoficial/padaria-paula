@@ -1,0 +1,53 @@
+╔════════════════════════════════════════════════════════════╗
+║                                                            ║
+║       🥖 PADARIA E CONFEITARIA PAULA 🥐                   ║
+║                                                            ║
+║              SISTEMA DE GESTÃO                            ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+
+
+================== INSTALAÇÃO ==================
+
+1. Instale o Node.js
+   - Baixe em: https://nodejs.org/
+   - Escolha a versão LTS
+   - Instale normalmente
+
+2. Abra esta pasta no CMD
+   - Digite "cmd" na barra de endereço
+   - Pressione Enter
+
+3. Execute o instalador
+   - Digite: INSTALAR.bat
+   - Pressione Enter
+   - Aguarde a instalação
+
+4. Pronto!
+   - Clique em INICIAR-PADARIA.bat na Área de Trabalho
+
+
+================== CREDENCIAIS ==================
+
+PIN dos Funcionários: 2026
+Senha do Administrador: admin2026
+
+⚠️ ALTERE ESSAS SENHAS NAS CONFIGURAÇÕES!
+
+
+================== PROBLEMAS COMUNS ==================
+
+"Node.js não encontrado"
+→ Instale o Node.js: https://nodejs.org/
+
+"npm não encontrado"
+→ Reinstale o Node.js
+
+"Erro ao instalar dependências"
+→ Execute: npm cache clean --force
+→ Depois execute: npm install
+
+
+================== SUPORTE ==================
+
+Sistema desenvolvido para a Padaria e Confeitaria Paula.
