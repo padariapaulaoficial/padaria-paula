@@ -314,16 +314,20 @@ export async function PUT(request: NextRequest) {
     if (novosItens && Array.isArray(novosItens) && novosItens.length > 0) {
       for (const item of novosItens) {
         if (item.produtoId) {
-          // Verificar se o produto é ESPECIAL (torta)
+          // Verificar se o produto é ESPECIAL (torta) ou KG (peso)
           const produto = await db.produto.findUnique({
             where: { id: item.produtoId },
-            select: { tipoProduto: true },
+            select: { tipoProduto: true, tipoVenda: true },
           });
           
-          // Para produtos ESPECIAIS (tortas), cada adição é um item separado
-          // Para produtos NORMAIS, somar quantidades se já existir o mesmo produto e tamanho
-          if (produto?.tipoProduto === 'ESPECIAL') {
-            // Criar novo item sempre para tortas (não somar)
+          // Produtos que NÃO somam (sempre criam item separado):
+          // - ESPECIAL (tortas)
+          // - KG (produtos vendidos por peso)
+          // Apenas UNIDADE normais podem ser somados
+          const naoSoma = produto?.tipoProduto === 'ESPECIAL' || produto?.tipoVenda === 'KG';
+          
+          if (naoSoma) {
+            // Criar novo item sempre (não somar)
             await db.itemPedido.create({
               data: {
                 pedidoId: id,
@@ -338,7 +342,7 @@ export async function PUT(request: NextRequest) {
               },
             });
           } else {
-            // Para produtos normais, verificar se já existe um item com o mesmo produto E tamanho
+            // Para produtos UNIDADE normais, verificar se já existe item com mesmo produto E tamanho
             const itemExistente = await db.itemPedido.findFirst({
               where: {
                 pedidoId: id,

@@ -136,6 +136,7 @@ export default function HistoricoPedidos() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [dataFiltro, setDataFiltro] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState<string>('TODOS');
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pedidoParaExcluir, setPedidoParaExcluir] = useState<Pedido | null>(null);
@@ -227,15 +228,24 @@ export default function HistoricoPedidos() {
     carregarPedidos();
   }, [dataFiltro]);
 
-  // Filtrar pedidos por busca
+  // Filtrar pedidos por busca e status
   const pedidosFiltrados = pedidos.filter(pedido => {
-    if (!busca) return true;
-    const termo = busca.toLowerCase();
-    return (
-      pedido.numero.toString().includes(termo) ||
-      pedido.cliente.nome.toLowerCase().includes(termo) ||
-      pedido.cliente.telefone.includes(termo)
-    );
+    // Filtro por texto
+    if (busca) {
+      const termo = busca.toLowerCase();
+      const matchTexto = 
+        pedido.numero.toString().includes(termo) ||
+        pedido.cliente.nome.toLowerCase().includes(termo) ||
+        pedido.cliente.telefone.includes(termo);
+      if (!matchTexto) return false;
+    }
+    
+    // Filtro por status
+    if (statusFiltro !== 'TODOS') {
+      if (pedido.status !== statusFiltro) return false;
+    }
+    
+    return true;
   });
 
   // Formatar data
@@ -856,6 +866,19 @@ export default function HistoricoPedidos() {
                 onChange={(e) => setBusca(e.target.value)}
               />
             </div>
+            <Select value={statusFiltro} onValueChange={setStatusFiltro}>
+              <SelectTrigger className="w-full sm:w-36 h-10">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="PENDENTE">Pendente</SelectItem>
+                <SelectItem value="PRODUCAO">Em Produção</SelectItem>
+                <SelectItem value="PRONTO">Pronto</SelectItem>
+                <SelectItem value="ENTREGUE">Entregue</SelectItem>
+                <SelectItem value="CANCELADO">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               type="date"
               className="input-padaria w-full sm:w-40 h-10"

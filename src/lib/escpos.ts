@@ -430,7 +430,6 @@ export function gerarCupomCozinhaGrande(
   
   // Lista de itens - formato simples e grande
   linhas.push('ITENS:');
-  linhas.push('');
   
   for (const item of pedido.itens) {
     const qtdProd = item.quantidadePedida || item.quantidade;
@@ -447,7 +446,6 @@ export function gerarCupomCozinhaGrande(
     }
     
     // Incluir tamanho no nome se existir (para tortas especiais)
-    // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
@@ -459,8 +457,6 @@ export function gerarCupomCozinhaGrande(
     if (item.observacao) {
       linhas.push(`       -> ${truncar(item.observacao.toUpperCase(), 32)}`);
     }
-    // Linha em branco entre itens para melhor visualização
-    linhas.push('');
   }
   
   linhas.push('');
