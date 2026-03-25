@@ -268,7 +268,7 @@ export default function HistoricoPedidos() {
   // Badge de status
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className?: string }> = {
-      PENDENTE: { variant: 'secondary', label: 'Pendente' },
+      PENDENTE: { variant: 'destructive', label: 'Pendente', className: 'bg-red-500 hover:bg-red-600' },
       PRODUCAO: { variant: 'default', label: 'Em Produção', className: 'bg-blue-500' },
       PRONTO: { variant: 'outline', label: 'Pronto', className: 'border-green-500 text-green-600' },
       ENTREGUE: { variant: 'default', label: 'Entregue', className: 'bg-green-600' },
@@ -593,6 +593,50 @@ export default function HistoricoPedidos() {
     
     toast({
       title: 'Mensagem enviada!',
+      description: `WhatsApp aberto para ${pedido.cliente.nome}`,
+    });
+  };
+
+  // Enviar confirmação do pedido via WhatsApp
+  const handleConfirmarPedido = (pedido: Pedido) => {
+    const telefone = pedido.cliente.telefone.replace(/\D/g, '');
+    const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
+    
+    // Data de entrega formatada
+    const dataEntrega = pedido.dataEntrega 
+      ? new Date(pedido.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')
+      : 'a combinar';
+    const horarioEntrega = pedido.horarioEntrega || 'a combinar';
+    
+    // Lista de itens
+    let itensStr = '';
+    for (const item of pedido.itens) {
+      const nomeItem = item.tamanho 
+        ? `${item.produto.nome} (${item.tamanho})`
+        : item.produto.nome;
+      const qtd = item.produto.tipoVenda === 'KG' 
+        ? `${item.quantidade}kg`
+        : `${Math.round(item.quantidade)}x`;
+      itensStr += `• ${qtd} ${nomeItem}\n`;
+    }
+    
+    let mensagem = `*Padaria e Confeitaria Paula*\n`;
+    mensagem += `━━━━━━━━━━━━━━━━━━\n\n`;
+    mensagem += `Olá, *${pedido.cliente.nome}*! 👋\n\n`;
+    mensagem += `Podemos confirmar seu pedido?\n\n`;
+    mensagem += `📦 *Pedido #${formatarNumeroPedido(pedido.numero)}*\n\n`;
+    mensagem += `*Itens:*\n${itensStr}\n`;
+    mensagem += `📅 *Entrega:* ${dataEntrega}\n`;
+    mensagem += `⏰ *Horário:* ${horarioEntrega}\n`;
+    mensagem += `💰 *Total:* ${formatarMoeda(pedido.total)}\n\n`;
+    mensagem += `Por favor, confirme se está tudo correto.\n\n`;
+    mensagem += `Agradecemos pela preferência! 💛`;
+    
+    const mensagemCodificada = encodeURIComponent(mensagem);
+    window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
+    
+    toast({
+      title: 'Confirmação enviada!',
       description: `WhatsApp aberto para ${pedido.cliente.nome}`,
     });
   };
@@ -1622,6 +1666,16 @@ export default function HistoricoPedidos() {
                 <Button onClick={() => handleImprimirCozinha(pedidoSelecionado)} variant="outline" className="w-full h-11">
                   <Printer className="w-4 h-4 mr-2" />
                   Imprimir Comanda Cozinha
+                </Button>
+                
+                {/* Botão discreto para confirmar pedido */}
+                <Button 
+                  onClick={() => handleConfirmarPedido(pedidoSelecionado)} 
+                  variant="ghost" 
+                  className="w-full h-9 text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Confirmar Pedido via WhatsApp
                 </Button>
               </div>
             </div>

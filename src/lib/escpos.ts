@@ -415,7 +415,14 @@ export function gerarCupomCozinhaGrande(
   if (pedido.dataEntrega) {
     const dataEntrega = formatarDataEntrega(pedido.dataEntrega);
     const horario = pedido.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+    
+    // Dia da semana
+    const diasSemana = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+    const dataObj = new Date(pedido.dataEntrega + 'T12:00:00');
+    const diaSemana = diasSemana[dataObj.getDay()];
+    
+    // Formato: segunda-feira 25/03/2026 - HORARIO: 14:00
+    linhas.push(`DATA: ${diaSemana} ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
   }
   linhas.push('');
   linhas.push('----------------------------------------');
