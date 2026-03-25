@@ -303,7 +303,9 @@ export async function PUT(request: NextRequest) {
             where: { id: item.id },
             data: {
               quantidade: item.quantidade,
+              quantidadePedida: item.quantidade, // Sincronizar com a quantidade pedida para produção
               subtotal: item.subtotal,
+              subtotalPedida: item.subtotal, // Sincronizar subtotal pedida também
             },
           });
         }
@@ -393,9 +395,19 @@ export async function PUT(request: NextRequest) {
       const itensAtualizados = await db.itemPedido.findMany({
         where: { pedidoId: id },
       });
-      const novoTotal = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      // Buscar o pedido atual para obter a taxa de tele-entrega
+      const pedidoAtual = await db.pedido.findUnique({
+        where: { id },
+        select: { valorTeleEntrega: true },
+      });
+      
+      const subtotalItens = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      const taxaEntrega = pedidoAtual?.valorTeleEntrega || 0;
+      const novoTotal = subtotalItens + taxaEntrega;
+      
       data.total = novoTotal;
-      data.totalPedida = novoTotal;
+      data.totalPedida = subtotalItens; // totalPedida não inclui taxa
     }
     
     const pedido = await db.pedido.update({

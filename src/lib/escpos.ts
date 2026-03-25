@@ -283,8 +283,9 @@ export function gerarCupomCliente(
   // TAXA DE ENTREGA (se houver)
   if (pedido.tipoEntrega === 'TELE_ENTREGA' && pedido.valorTeleEntrega && pedido.valorTeleEntrega > 0) {
     const taxaStr = formatarMoeda(pedido.valorTeleEntrega);
-    const espacosTaxa = LARGURA_PAPEL - 15 - taxaStr.length;
-    linhas.push(`TAXA DE ENTREGA:${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
+    const labelTaxa = 'TAXA DE ENTREGA:';
+    const espacosTaxa = LARGURA_PAPEL - labelTaxa.length - taxaStr.length;
+    linhas.push(`${labelTaxa}${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
   }
   
   // TOTAL com R$
@@ -697,8 +698,9 @@ export function gerarCupomOrcamento(
   // TAXA DE ENTREGA (se houver)
   if (orcamento.tipoEntrega === 'TELE_ENTREGA' && orcamento.valorTeleEntrega && orcamento.valorTeleEntrega > 0) {
     const taxaStr = formatarMoeda(orcamento.valorTeleEntrega);
-    const espacosTaxa = LARGURA_PAPEL - 15 - taxaStr.length;
-    linhas.push(`TAXA DE ENTREGA:${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
+    const labelTaxa = 'TAXA DE ENTREGA:';
+    const espacosTaxa = LARGURA_PAPEL - labelTaxa.length - taxaStr.length;
+    linhas.push(`${labelTaxa}${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
   }
   
   // TOTAL com R$

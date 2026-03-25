@@ -382,7 +382,8 @@ export default function HistoricoPedidos() {
       
       toast({
         title: 'Pedido atualizado!',
-        description: 'Os pesos foram ajustados e o total recalculado.',
+        description: 'Os pesos foram ajustados e o total recalculado. Reimprima a comanda da cozinha.',
+        duration: 5000,
       });
       
       setModoEdicao(false);
