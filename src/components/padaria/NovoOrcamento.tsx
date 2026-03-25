@@ -862,34 +862,49 @@ export default function NovoOrcamento() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <ScrollArea className="max-h-40">
-                  {itens.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg mb-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
-                        </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {itens.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="font-medium text-sm truncate">{item.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-semibold text-sm whitespace-nowrap">{formatarMoeda(item.subtotal)}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => removerItem(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => removerItem(index)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </ScrollArea>
 
-                <div className="flex justify-between items-center pt-2 border-t border-border">
-                  <span className="font-medium">Total:</span>
+                <div className="flex justify-between items-center pt-3 mt-2 border-t border-border">
+                  <span className="font-medium">Subtotal:</span>
                   <span className="font-bold text-lg text-primary">{formatarMoeda(total)}</span>
                 </div>
+                
+                {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 && (
+                  <>
+                    <div className="flex justify-between items-center text-sm text-primary">
+                      <span>Taxa de entrega:</span>
+                      <span>{formatarMoeda(entrega.valorTeleEntrega)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-border">
+                      <span className="font-semibold">Total:</span>
+                      <span className="font-bold text-xl text-primary">{formatarMoeda(totalComTaxa)}</span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
