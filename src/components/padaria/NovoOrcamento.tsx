@@ -944,9 +944,9 @@ export default function NovoOrcamento() {
                       <span className="ml-2 text-muted-foreground">Carregando...</span>
                     </div>
                   ) : modoVisualizacao === 'grade' ? (
-                    /* GRADE COMPACTA - 5 por linha */
+                    /* GRADE COMPACTA - 4 por linha */
                     <div className="p-2">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         {produtosFiltrados.map(produto => renderProdutoCardCompacto(produto))}
                       </div>
                       
