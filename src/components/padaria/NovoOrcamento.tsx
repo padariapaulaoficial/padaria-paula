@@ -864,44 +864,30 @@ export default function NovoOrcamento() {
       {/* Etapa 2: Produtos */}
       {etapa === 'produtos' && (
         <>
-          {/* Resumo do Cliente */}
-          <Card className="card-padaria border-primary/30 bg-primary/5">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/20 rounded-full p-2">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-primary">{cliente?.nome}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-[10px]">
-                        {entrega.tipoEntrega === 'RETIRA' ? (
-                          <><Store className="w-3 h-3 mr-1" />Retira</>
-                        ) : (
-                          <><Truck className="w-3 h-3 mr-1" />Entrega</>
-                        )}
-                      </Badge>
-                      <Badge variant="secondary" className="text-[10px]">
-                        {new Date(entrega.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')} - {entrega.horarioEntrega}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setEtapa('cliente')}>
-                  Editar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Resumo do Cliente - COMPACTO */}
+          <div className="flex items-center justify-between px-3 py-2 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" />
+              <span className="font-medium text-sm text-primary truncate max-w-[150px]">{cliente?.nome}</span>
+              <Badge variant="outline" className="text-[9px] h-5 px-1.5">
+                {entrega.tipoEntrega === 'RETIRA' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
+              </Badge>
+              <Badge variant="secondary" className="text-[9px] h-5 px-1.5">
+                {new Date(entrega.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')} {entrega.horarioEntrega}
+              </Badge>
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setEtapa('cliente')}>
+              Editar
+            </Button>
+          </div>
 
-          {/* Busca e Filtros */}
+          {/* Busca e Filtros - COMPACTO */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar produtos..."
-                className="input-padaria pl-10 h-10"
+                placeholder="Buscar..."
+                className="input-padaria pl-9 h-9 text-sm"
                 value={buscaProduto}
                 onChange={(e) => setBuscaProduto(e.target.value)}
               />
@@ -909,16 +895,16 @@ export default function NovoOrcamento() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
                   onClick={() => setBuscaProduto('')}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3" />
                 </Button>
               )}
             </div>
             <Select value={categoriaAtiva} onValueChange={setCategoriaAtiva}>
-              <SelectTrigger className="w-36 h-10">
-                <SelectValue placeholder="Categoria" />
+              <SelectTrigger className="w-28 h-9 text-sm">
+                <SelectValue placeholder="Cat." />
               </SelectTrigger>
               <SelectContent>
                 {categorias.map(cat => (
@@ -926,39 +912,30 @@ export default function NovoOrcamento() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex gap-0.5">
+              <Button
+                variant={modoVisualizacao === 'grade' ? 'default' : 'ghost'}
+                size="sm"
+                className={`h-9 w-9 p-0 ${modoVisualizacao === 'grade' ? 'btn-padaria' : ''}`}
+                onClick={() => setModoVisualizacao('grade')}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={modoVisualizacao === 'lista' ? 'default' : 'ghost'}
+                size="sm"
+                className={`h-9 w-9 p-0 ${modoVisualizacao === 'lista' ? 'btn-padaria' : ''}`}
+                onClick={() => setModoVisualizacao('lista')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Lista de Produtos */}
-          <Card className="card-padaria">
+          <Card className="card-padaria flex-1">
             <CardContent className="p-0">
-              {/* Toggle de visualização */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30">
-                <span className="text-sm font-medium text-muted-foreground">
-                  {produtosFiltrados.length} produtos
-                </span>
-                <div className="flex gap-1">
-                  <Button
-                    variant={modoVisualizacao === 'grade' ? 'default' : 'ghost'}
-                    size="sm"
-                    className={`h-8 w-8 p-0 ${modoVisualizacao === 'grade' ? 'btn-padaria' : ''}`}
-                    onClick={() => setModoVisualizacao('grade')}
-                    title="Visualização em grade"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={modoVisualizacao === 'lista' ? 'default' : 'ghost'}
-                    size="sm"
-                    className={`h-8 w-8 p-0 ${modoVisualizacao === 'lista' ? 'btn-padaria' : ''}`}
-                    onClick={() => setModoVisualizacao('lista')}
-                    title="Visualização em lista"
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="h-[calc(100vh-420px)] overflow-y-auto">
+              <div className="h-[calc(100vh-280px)] overflow-y-auto">
                 {loadingProdutos ? (
                   <div className="flex items-center justify-center py-12">
                     <Package className="w-8 h-8 animate-pulse text-muted-foreground" />
@@ -1007,85 +984,75 @@ export default function NovoOrcamento() {
             </CardContent>
           </Card>
 
-          {/* Carrinho */}
+          {/* Carrinho - COMPACTO */}
           {itens.length > 0 && (
             <Card className="card-padaria border-primary/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Itens ({itens.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <ScrollArea className="max-h-48">
-                  <div className="space-y-1">
-                    {itens.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <p className="font-medium text-sm truncate">{item.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-semibold text-sm whitespace-nowrap">{formatarMoeda(item.subtotal)}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => removerItem(index)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+              <CardContent className="p-2 space-y-1">
+                {/* Lista de itens sem scroll */}
+                <div className="space-y-0.5">
+                  {itens.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between py-1 px-2 bg-muted/50 rounded">
+                      <div className="flex-1 min-w-0 pr-2 flex items-center gap-2">
+                        <span className="font-medium text-xs truncate">{item.nome}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {formatarQuantidade(item.quantidade, item.tipoVenda)}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-
-                <div className="flex justify-between items-center pt-3 mt-2 border-t border-border">
-                  <span className="font-medium">Subtotal:</span>
-                  <span className="font-bold text-lg text-primary">{formatarMoeda(total)}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-semibold text-xs whitespace-nowrap">{formatarMoeda(item.subtotal)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removerItem(index)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                
-                {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 && (
-                  <>
-                    <div className="flex justify-between items-center text-sm text-primary">
-                      <span>Taxa de entrega:</span>
-                      <span>{formatarMoeda(entrega.valorTeleEntrega)}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-border">
-                      <span className="font-semibold">Total:</span>
-                      <span className="font-bold text-xl text-primary">{formatarMoeda(totalComTaxa)}</span>
-                    </div>
-                  </>
-                )}
+
+                {/* Total */}
+                <div className="flex justify-between items-center pt-1 border-t border-border">
+                  {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 ? (
+                    <>
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Subtotal: </span>
+                        <span className="font-medium">{formatarMoeda(total)}</span>
+                        <span className="text-muted-foreground ml-2">+ Entrega: </span>
+                        <span className="font-medium text-primary">{formatarMoeda(entrega.valorTeleEntrega)}</span>
+                      </div>
+                      <span className="font-bold text-base text-primary">{formatarMoeda(totalComTaxa)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium text-xs">Total:</span>
+                      <span className="font-bold text-base text-primary">{formatarMoeda(total)}</span>
+                    </>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Observações */}
-          <Card className="card-padaria">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Observações</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="Observações gerais..."
-                className="input-padaria min-h-[60px]"
-                value={observacoesTexto}
-                onChange={(e) => setObservacoesTexto(e.target.value)}
-              />
-            </CardContent>
-          </Card>
+          {/* Observações - COMPACTO */}
+          <div className="space-y-1">
+            <Textarea
+              placeholder="Observações gerais..."
+              className="input-padaria min-h-[40px] text-sm"
+              value={observacoesTexto}
+              onChange={(e) => setObservacoesTexto(e.target.value)}
+            />
+          </div>
 
           {/* Botões */}
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 h-12" onClick={() => setEtapa('cliente')}>
+            <Button variant="outline" className="flex-1 h-10 text-sm" onClick={() => setEtapa('cliente')}>
               Voltar
             </Button>
             <Button
-              className="flex-1 btn-padaria h-12"
+              className="flex-1 btn-padaria h-10 text-sm"
               onClick={handleSalvarOrcamento}
               disabled={salvando || itens.length === 0}
             >
