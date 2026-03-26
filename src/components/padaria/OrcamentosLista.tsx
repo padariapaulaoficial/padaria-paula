@@ -781,26 +781,13 @@ export default function OrcamentosLista() {
       {/* Dialog de detalhes - COMPACTO */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          {/* Header compacto com botão WhatsApp discreto */}
+          {/* Header compacto */}
           <DialogHeader className="p-3 border-b border-border shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-base font-bold">
-                  Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
-                </DialogTitle>
-                {orcamentoSelecionado && getStatusBadge(orcamentoSelecionado.status)}
-              </div>
-              {orcamentoSelecionado && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full"
-                  onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
-                  title="Enviar orçamento via WhatsApp"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </Button>
-              )}
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-base font-bold">
+                Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
+              </DialogTitle>
+              {orcamentoSelecionado && getStatusBadge(orcamentoSelecionado.status)}
             </div>
           </DialogHeader>
 
@@ -830,9 +817,9 @@ export default function OrcamentosLista() {
                         size="sm"
                         className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
                         onClick={() => handleAlternarTipoEntrega(orcamentoSelecionado)}
-                        title={`Mudar para ${orcamentoSelecionado.tipoEntrega === 'RETIRA' ? 'Tele Entrega' : 'Retira'}`}
+                        title={`Editar modo de entrega`}
                       >
-                        <RefreshCw className="w-3 h-3" />
+                        <Edit2 className="w-3 h-3" />
                       </Button>
                     )}
                   </div>
@@ -903,9 +890,9 @@ export default function OrcamentosLista() {
               <div className="flex gap-1">
                 <Button
                   onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white h-8 text-[10px]"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 mr-1" />WhatsApp
+                  <MessageCircle className="w-3.5 h-3.5 mr-1" />Confirme o Orçamento pelo WhatsApp
                 </Button>
                 <Button
                   onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
@@ -931,7 +918,7 @@ export default function OrcamentosLista() {
                     disabled={processando}
                     className="flex-1 h-8 btn-padaria text-xs"
                   >
-                    {processando ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 mr-1" />}Aprovar
+                    {processando ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 mr-1" />}Aprovar Orçamento
                   </Button>
                 </div>
               )}
@@ -1094,18 +1081,21 @@ export default function OrcamentosLista() {
                           const preco = produtoSelecionado.precosTamanhos?.[tam];
                           return preco && !isNaN(preco) && preco > 0;
                         })
-                        .map(tam => (
-                          <Button
-                            key={tam}
-                            type="button"
-                            variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
-                            size="sm"
-                            className={`flex-1 h-7 text-[10px] ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
-                            onClick={() => setTamanhoSelecionado(tam)}
-                          >
-                            {tam}
-                          </Button>
-                        ))}
+                        .map(tam => {
+                          const preco = produtoSelecionado.precosTamanhos?.[tam] || 0;
+                          return (
+                            <Button
+                              key={tam}
+                              type="button"
+                              variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                              size="sm"
+                              className={`flex-1 h-7 text-[10px] ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                              onClick={() => setTamanhoSelecionado(tam)}
+                            >
+                              {tam} {formatarMoeda(preco)}
+                            </Button>
+                          );
+                        })}
                     </div>
                   </div>
                 ) : produtoSelecionado.tipoVenda === 'KG' ? (

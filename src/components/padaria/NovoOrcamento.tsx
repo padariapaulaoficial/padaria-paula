@@ -116,8 +116,8 @@ export default function NovoOrcamento() {
   // Estado unificado para seleções - mais eficiente
   const [selecoes, setSelecoes] = useState<Record<string, {quantidade: number, tamanho?: string, observacao?: string}>>({});
   
-  // Modo de visualização: lista ou grade compacta
-  const [modoVisualizacao, setModoVisualizacao] = useState<'lista' | 'grade'>('grade');
+  // Modo de visualização: lista ou grade compacta (lista é o padrão)
+  const [modoVisualizacao, setModoVisualizacao] = useState<'lista' | 'grade'>('lista');
 
   // Carregar produtos
   useEffect(() => {
@@ -679,7 +679,7 @@ export default function NovoOrcamento() {
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={handleTrocarCliente}>
+                    <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={() => setTela('clientes')}>
                       Trocar
                     </Button>
                   </div>

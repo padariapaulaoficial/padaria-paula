@@ -1390,18 +1390,21 @@ export default function HistoricoPedidos() {
                           const preco = produtoSelecionado.precosTamanhos?.[tam];
                           return preco && !isNaN(preco) && preco > 0;
                         })
-                        .map(tam => (
-                          <Button
-                            key={tam}
-                            type="button"
-                            variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
-                            size="sm"
-                            className={`flex-1 h-7 text-[10px] ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
-                            onClick={() => setTamanhoSelecionado(tam)}
-                          >
-                            {tam}
-                          </Button>
-                        ))}
+                        .map(tam => {
+                          const preco = produtoSelecionado.precosTamanhos?.[tam] || 0;
+                          return (
+                            <Button
+                              key={tam}
+                              type="button"
+                              variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                              size="sm"
+                              className={`flex-1 h-7 text-[10px] ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                              onClick={() => setTamanhoSelecionado(tam)}
+                            >
+                              {tam} {formatarMoeda(preco)}
+                            </Button>
+                          );
+                        })}
                     </div>
                   </div>
                 ) : produtoSelecionado.tipoVenda === 'KG' ? (
