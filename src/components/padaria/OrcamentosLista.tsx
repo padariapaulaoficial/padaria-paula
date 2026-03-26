@@ -134,6 +134,37 @@ export default function OrcamentosLista() {
   const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
   const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
 
+  // Função para alternar tipo de entrega
+  const handleAlternarTipoEntrega = async (orcamento: Orcamento) => {
+    const novoTipo = orcamento.tipoEntrega === 'RETIRA' ? 'TELE_ENTREGA' : 'RETIRA';
+    
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamento.id,
+          tipoEntrega: novoTipo,
+        }),
+      });
+      
+      const orcamentoAtualizado = await response.json();
+      
+      if (!response.ok) throw new Error(orcamentoAtualizado.error || 'Erro ao atualizar');
+      
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      
+      toast({ 
+        title: 'Tipo de entrega alterado!',
+        description: `Agora é ${novoTipo === 'RETIRA' ? 'Retira' : 'Tele Entrega'}.`
+      });
+    } catch (error) {
+      console.error('Erro ao alterar tipo de entrega:', error);
+      toast({ title: 'Erro ao alterar', variant: 'destructive' });
+    }
+  };
+
   // Carregar configurações
   useEffect(() => {
     fetch('/api/configuracao')
@@ -783,13 +814,26 @@ export default function OrcamentosLista() {
                   <p className="font-medium text-sm truncate">{orcamentoSelecionado.cliente.nome}</p>
                   <p className="text-xs text-muted-foreground">{orcamentoSelecionado.cliente.telefone}</p>
                 </div>
-                {/* Entrega */}
+                {/* Entrega com ícone para alterar */}
                 <div className="bg-muted/30 rounded-lg p-2">
-                  <div className="flex items-center gap-1">
-                    {orcamentoSelecionado.tipoEntrega === 'RETIRA' ? (
-                      <><Store className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Retira</span></>
-                    ) : (
-                      <><Truck className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Entrega</span></>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      {orcamentoSelecionado.tipoEntrega === 'RETIRA' ? (
+                        <><Store className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Retira</span></>
+                      ) : (
+                        <><Truck className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Entrega</span></>
+                      )}
+                    </div>
+                    {orcamentoSelecionado.status === 'PENDENTE' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
+                        onClick={() => handleAlternarTipoEntrega(orcamentoSelecionado)}
+                        title={`Mudar para ${orcamentoSelecionado.tipoEntrega === 'RETIRA' ? 'Tele Entrega' : 'Retira'}`}
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </Button>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
@@ -824,14 +868,14 @@ export default function OrcamentosLista() {
                 </div>
                 <div className="bg-muted/30 rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
                   {orcamentoSelecionado.itens.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/30 last:border-0">
-                      <div className="flex-1 min-w-0">
+                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/30 last:border-0 gap-2">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <p className="text-xs font-medium truncate">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
                         </p>
                       </div>
-                      <p className="text-xs font-semibold ml-1">{formatarMoeda(item.subtotal)}</p>
+                      <p className="text-xs font-semibold shrink-0">{formatarMoeda(item.subtotal)}</p>
                     </div>
                   ))}
                 </div>
@@ -973,7 +1017,7 @@ export default function OrcamentosLista() {
               ) : (
                 <>
                   <Check className="w-4 h-4 mr-2" />
-                  Salvar Alterações
+                  Salvar Orçamento
                 </>
               )}
             </AlertDialogAction>

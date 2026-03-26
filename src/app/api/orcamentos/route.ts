@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, converterParaPedido, itens, novosItens, itensParaRemover } = body;
+    const { id, status, converterParaPedido, itens, novosItens, itensParaRemover, tipoEntrega } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -221,6 +221,14 @@ export async function PUT(request: NextRequest) {
         { error: 'Orçamento não encontrado' },
         { status: 404 }
       );
+    }
+    
+    // Atualizar tipo de entrega se fornecido
+    if (tipoEntrega) {
+      await db.orcamento.update({
+        where: { id },
+        data: { tipoEntrega },
+      });
     }
     
     // Se for para converter para pedido
