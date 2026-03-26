@@ -1033,7 +1033,7 @@ export default function HistoricoPedidos() {
       {/* Dialog de detalhes otimizado para tela única - NOVA ESTRUTURA */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          {/* 1. TOPO: Número do pedido + Status atual */}
+          {/* 1. TOPO: Número do pedido + Status atual + Botão WhatsApp discreto */}
           <DialogHeader className="p-3 border-b border-border shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1042,6 +1042,18 @@ export default function HistoricoPedidos() {
                 </DialogTitle>
                 {pedidoSelecionado && getStatusBadge(pedidoSelecionado.status)}
               </div>
+              {/* Botão WhatsApp discreto para confirmar pedido com cliente */}
+              {pedidoSelecionado && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  onClick={() => handleConfirmarPedido(pedidoSelecionado)}
+                  title="Enviar confirmação via WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </DialogHeader>
 
