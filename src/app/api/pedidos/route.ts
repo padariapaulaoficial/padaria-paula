@@ -266,7 +266,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
-      id, status, impresso, itens, novosItens,
+      id, status, impresso, itens, novosItens, itensParaRemover,
       valorEntrada, formaPagamentoEntrada, dataEntrada,
       alertaProducaoEnviado,
       dataEntrega, horarioEntrega, valorTeleEntrega
@@ -293,6 +293,16 @@ export async function PUT(request: NextRequest) {
     if (dataEntrega !== undefined) data.dataEntrega = dataEntrega;
     if (horarioEntrega !== undefined) data.horarioEntrega = horarioEntrega;
     if (valorTeleEntrega !== undefined) data.valorTeleEntrega = parseFloat(valorTeleEntrega) || 0;
+    
+    // Remover itens com quantidade 0
+    if (itensParaRemover && Array.isArray(itensParaRemover) && itensParaRemover.length > 0) {
+      await db.itemPedido.deleteMany({
+        where: {
+          id: { in: itensParaRemover },
+          pedidoId: id,
+        },
+      });
+    }
     
     // Se houver itens para atualizar
     if (itens && Array.isArray(itens)) {
@@ -391,7 +401,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Recalcular total do pedido se houve alterações em itens
-    if ((itens && Array.isArray(itens)) || (novosItens && Array.isArray(novosItens) && novosItens.length > 0)) {
+    if ((itens && Array.isArray(itens)) || (novosItens && Array.isArray(novosItens) && novosItens.length > 0) || (itensParaRemover && Array.isArray(itensParaRemover) && itensParaRemover.length > 0)) {
       const itensAtualizados = await db.itemPedido.findMany({
         where: { pedidoId: id },
       });

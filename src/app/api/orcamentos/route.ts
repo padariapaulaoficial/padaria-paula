@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, converterParaPedido, itens, novosItens } = body;
+    const { id, status, converterParaPedido, itens, novosItens, itensParaRemover } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -283,6 +283,16 @@ export async function PUT(request: NextRequest) {
       });
     }
     
+    // Remover itens com quantidade 0
+    if (itensParaRemover && Array.isArray(itensParaRemover) && itensParaRemover.length > 0) {
+      await db.itemOrcamento.deleteMany({
+        where: {
+          id: { in: itensParaRemover },
+          orcamentoId: id,
+        },
+      });
+    }
+    
     // Atualização de itens existentes
     if (itens && Array.isArray(itens)) {
       for (const itemUpdate of itens) {
@@ -316,7 +326,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Recalcular total do orçamento
-    if (itens || novosItens) {
+    if (itens || novosItens || itensParaRemover) {
       const itensAtualizados = await db.itemOrcamento.findMany({
         where: { orcamentoId: id },
       });

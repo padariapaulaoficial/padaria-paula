@@ -341,15 +341,31 @@ export default function HistoricoPedidos() {
   const handleSalvarEdicao = async () => {
     if (!pedidoSelecionado) return;
     
-    // Verificar se há alterações
-    const itensAlterados = pedidoSelecionado.itens.filter(item => {
+    // Separar itens alterados e itens para remover (quantidade = 0)
+    const itensParaRemover: string[] = [];
+    const itensParaAtualizar: { id: string; quantidade: number; subtotal: number }[] = [];
+    
+    pedidoSelecionado.itens.forEach(item => {
       const novoPesoStr = itensEditados[item.id];
-      if (novoPesoStr === undefined) return false;
-      const novoPeso = parseFloat(novoPesoStr.replace(',', '.'));
-      return !isNaN(novoPeso) && novoPeso !== item.quantidade;
+      if (novoPesoStr !== undefined) {
+        const novoPeso = parseFloat(novoPesoStr.replace(',', '.'));
+        if (!isNaN(novoPeso)) {
+          if (novoPeso === 0) {
+            // Item com quantidade 0 deve ser removido
+            itensParaRemover.push(item.id);
+          } else if (novoPeso !== item.quantidade) {
+            // Item com quantidade alterada
+            itensParaAtualizar.push({
+              id: item.id,
+              quantidade: novoPeso,
+              subtotal: novoPeso * item.valorUnit,
+            });
+          }
+        }
+      }
     });
     
-    if (itensAlterados.length === 0) {
+    if (itensParaAtualizar.length === 0 && itensParaRemover.length === 0) {
       toast({
         title: 'Nenhuma alteração',
         description: 'Não há alterações para salvar.',
@@ -357,31 +373,27 @@ export default function HistoricoPedidos() {
       return;
     }
     
+    // Verificar se restará pelo menos um item
+    const itensRestantes = pedidoSelecionado.itens.length - itensParaRemover.length;
+    if (itensRestantes === 0 && itensParaAtualizar.length === 0) {
+      toast({
+        title: 'Não permitido',
+        description: 'O pedido deve ter pelo menos um item.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setSalvando(true);
     
     try {
-      // Preparar itens para atualização
-      const itensParaAtualizar = pedidoSelecionado.itens.map(item => {
-        const novoPesoStr = itensEditados[item.id];
-        if (novoPesoStr !== undefined) {
-          const novoPeso = parseFloat(novoPesoStr.replace(',', '.'));
-          if (!isNaN(novoPeso) && novoPeso !== item.quantidade) {
-            return {
-              id: item.id,
-              quantidade: novoPeso,
-              subtotal: novoPeso * item.valorUnit,
-            };
-          }
-        }
-        return null;
-      }).filter(Boolean);
-      
       const response = await fetch('/api/pedidos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: pedidoSelecionado.id,
           itens: itensParaAtualizar,
+          itensParaRemover,
         }),
       });
       
@@ -1033,13 +1045,26 @@ export default function HistoricoPedidos() {
       {/* Dialog de detalhes otimizado para tela única - NOVA ESTRUTURA */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          {/* Header compacto sem botão extra */}
+          {/* Header compacto com botão WhatsApp discreto */}
           <DialogHeader className="p-2 border-b border-border shrink-0">
-            <div className="flex items-center gap-2">
-              <DialogTitle className="text-base font-bold">
-                Pedido #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
-              </DialogTitle>
-              {pedidoSelecionado && getStatusBadge(pedidoSelecionado.status)}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-base font-bold">
+                  Pedido #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
+                </DialogTitle>
+                {pedidoSelecionado && getStatusBadge(pedidoSelecionado.status)}
+              </div>
+              {pedidoSelecionado && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full"
+                  onClick={() => handleConfirmarPedido(pedidoSelecionado)}
+                  title="Confirmar pedido via WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </DialogHeader>
 
@@ -1161,15 +1186,10 @@ export default function HistoricoPedidos() {
             <div className="shrink-0 p-2 border-t border-border bg-background">
               <div className="grid grid-cols-2 gap-1">
                 <Button variant="outline" className="h-8 text-[10px]" onClick={() => handleImprimirCliente(pedidoSelecionado)}>
-                  <FileText className="w-3 h-3 mr-0.5" />Cupom Cliente
+                  <FileText className="w-3 h-3 mr-0.5" />Cupom do Cliente
                 </Button>
                 <Button variant="outline" className="h-8 text-[10px]" onClick={() => handleImprimirCozinha(pedidoSelecionado)}>
-                  <Printer className="w-3 h-3 mr-0.5" />Comanda Cozinha
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-1 mt-1">
-                <Button variant="ghost" className="h-8 text-[10px] text-green-600 hover:bg-green-50" onClick={() => handleConfirmarPedido(pedidoSelecionado)} title="Confirmar pedido via WhatsApp">
-                  <MessageCircle className="w-3 h-3 mr-0.5" />Conf. Pedido
+                  <Printer className="w-3 h-3 mr-0.5" />Comanda do Cliente
                 </Button>
               </div>
               {pedidoSelecionado.status === 'PRONTO' && (

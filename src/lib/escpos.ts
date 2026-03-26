@@ -320,6 +320,8 @@ export function gerarCupomCliente(
   linhas.push(linhaDivisoria('-'));
   
   // === ITENS DO PEDIDO (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS) ===
+  // Filtrar itens com quantidade 0
+  const itensValidos = pedido.itens.filter(item => item.quantidade > 0);
   const headerProd = 'PRODUTO'.padEnd(22);
   const headerQtd = 'QTD'.padStart(5).padEnd(7);
   const headerUnit = 'UNIT'.padStart(8);
@@ -327,7 +329,7 @@ export function gerarCupomCliente(
   linhas.push(`${headerProd} ${headerQtd} ${headerUnit} ${headerTotal}`);
   linhas.push(linhaDivisoria('-'));
   
-  const itensOrdenados = ordenarItensPorCategoria(pedido.itens);
+  const itensOrdenados = ordenarItensPorCategoria(itensValidos);
   
   for (const item of itensOrdenados) {
     // Incluir tamanho no nome se existir (para tortas especiais)
@@ -357,8 +359,8 @@ export function gerarCupomCliente(
     linhas.push(linhaDivisoria('-'));
   }
   
-  // Subtotal dos itens
-  const subtotalItens = pedido.itens.reduce((sum, item) => sum + item.subtotal, 0);
+  // Subtotal dos itens (usando itens filtrados)
+  const subtotalItens = itensValidos.reduce((sum, item) => sum + item.subtotal, 0);
   const subtotalStr = formatarMoeda(subtotalItens);
   const espacosSubtotal = LARGURA_PAPEL - 10 - subtotalStr.length;
   linhas.push(`SUBTOTAL:${' '.repeat(Math.max(0, espacosSubtotal))}${subtotalStr}`);
@@ -441,7 +443,12 @@ export function gerarCupomCozinha(
   linhas.push(linhaDivisoria('-'));
   
   // Itens (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
-  const itensOrdenadosCozinha = ordenarItensPorCategoria(pedido.itens);
+  // Filtrar itens com quantidade 0
+  const itensValidosCozinha = pedido.itens.filter(item => {
+    const qtdProd = item.quantidadePedida || item.quantidade;
+    return qtdProd > 0;
+  });
+  const itensOrdenadosCozinha = ordenarItensPorCategoria(itensValidosCozinha);
   
   for (const item of itensOrdenadosCozinha) {
     // Incluir tamanho no nome se existir (para tortas especiais)
@@ -513,7 +520,12 @@ export function gerarCupomCozinhaGrande(
   // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
   linhas.push('ITENS:');
   
-  const itensOrdenadosGrande = ordenarItensPorCategoria(pedido.itens);
+  // Filtrar itens com quantidade 0
+  const itensValidosGrande = pedido.itens.filter(item => {
+    const qtdProd = item.quantidadePedida || item.quantidade;
+    return qtdProd > 0;
+  });
+  const itensOrdenadosGrande = ordenarItensPorCategoria(itensValidosGrande);
   
   for (const item of itensOrdenadosGrande) {
     const qtdProd = item.quantidadePedida || item.quantidade;
@@ -736,6 +748,8 @@ export function gerarCupomOrcamento(
   linhas.push(linhaDivisoria('-'));
   
   // === ITENS DO ORÇAMENTO (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS) ===
+  // Filtrar itens com quantidade 0
+  const itensValidosOrcamento = orcamento.itens.filter(item => item.quantidade > 0);
   const headerProd = 'PRODUTO'.padEnd(22);
   const headerQtd = 'QTD'.padStart(5).padEnd(7);
   const headerUnit = 'UNIT'.padStart(8);
@@ -743,7 +757,7 @@ export function gerarCupomOrcamento(
   linhas.push(`${headerProd} ${headerQtd} ${headerUnit} ${headerTotal}`);
   linhas.push(linhaDivisoria('-'));
   
-  const itensOrdenadosOrcamento = ordenarItensPorCategoria(orcamento.itens);
+  const itensOrdenadosOrcamento = ordenarItensPorCategoria(itensValidosOrcamento);
   
   for (const item of itensOrdenadosOrcamento) {
     // Incluir tamanho no nome se existir (para tortas especiais)
@@ -765,9 +779,9 @@ export function gerarCupomOrcamento(
   
   linhas.push(linhaDivisoria('-'));
   
-  // Subtotal dos itens
-  const subtotalItens = orcamento.itens.reduce((sum, item) => sum + item.subtotal, 0);
-  const subtotalStr = formatarMoeda(subtotalItens);
+  // Subtotal dos itens (usando itens filtrados)
+  const subtotalItensOrcamento = itensValidosOrcamento.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotalStr = formatarMoeda(subtotalItensOrcamento);
   const espacosSubtotal = LARGURA_PAPEL - 10 - subtotalStr.length;
   linhas.push(`SUBTOTAL:${' '.repeat(Math.max(0, espacosSubtotal))}${subtotalStr}`);
   

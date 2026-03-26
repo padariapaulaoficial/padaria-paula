@@ -247,37 +247,55 @@ export default function OrcamentosLista() {
   const handleSalvarEdicao = async () => {
     if (!orcamentoSelecionado) return;
     
-    const itensAlterados = orcamentoSelecionado.itens.filter(item => {
+    // Separar itens alterados e itens para remover (quantidade = 0)
+    const itensParaRemover: string[] = [];
+    const itensParaAtualizar: { id: string; quantidade: number; subtotal: number }[] = [];
+    
+    orcamentoSelecionado.itens.forEach(item => {
       const novoValor = itensEditados[item.id];
-      if (novoValor === undefined) return false;
-      const novaQtd = parseFloat(novoValor.replace(',', '.'));
-      return !isNaN(novaQtd) && novaQtd !== item.quantidade;
+      if (novoValor !== undefined) {
+        const novaQtd = parseFloat(novoValor.replace(',', '.'));
+        if (!isNaN(novaQtd)) {
+          if (novaQtd === 0) {
+            // Item com quantidade 0 deve ser removido
+            itensParaRemover.push(item.id);
+          } else if (novaQtd !== item.quantidade) {
+            // Item com quantidade alterada
+            itensParaAtualizar.push({
+              id: item.id,
+              quantidade: novaQtd,
+              subtotal: novaQtd * item.valorUnit,
+            });
+          }
+        }
+      }
     });
 
-    if (itensAlterados.length === 0) {
+    if (itensParaAtualizar.length === 0 && itensParaRemover.length === 0) {
       toast({ title: 'Nenhuma alteração', description: 'Não há alterações para salvar.' });
+      return;
+    }
+    
+    // Verificar se restará pelo menos um item
+    const itensRestantes = orcamentoSelecionado.itens.length - itensParaRemover.length;
+    if (itensRestantes === 0) {
+      toast({
+        title: 'Não permitido',
+        description: 'O orçamento deve ter pelo menos um item.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setProcessando(true);
     try {
-      const itensParaAtualizar = orcamentoSelecionado.itens.map(item => {
-        const novoValor = itensEditados[item.id];
-        if (novoValor !== undefined) {
-          const novaQtd = parseFloat(novoValor.replace(',', '.'));
-          if (!isNaN(novaQtd)) {
-            return { id: item.id, quantidade: novaQtd, subtotal: novaQtd * item.valorUnit };
-          }
-        }
-        return null;
-      }).filter(Boolean);
-
       const response = await fetch('/api/orcamentos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: orcamentoSelecionado.id,
           itens: itensParaAtualizar,
+          itensParaRemover,
         }),
       });
 
@@ -732,7 +750,7 @@ export default function OrcamentosLista() {
       {/* Dialog de detalhes - COMPACTO */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          {/* Header compacto */}
+          {/* Header compacto com botão WhatsApp discreto */}
           <DialogHeader className="p-3 border-b border-border shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -741,6 +759,17 @@ export default function OrcamentosLista() {
                 </DialogTitle>
                 {orcamentoSelecionado && getStatusBadge(orcamentoSelecionado.status)}
               </div>
+              {orcamentoSelecionado && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full"
+                  onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
+                  title="Enviar orçamento via WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </DialogHeader>
 
