@@ -59,9 +59,8 @@ const HORARIOS_COMERCIAIS = [
   '19:00', '19:30', '20:00', '20:30', '21:00'
 ];
 
-// Opções de KG - mais compactas
+// Opções de KG - mais compactas (sem opção 0)
 const OPCOES_KG = [
-  { valor: 0, label: 'Qtd' },
   { valor: 0.5, label: '500g' },
   { valor: 1.0, label: '1kg' },
   { valor: 1.5, label: '1.5kg' },
@@ -405,7 +404,7 @@ export default function NovoOrcamento() {
 
   const dataMinima = new Date().toISOString().split('T')[0];
 
-  // Renderizar card COMPACTO para grade (5 por linha)
+  // Renderizar card COMPACTO para grade (4 por linha) - OTIMIZADO PARA CLIQUE
   const renderProdutoCardCompacto = useCallback((produto: Produto) => {
     const selecao = selecoes[produto.id] || {};
     const temSelecao = produto.tipoProduto === 'ESPECIAL' 
@@ -415,15 +414,15 @@ export default function NovoOrcamento() {
     return (
       <div 
         key={produto.id}
-        className="p-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col"
+        className="p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col"
       >
         {/* Nome - truncado */}
-        <div className="text-[11px] font-medium truncate mb-0.5" title={produto.nome}>
+        <div className="text-xs font-medium truncate mb-0.5" title={produto.nome}>
           {produto.nome}
         </div>
         
         {/* Preço compacto */}
-        <div className="text-[10px] text-primary font-semibold mb-1">
+        <div className="text-[11px] text-primary font-semibold mb-1.5">
           {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
             <span className="truncate block">
               {Object.entries(produto.precosTamanhos)
@@ -440,10 +439,10 @@ export default function NovoOrcamento() {
           )}
         </div>
 
-        {/* Seletor compacto */}
-        <div className="flex items-center gap-1">
+        {/* Seletor compacto - TAMANHO MAIOR PARA FACILITAR CLIQUE */}
+        <div className="flex items-center gap-1.5">
           {produto.tipoProduto === 'ESPECIAL' ? (
-            <div className="flex gap-0.5 flex-1">
+            <div className="flex gap-1 flex-1">
               {['P', 'M', 'G', 'GG']
                 .filter(tam => {
                   const temTamanho = produto.tamanhos?.includes(tam);
@@ -457,7 +456,7 @@ export default function NovoOrcamento() {
                     type="button"
                     variant={selecao.tamanho === tam ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-6 w-6 p-0 text-[9px] font-bold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
+                    className={`h-8 w-8 p-0 text-xs font-bold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
                     onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
                   >
                     {tam}
@@ -466,15 +465,15 @@ export default function NovoOrcamento() {
             </div>
           ) : produto.tipoVenda === 'KG' ? (
             <Select
-              value={selecao.quantidade?.toString() || '0'}
-              onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
+              value={selecao.quantidade?.toString() || ''}
+              onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) })}
             >
-              <SelectTrigger className="h-6 w-full text-[9px] px-1">
+              <SelectTrigger className="h-8 flex-1 text-xs px-2">
                 <SelectValue placeholder="Qtd" />
               </SelectTrigger>
               <SelectContent className="max-h-48">
                 {OPCOES_KG.map((opcao) => (
-                  <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-xs">
+                  <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-sm">
                     {opcao.label}
                   </SelectItem>
                 ))}
@@ -486,19 +485,19 @@ export default function NovoOrcamento() {
               min="1"
               step="1"
               placeholder="Qtd"
-              className="h-6 w-full text-[10px] text-center px-1"
+              className="h-8 flex-1 text-xs text-center px-2"
               value={selecao.quantidade || ''}
               onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
             />
           )}
 
-          {/* Botão adicionar */}
+          {/* Botão adicionar - MAIOR E MAIS VISÍVEL */}
           <Button
             onClick={() => handleAdicionarProduto(produto)}
-            className="h-6 w-6 p-0 btn-padaria shrink-0"
+            className="h-8 w-8 p-0 btn-padaria shrink-0"
             disabled={!temSelecao}
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
           </Button>
         </div>
         
@@ -506,7 +505,7 @@ export default function NovoOrcamento() {
         {produto.tipoProduto === 'ESPECIAL' && selecao.tamanho && (
           <Input
             placeholder="Obs..."
-            className="h-6 text-[9px] mt-1 px-1"
+            className="h-7 text-[10px] mt-1.5 px-2"
             value={selecao.observacao || ''}
             onChange={(e) => atualizarSelecao(produto.id, { observacao: e.target.value })}
           />
