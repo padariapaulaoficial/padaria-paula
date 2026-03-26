@@ -952,7 +952,7 @@ export default function OrcamentosLista() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog de Adição de Produtos */}
+      {/* Dialog de Adição de Produtos - COMPACTO */}
       <AlertDialog open={dialogAdicaoOpen} onOpenChange={(open) => {
         setDialogAdicaoOpen(open);
         if (!open) {
@@ -963,64 +963,59 @@ export default function OrcamentosLista() {
           setObservacaoNovoItem('');
         }
       }}>
-        <AlertDialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col">
-          <AlertDialogHeader className="shrink-0">
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
+        <AlertDialogContent className="max-w-sm max-h-[75vh] overflow-hidden flex flex-col p-0">
+          <AlertDialogHeader className="shrink-0 p-3 border-b border-border">
+            <AlertDialogTitle className="flex items-center gap-2 text-sm">
+              <Plus className="w-3.5 h-3.5" />
               Adicionar Produto
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Selecione um produto para adicionar ao orçamento.
-            </AlertDialogDescription>
           </AlertDialogHeader>
           
-          <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
             {/* Busca */}
             <div className="relative shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
-                placeholder="Buscar produto..."
-                className="pl-10 h-10"
+                placeholder="Buscar..."
+                className="pl-8 h-8 text-xs"
                 value={buscaProduto}
                 onChange={(e) => setBuscaProduto(e.target.value)}
               />
             </div>
             
-            {/* Lista de produtos */}
-            <div className="space-y-1">
+            {/* Lista de produtos compacta */}
+            <div className="space-y-0.5 max-h-28 overflow-y-auto">
               {produtosFiltrados.map(produto => (
                 <button
                   key={produto.id}
                   type="button"
                   onClick={() => setProdutoSelecionado(produto)}
-                  className={`w-full p-2 text-left rounded-lg transition-colors ${
+                  className={`w-full px-2 py-1 text-left rounded transition-colors ${
                     produtoSelecionado?.id === produto.id 
-                      ? 'bg-primary/20 border-2 border-primary' 
-                      : 'bg-muted/30 border border-border hover:bg-muted/50'
+                      ? 'bg-primary/20 border border-primary' 
+                      : 'bg-muted/30 border border-transparent hover:bg-muted/50'
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">{produto.nome}</span>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="font-medium text-[11px] truncate">{produto.nome}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
                       {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
                     </span>
                   </div>
                 </button>
               ))}
               {produtosFiltrados.length === 0 && (
-                <p className="text-center text-muted-foreground py-4 text-sm">
-                  Nenhum produto encontrado
-                </p>
+                <p className="text-center text-muted-foreground py-2 text-[10px]">Nenhum produto</p>
               )}
             </div>
             
-            {/* Seleção de quantidade/tamanho */}
+            {/* Seleção de quantidade/tamanho - mais compacta */}
             {produtoSelecionado && (
-              <div className="space-y-2 pt-2 border-t border-border shrink-0">
+              <div className="space-y-1.5 pt-2 border-t border-border shrink-0">
                 {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Tamanho</Label>
-                    <div className="flex gap-2">
+                    <Label className="text-[10px] text-muted-foreground mb-0.5 block">Tamanho</Label>
+                    <div className="flex gap-1">
                       {['P', 'M', 'G', 'GG']
                         .filter(tam => {
                           const preco = produtoSelecionado.precosTamanhos?.[tam];
@@ -1031,25 +1026,26 @@ export default function OrcamentosLista() {
                             key={tam}
                             type="button"
                             variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
-                            className={`flex-1 ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                            size="sm"
+                            className={`flex-1 h-7 text-[10px] ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
                             onClick={() => setTamanhoSelecionado(tam)}
                           >
-                            {tam} - {formatarMoeda(produtoSelecionado.precosTamanhos?.[tam] || 0)}
+                            {tam}
                           </Button>
                         ))}
                     </div>
                   </div>
                 ) : produtoSelecionado.tipoVenda === 'KG' ? (
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Peso</Label>
+                    <Label className="text-[10px] text-muted-foreground mb-0.5 block">Peso</Label>
                     <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o peso" />
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
                         {OPCOES_KG.map(op => (
-                          <SelectItem key={op.valor} value={op.valor.toString()}>
-                            {op.label} - {formatarMoeda(op.valor * produtoSelecionado.valorUnit)}
+                          <SelectItem key={op.valor} value={op.valor.toString()} className="text-xs">
+                            {op.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1057,11 +1053,12 @@ export default function OrcamentosLista() {
                   </div>
                 ) : (
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Quantidade</Label>
+                    <Label className="text-[10px] text-muted-foreground mb-0.5 block">Qtd</Label>
                     <Input
                       type="number"
                       min="1"
-                      placeholder="Quantidade"
+                      placeholder="1"
+                      className="h-8 text-xs"
                       value={quantidadeAdicionar}
                       onChange={(e) => setQuantidadeAdicionar(e.target.value)}
                     />
@@ -1069,9 +1066,10 @@ export default function OrcamentosLista() {
                 )}
                 
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Observação (opcional)</Label>
+                  <Label className="text-[10px] text-muted-foreground mb-0.5 block">Obs</Label>
                   <Input
-                    placeholder="Ex: Sem cebola..."
+                    placeholder="Opcional..."
+                    className="h-8 text-xs"
                     value={observacaoNovoItem}
                     onChange={(e) => setObservacaoNovoItem(e.target.value)}
                   />
@@ -1080,24 +1078,18 @@ export default function OrcamentosLista() {
             )}
           </div>
           
-          <AlertDialogFooter className="shrink-0 pt-2 border-t border-border">
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="shrink-0 p-2 border-t border-border">
+            <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAdicionarProduto}
               disabled={!produtoSelecionado || adicionandoProduto || 
                 (produtoSelecionado?.tipoProduto === 'ESPECIAL' ? !tamanhoSelecionado : !quantidadeAdicionar)}
-              className="btn-padaria"
+              className="btn-padaria h-8 text-xs"
             >
               {adicionandoProduto ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Adicionando...
-                </>
+                <><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Adicionando...</>
               ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar
-                </>
+                <><Plus className="w-3 h-3 mr-1" />Adicionar</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

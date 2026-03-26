@@ -1159,15 +1159,17 @@ export default function HistoricoPedidos() {
           {/* BOTÕES DE AÇÃO - SEMPRE VISÍVEIS */}
           {pedidoSelecionado && (
             <div className="shrink-0 p-2 border-t border-border bg-background">
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-2 gap-1">
                 <Button variant="outline" className="h-8 text-[10px]" onClick={() => handleImprimirCliente(pedidoSelecionado)}>
-                  <FileText className="w-3 h-3 mr-0.5" />Cupom
+                  <FileText className="w-3 h-3 mr-0.5" />Cupom Cliente
                 </Button>
                 <Button variant="outline" className="h-8 text-[10px]" onClick={() => handleImprimirCozinha(pedidoSelecionado)}>
-                  <Printer className="w-3 h-3 mr-0.5" />Comanda
+                  <Printer className="w-3 h-3 mr-0.5" />Comanda Cozinha
                 </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-1 mt-1">
                 <Button variant="ghost" className="h-8 text-[10px] text-green-600 hover:bg-green-50" onClick={() => handleConfirmarPedido(pedidoSelecionado)} title="Confirmar pedido via WhatsApp">
-                  <MessageCircle className="w-3 h-3 mr-0.5" />WhatsApp
+                  <MessageCircle className="w-3 h-3 mr-0.5" />Conf. Pedido
                 </Button>
               </div>
               {pedidoSelecionado.status === 'PRONTO' && (
@@ -1331,28 +1333,28 @@ export default function HistoricoPedidos() {
             </div>
             
             {/* Lista de produtos compacta */}
-            <div className="space-y-0.5 max-h-36 overflow-y-auto">
+            <div className="space-y-0.5 max-h-28 overflow-y-auto">
               {produtosFiltrados.map(produto => (
                 <button
                   key={produto.id}
                   type="button"
                   onClick={() => setProdutoSelecionado(produto)}
-                  className={`w-full p-1.5 text-left rounded transition-colors ${
+                  className={`w-full px-2 py-1 text-left rounded transition-colors ${
                     produtoSelecionado?.id === produto.id 
                       ? 'bg-primary/20 border border-primary' 
-                      : 'bg-muted/30 border border-border/50 hover:bg-muted/50'
+                      : 'bg-muted/30 border border-transparent hover:bg-muted/50'
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-xs">{produto.nome}</span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="font-medium text-[11px] truncate">{produto.nome}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
                       {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
                     </span>
                   </div>
                 </button>
               ))}
               {produtosFiltrados.length === 0 && (
-                <p className="text-center text-muted-foreground py-3 text-xs">Nenhum produto</p>
+                <p className="text-center text-muted-foreground py-2 text-[10px]">Nenhum produto</p>
               )}
             </div>
             
