@@ -61,6 +61,64 @@ export type PedidoCompleto = {
 // Largura do papel 80mm em caracteres (fonte normal)
 const LARGURA_PAPEL = 48;
 
+// Ordem de categorias para impressão (tortas primeiro, docinhos segundo, salgadinhos terceiro)
+const ORDEM_CATEGORIAS: Record<string, number> = {
+  'TORTAS': 1,
+  'TORTA': 1,
+  'DOCINHOS': 2,
+  'DOCINHO': 2,
+  'DOCES': 2,
+  'DOCE': 2,
+  'SALGADINHOS': 3,
+  'SALGADINHO': 3,
+  'SALGADOS': 3,
+  'SALGADO': 3,
+  'BOLOS': 4,
+  'BOLO': 4,
+  'PAES': 5,
+  'PAO': 5,
+  'BEBIDAS': 6,
+  'BEBIDA': 6,
+  'OUTROS': 99,
+};
+
+// Função para ordenar itens por categoria
+function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
+  return [...itens].sort((a, b) => {
+    // Detectar categoria pelo nome do produto
+    const nomeA = a.produto.nome.toUpperCase();
+    const nomeB = b.produto.nome.toUpperCase();
+    
+    // Detectar se é torta especial (tem tamanho)
+    const isTortaA = a.tamanho ? true : false;
+    const isTortaB = b.tamanho ? true : false;
+    
+    // Tortas especiais primeiro
+    if (isTortaA && !isTortaB) return -1;
+    if (!isTortaA && isTortaB) return 1;
+    
+    // Tentar detectar categoria pelo nome
+    let ordemA = 99;
+    let ordemB = 99;
+    
+    for (const [cat, ordem] of Object.entries(ORDEM_CATEGORIAS)) {
+      if (nomeA.includes(cat)) {
+        ordemA = Math.min(ordemA, ordem);
+      }
+      if (nomeB.includes(cat)) {
+        ordemB = Math.min(ordemB, ordem);
+      }
+    }
+    
+    // Se mesma categoria, ordenar por nome
+    if (ordemA === ordemB) {
+      return nomeA.localeCompare(nomeB);
+    }
+    
+    return ordemA - ordemB;
+  });
+}
+
 // Formatar número do pedido com zeros
 export function formatarNumeroPedido(numero: number): string {
   return numero.toString().padStart(5, '0');
@@ -261,7 +319,7 @@ export function gerarCupomCliente(
   }
   linhas.push(linhaDivisoria('-'));
   
-  // === ITENS DO PEDIDO ===
+  // === ITENS DO PEDIDO (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS) ===
   const headerProd = 'PRODUTO'.padEnd(22);
   const headerQtd = 'QTD'.padStart(5).padEnd(7);
   const headerUnit = 'UNIT'.padStart(8);
@@ -269,7 +327,9 @@ export function gerarCupomCliente(
   linhas.push(`${headerProd} ${headerQtd} ${headerUnit} ${headerTotal}`);
   linhas.push(linhaDivisoria('-'));
   
-  for (const item of pedido.itens) {
+  const itensOrdenados = ordenarItensPorCategoria(pedido.itens);
+  
+  for (const item of itensOrdenados) {
     // Incluir tamanho no nome se existir (para tortas especiais)
     // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
@@ -380,8 +440,10 @@ export function gerarCupomCozinha(
   linhas.push('PRODUTO                                      QTD');
   linhas.push(linhaDivisoria('-'));
   
-  // Itens
-  for (const item of pedido.itens) {
+  // Itens (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
+  const itensOrdenadosCozinha = ordenarItensPorCategoria(pedido.itens);
+  
+  for (const item of itensOrdenadosCozinha) {
     // Incluir tamanho no nome se existir (para tortas especiais)
     // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 
@@ -448,10 +510,12 @@ export function gerarCupomCozinhaGrande(
   linhas.push('----------------------------------------');
   linhas.push('');
   
-  // Lista de itens - formato simples e grande
+  // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
   linhas.push('ITENS:');
   
-  for (const item of pedido.itens) {
+  const itensOrdenadosGrande = ordenarItensPorCategoria(pedido.itens);
+  
+  for (const item of itensOrdenadosGrande) {
     const qtdProd = item.quantidadePedida || item.quantidade;
     
     let qtdStr: string;
@@ -671,7 +735,7 @@ export function gerarCupomOrcamento(
   }
   linhas.push(linhaDivisoria('-'));
   
-  // === ITENS DO ORÇAMENTO ===
+  // === ITENS DO ORÇAMENTO (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS) ===
   const headerProd = 'PRODUTO'.padEnd(22);
   const headerQtd = 'QTD'.padStart(5).padEnd(7);
   const headerUnit = 'UNIT'.padStart(8);
@@ -679,7 +743,9 @@ export function gerarCupomOrcamento(
   linhas.push(`${headerProd} ${headerQtd} ${headerUnit} ${headerTotal}`);
   linhas.push(linhaDivisoria('-'));
   
-  for (const item of orcamento.itens) {
+  const itensOrdenadosOrcamento = ordenarItensPorCategoria(orcamento.itens);
+  
+  for (const item of itensOrdenadosOrcamento) {
     // Incluir tamanho no nome se existir (para tortas especiais)
     // Formato: "TORTA ESPECIAL P" (sem parênteses)
     const nomeCompleto = item.tamanho 

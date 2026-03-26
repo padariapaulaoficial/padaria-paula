@@ -646,50 +646,50 @@ export default function NovoOrcamento() {
 
   return (
     <div className="max-w-5xl mx-auto animate-fade-in">
-      {/* Etapa 1: Cliente e Entrega - LAYOUT COMPACTO DE DUAS COLUNAS */}
+      {/* Etapa 1: Cliente e Entrega - LAYOUT SUPER COMPACTO */}
       {etapa === 'cliente' && (
-        <div className="h-[calc(100vh-100px)] flex flex-col gap-2">
+        <div className="h-[calc(100vh-140px)] flex flex-col gap-1.5">
           {/* Header compacto */}
-          <div className="flex items-center justify-center gap-2 py-1">
-            <h2 className="text-lg font-bold text-primary">Novo Orçamento</h2>
+          <div className="flex items-center justify-center py-0.5">
+            <h2 className="text-base font-bold text-primary">Novo Orçamento</h2>
           </div>
           
           {/* Conteúdo principal - duas colunas */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 min-h-0">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 min-h-0">
             {/* COLUNA ESQUERDA - Cliente */}
             <Card className="card-padaria flex flex-col">
-              <CardHeader className="pb-1 pt-2 px-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <User className="w-4 h-4" />
+              <CardHeader className="pb-0.5 pt-1.5 px-2">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" />
                   Cliente
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 px-3 pb-3 flex-1 flex flex-col">
+              <CardContent className="space-y-1.5 px-2 pb-2 flex-1 flex flex-col">
                 {clienteSelecionadoLocal ? (
-                  <div className="p-2 bg-primary/5 rounded-lg border border-primary/30 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="bg-primary/20 rounded-full p-1">
-                        <Check className="w-3 h-3 text-primary" />
+                  <div className="p-1.5 bg-primary/5 rounded-lg border border-primary/30 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="bg-primary/20 rounded-full p-0.5">
+                        <Check className="w-2.5 h-2.5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{clienteSelecionadoLocal.nome}</p>
+                        <p className="font-medium text-xs">{clienteSelecionadoLocal.nome}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          <Phone className="w-2.5 h-2.5 inline mr-0.5" />
+                          <Phone className="w-2 h-2 inline mr-0.5" />
                           {formatarTelefone(clienteSelecionadoLocal.telefone)}
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleTrocarCliente}>
+                    <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={handleTrocarCliente}>
                       Trocar
                     </Button>
                   </div>
                 ) : (
                   <>
                     <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                       <Input
                         placeholder="Nome ou telefone..."
-                        className="pl-8 h-8 text-sm"
+                        className="pl-7 h-7 text-xs"
                         value={buscaCliente}
                         onChange={(e) => setBuscaCliente(e.target.value)}
                       />
@@ -702,31 +702,30 @@ export default function NovoOrcamento() {
                           {clientes.map((c) => (
                             <button
                               key={c.id}
-                              className="w-full p-2 text-left hover:bg-muted rounded transition-colors flex items-center justify-between"
+                              className="w-full p-1.5 text-left hover:bg-muted rounded transition-colors flex items-center justify-between"
                               onClick={() => handleSelecionarCliente(c)}
                             >
                               <div>
-                                <p className="font-medium text-sm">{c.nome}</p>
+                                <p className="font-medium text-xs">{c.nome}</p>
                                 <p className="text-[10px] text-muted-foreground">
                                   {formatarTelefone(c.telefone)}
-                                  {c.cpfCnpj && ` • ${c.cpfCnpj}`}
                                 </p>
                               </div>
-                              <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+                              <Plus className="w-3 h-3 text-muted-foreground" />
                             </button>
                           ))}
                         </div>
                       ) : loadingClientes ? (
-                        <p className="text-xs text-muted-foreground text-center py-2">Buscando...</p>
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Buscando...</p>
                       ) : buscaCliente.length >= 2 ? (
-                        <p className="text-xs text-muted-foreground text-center py-2">Nenhum cliente</p>
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Nenhum cliente</p>
                       ) : (
-                        <p className="text-xs text-muted-foreground text-center py-2">Digite para buscar</p>
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Digite para buscar</p>
                       )}
                     </div>
                     
-                    <Button variant="outline" size="sm" className="w-full h-8 text-xs" onClick={() => setTela('clientes')}>
-                      <Plus className="w-3 h-3 mr-1" />
+                    <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => setTela('clientes')}>
+                      <Plus className="w-2.5 h-2.5 mr-0.5" />
                       Novo Cliente
                     </Button>
                   </>
@@ -736,58 +735,58 @@ export default function NovoOrcamento() {
 
             {/* COLUNA DIREITA - Entrega */}
             <Card className="card-padaria flex flex-col">
-              <CardHeader className="pb-1 pt-2 px-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
+              <CardHeader className="pb-0.5 pt-1.5 px-2">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
                   Entrega
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 px-3 pb-3">
+              <CardContent className="space-y-1.5 px-2 pb-2">
                 {/* Tipo de entrega - compacto */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
-                    className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    className={`p-1.5 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1 ${
                       tipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
                     }`}
                     onClick={() => setTipoEntrega('RETIRA')}
                   >
-                    <Store className="w-3.5 h-3.5" />
-                    <span className="text-xs font-medium">Retira</span>
+                    <Store className="w-3 h-3" />
+                    <span className="text-[10px] font-medium">Retira</span>
                   </button>
                   <button
                     type="button"
-                    className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    className={`p-1.5 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1 ${
                       tipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
                     }`}
                     onClick={() => setTipoEntrega('TELE_ENTREGA')}
                   >
-                    <Truck className="w-3.5 h-3.5" />
-                    <span className="text-xs font-medium">Tele Entrega</span>
+                    <Truck className="w-3 h-3" />
+                    <span className="text-[10px] font-medium">Entrega</span>
                   </button>
                 </div>
 
                 {/* Data e Horário */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   <div>
-                    <Label className="text-[10px] text-muted-foreground">Data *</Label>
+                    <Label className="text-[9px] text-muted-foreground">Data *</Label>
                     <Input
                       type="date"
                       min={dataMinima}
-                      className="h-8 text-sm"
+                      className="h-7 text-xs"
                       value={dataEntrega}
                       onChange={(e) => setDataEntrega(e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label className="text-[10px] text-muted-foreground">Horário *</Label>
+                    <Label className="text-[9px] text-muted-foreground">Horário *</Label>
                     <Select value={horarioEntrega} onValueChange={setHorarioEntrega}>
-                      <SelectTrigger className="h-8 text-sm">
+                      <SelectTrigger className="h-7 text-xs">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
                         {HORARIOS_COMERCIAIS.map((h) => (
-                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                          <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -796,33 +795,31 @@ export default function NovoOrcamento() {
 
                 {/* Endereço para tele-entrega */}
                 {tipoEntrega === 'TELE_ENTREGA' && (
-                  <div className="space-y-1.5 p-2 bg-muted/50 rounded-lg border border-primary/20">
-                    <div className="flex items-center gap-1 text-xs font-medium text-primary">
-                      <MapPin className="w-3 h-3" />
+                  <div className="space-y-1 p-1.5 bg-muted/50 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-1 text-[10px] font-medium text-primary">
+                      <MapPin className="w-2.5 h-2.5" />
                       Endereço
                     </div>
                     <Input
                       placeholder="Endereço *"
-                      className="h-8 text-sm"
+                      className="h-7 text-xs"
                       value={enderecoEntrega}
                       onChange={(e) => setEnderecoEntrega(e.target.value)}
                     />
                     <Input
                       placeholder="Bairro *"
-                      className="h-8 text-sm"
+                      className="h-7 text-xs"
                       value={bairroEntrega}
                       onChange={(e) => setBairroEntrega(e.target.value)}
                     />
-                    <div className="flex gap-2 items-center">
-                      <div className="flex-1">
-                        <Label className="text-[10px] text-muted-foreground">Taxa</Label>
-                        <Input
-                          placeholder="R$ 0,00"
-                          className="h-8 text-sm"
-                          value={valorTeleEntrega}
-                          onChange={(e) => setValorTeleEntrega(e.target.value)}
-                        />
-                      </div>
+                    <div>
+                      <Label className="text-[9px] text-muted-foreground">Taxa</Label>
+                      <Input
+                        placeholder="R$ 0,00"
+                        className="h-7 text-xs"
+                        value={valorTeleEntrega}
+                        onChange={(e) => setValorTeleEntrega(e.target.value)}
+                      />
                     </div>
                   </div>
                 )}
@@ -830,9 +827,9 @@ export default function NovoOrcamento() {
             </Card>
           </div>
 
-          {/* Botão Continuar - fixo na parte inferior */}
+          {/* Botão Continuar - SEMPRE VISÍVEL */}
           <Button
-            className="w-full btn-padaria h-10 text-sm"
+            className="w-full btn-padaria h-9 text-xs shrink-0"
             onClick={handleContinuarParaProdutos}
             disabled={!clienteSelecionadoLocal || !dataEntrega || !horarioEntrega}
           >
