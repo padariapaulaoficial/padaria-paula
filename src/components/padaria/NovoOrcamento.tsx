@@ -12,9 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -648,217 +646,200 @@ export default function NovoOrcamento() {
   }, [selecoes, atualizarSelecao, handleAdicionarProduto]);
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in space-y-4">
-      {/* Etapa 1: Cliente e Entrega */}
+    <div className="max-w-5xl mx-auto animate-fade-in">
+      {/* Etapa 1: Cliente e Entrega - LAYOUT COMPACTO DE DUAS COLUNAS */}
       {etapa === 'cliente' && (
-        <>
-          {/* Seleção de Cliente */}
-          <Card className="card-padaria">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Selecionar Cliente
-              </CardTitle>
-              <CardDescription>Busque por nome ou telefone</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {clienteSelecionadoLocal ? (
-                <Card className="border-primary/50 bg-primary/5">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/20 rounded-full p-2">
-                          <Check className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">{clienteSelecionadoLocal.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            <Phone className="w-3 h-3 inline mr-1" />
-                            {formatarTelefone(clienteSelecionadoLocal.telefone)}
-                          </p>
-                        </div>
+        <div className="h-[calc(100vh-100px)] flex flex-col gap-2">
+          {/* Header compacto */}
+          <div className="flex items-center justify-center gap-2 py-1">
+            <h2 className="text-lg font-bold text-primary">Novo Orçamento</h2>
+          </div>
+          
+          {/* Conteúdo principal - duas colunas */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 min-h-0">
+            {/* COLUNA ESQUERDA - Cliente */}
+            <Card className="card-padaria flex flex-col">
+              <CardHeader className="pb-1 pt-2 px-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 px-3 pb-3 flex-1 flex flex-col">
+                {clienteSelecionadoLocal ? (
+                  <div className="p-2 bg-primary/5 rounded-lg border border-primary/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-primary/20 rounded-full p-1">
+                        <Check className="w-3 h-3 text-primary" />
                       </div>
-                      <Button variant="ghost" size="sm" onClick={handleTrocarCliente}>
-                        Trocar
-                      </Button>
+                      <div>
+                        <p className="font-medium text-sm">{clienteSelecionadoLocal.nome}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          <Phone className="w-2.5 h-2.5 inline mr-0.5" />
+                          {formatarTelefone(clienteSelecionadoLocal.telefone)}
+                        </p>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleTrocarCliente}>
+                      Trocar
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Nome ou telefone..."
+                        className="pl-8 h-8 text-sm"
+                        value={buscaCliente}
+                        onChange={(e) => setBuscaCliente(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Lista de clientes */}
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                      {clientes.length > 0 ? (
+                        <div className="space-y-0.5">
+                          {clientes.map((c) => (
+                            <button
+                              key={c.id}
+                              className="w-full p-2 text-left hover:bg-muted rounded transition-colors flex items-center justify-between"
+                              onClick={() => handleSelecionarCliente(c)}
+                            >
+                              <div>
+                                <p className="font-medium text-sm">{c.nome}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {formatarTelefone(c.telefone)}
+                                  {c.cpfCnpj && ` • ${c.cpfCnpj}`}
+                                </p>
+                              </div>
+                              <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : loadingClientes ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">Buscando...</p>
+                      ) : buscaCliente.length >= 2 ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">Nenhum cliente</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-2">Digite para buscar</p>
+                      )}
+                    </div>
+                    
+                    <Button variant="outline" size="sm" className="w-full h-8 text-xs" onClick={() => setTela('clientes')}>
+                      <Plus className="w-3 h-3 mr-1" />
+                      Novo Cliente
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* COLUNA DIREITA - Entrega */}
+            <Card className="card-padaria flex flex-col">
+              <CardHeader className="pb-1 pt-2 px-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Entrega
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 px-3 pb-3">
+                {/* Tipo de entrega - compacto */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                      tipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setTipoEntrega('RETIRA')}
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">Retira</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                      tipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setTipoEntrega('TELE_ENTREGA')}
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">Tele Entrega</span>
+                  </button>
+                </div>
+
+                {/* Data e Horário */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Data *</Label>
                     <Input
-                      placeholder="Digite nome ou telefone..."
-                      className="input-padaria pl-10 h-11"
-                      value={buscaCliente}
-                      onChange={(e) => setBuscaCliente(e.target.value)}
+                      type="date"
+                      min={dataMinima}
+                      className="h-8 text-sm"
+                      value={dataEntrega}
+                      onChange={(e) => setDataEntrega(e.target.value)}
                     />
                   </div>
-                  
-                  {clientes.length > 0 && (
-                    <ScrollArea className="h-48">
-                      <div className="space-y-1">
-                        {clientes.map((c) => (
-                          <button
-                            key={c.id}
-                            className="w-full p-3 text-left hover:bg-muted rounded-lg transition-colors flex items-center justify-between"
-                            onClick={() => handleSelecionarCliente(c)}
-                          >
-                            <div>
-                              <p className="font-medium">{c.nome}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatarTelefone(c.telefone)}
-                                {c.cpfCnpj && ` • ${c.cpfCnpj}`}
-                              </p>
-                            </div>
-                            <Plus className="w-4 h-4 text-muted-foreground" />
-                          </button>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Horário *</Label>
+                    <Select value={horarioEntrega} onValueChange={setHorarioEntrega}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HORARIOS_COMERCIAIS.map((h) => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Endereço para tele-entrega */}
+                {tipoEntrega === 'TELE_ENTREGA' && (
+                  <div className="space-y-1.5 p-2 bg-muted/50 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-1 text-xs font-medium text-primary">
+                      <MapPin className="w-3 h-3" />
+                      Endereço
+                    </div>
+                    <Input
+                      placeholder="Endereço *"
+                      className="h-8 text-sm"
+                      value={enderecoEntrega}
+                      onChange={(e) => setEnderecoEntrega(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Bairro *"
+                      className="h-8 text-sm"
+                      value={bairroEntrega}
+                      onChange={(e) => setBairroEntrega(e.target.value)}
+                    />
+                    <div className="flex gap-2 items-center">
+                      <div className="flex-1">
+                        <Label className="text-[10px] text-muted-foreground">Taxa</Label>
+                        <Input
+                          placeholder="R$ 0,00"
+                          className="h-8 text-sm"
+                          value={valorTeleEntrega}
+                          onChange={(e) => setValorTeleEntrega(e.target.value)}
+                        />
                       </div>
-                    </ScrollArea>
-                  )}
-                  
-                  {loadingClientes && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Buscando...</p>
-                  )}
-                  
-                  <Button variant="outline" className="w-full" onClick={() => setTela('clientes')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Cadastrar Novo Cliente
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Dados de Entrega */}
-          <Card className="card-padaria">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Dados da Entrega
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Tipo de Entrega *</Label>
-                <RadioGroup
-                  value={tipoEntrega}
-                  onValueChange={(value) => setTipoEntrega(value as 'RETIRA' | 'TELE_ENTREGA')}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  <div className={`flex items-center space-x-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    tipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                  }`}>
-                    <RadioGroupItem value="RETIRA" id="retira" />
-                    <Label htmlFor="retira" className="cursor-pointer flex items-center gap-2">
-                      <Store className="w-4 h-4" />
-                      <span className="text-sm font-medium">Cliente Retira</span>
-                    </Label>
-                  </div>
-                  <div className={`flex items-center space-x-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    tipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                  }`}>
-                    <RadioGroupItem value="TELE_ENTREGA" id="tele-entrega" />
-                    <Label htmlFor="tele-entrega" className="cursor-pointer flex items-center gap-2">
-                      <Truck className="w-4 h-4" />
-                      <span className="text-sm font-medium">Tele Entrega</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="dataEntrega" className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-3.5 h-3.5" />
-                    Data *
-                  </Label>
-                  <Input
-                    id="dataEntrega"
-                    type="date"
-                    min={dataMinima}
-                    className="input-padaria h-10"
-                    value={dataEntrega}
-                    onChange={(e) => setDataEntrega(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="horarioEntrega" className="flex items-center gap-2 text-sm">
-                    <Clock className="w-3.5 h-3.5" />
-                    Horário *
-                  </Label>
-                  <Select value={horarioEntrega} onValueChange={setHorarioEntrega}>
-                    <SelectTrigger className="input-padaria h-10">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HORARIOS_COMERCIAIS.map((h) => (
-                        <SelectItem key={h} value={h}>{h}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {tipoEntrega === 'TELE_ENTREGA' && (
-                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border-2 border-primary/30">
-                  <p className="text-sm font-medium flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Endereço de Entrega
-                  </p>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="endereco" className="text-sm">Endereço *</Label>
-                      <Input
-                        id="endereco"
-                        placeholder="Rua, número, complemento"
-                        className="input-padaria h-11 text-base"
-                        value={enderecoEntrega}
-                        onChange={(e) => setEnderecoEntrega(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="bairro" className="text-sm">Bairro *</Label>
-                      <Input
-                        id="bairro"
-                        placeholder="Nome do bairro"
-                        className="input-padaria h-11 text-base"
-                        value={bairroEntrega}
-                        onChange={(e) => setBairroEntrega(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="valorTeleEntrega" className="text-sm flex items-center gap-2">
-                        <DollarSign className="w-3.5 h-3.5" />
-                        Taxa de Entrega
-                      </Label>
-                      <Input
-                        id="valorTeleEntrega"
-                        type="text"
-                        placeholder="R$ 0,00"
-                        className="input-padaria h-11 text-base"
-                        value={valorTeleEntrega}
-                        onChange={(e) => setValorTeleEntrega(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">Valor cobrado pela entrega (será somado ao total)</p>
                     </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
+          {/* Botão Continuar - fixo na parte inferior */}
           <Button
-            size="lg"
-            className="w-full btn-padaria h-12 text-base"
+            className="w-full btn-padaria h-10 text-sm"
             onClick={handleContinuarParaProdutos}
             disabled={!clienteSelecionadoLocal || !dataEntrega || !horarioEntrega}
           >
             Continuar para Produtos
           </Button>
-        </>
+        </div>
       )}
 
       {/* Etapa 2: Produtos - LAYOUT DUAS COLUNAS */}
