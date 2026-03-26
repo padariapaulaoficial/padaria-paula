@@ -3,10 +3,11 @@
 // OrcamentosLista - Padaria Paula
 // Lista de orçamentos com ações de aprovar/rejeitar
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, RefreshCw, Eye, Check, X, FileText, Calendar, Trash2,
-  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send
+  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send,
+  Edit2, Plus, Scale
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
@@ -71,6 +73,36 @@ interface Orcamento {
   createdAt: string;
 }
 
+interface Produto {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipoVenda: 'KG' | 'UNIDADE';
+  valorUnit: number;
+  categoria: string | null;
+  ativo: boolean;
+  tipoProduto: 'NORMAL' | 'ESPECIAL';
+  tamanhos: string[] | null;
+  precosTamanhos: Record<string, number> | null;
+}
+
+// Opções de KG
+const OPCOES_KG = [
+  { valor: 0.5, label: '500g' },
+  { valor: 1.0, label: '1 kg' },
+  { valor: 1.5, label: '1,5 kg' },
+  { valor: 2.0, label: '2 kg' },
+  { valor: 2.5, label: '2,5 kg' },
+  { valor: 3.0, label: '3 kg' },
+  { valor: 4.0, label: '4 kg' },
+  { valor: 5.0, label: '5 kg' },
+  { valor: 6.0, label: '6 kg' },
+  { valor: 7.0, label: '7 kg' },
+  { valor: 8.0, label: '8 kg' },
+  { valor: 9.0, label: '9 kg' },
+  { valor: 10.0, label: '10 kg' },
+];
+
 export default function OrcamentosLista() {
   const { toast } = useToast();
   
@@ -84,6 +116,18 @@ export default function OrcamentosLista() {
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [config, setConfig] = useState<ConfiguracaoCupom | null>(null);
+  
+  // Estados para edição de orçamento
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [modoAdicao, setModoAdicao] = useState(false);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [buscaProduto, setBuscaProduto] = useState('');
+  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
+  const [quantidadeAdicionar, setQuantidadeAdicionar] = useState('');
+  const [tamanhoSelecionado, setTamanhoSelecionado] = useState('');
+  const [observacaoNovoItem, setObservacaoNovoItem] = useState('');
+  const [adicionandoProduto, setAdicionandoProduto] = useState(false);
+  const [itensEditados, setItensEditados] = useState<Record<string, string>>({});
 
   // Carregar configurações
   useEffect(() => {
@@ -92,6 +136,23 @@ export default function OrcamentosLista() {
       .then(setConfig)
       .catch(console.error);
   }, []);
+
+  // Carregar produtos para adição
+  useEffect(() => {
+    if (modoAdicao) {
+      fetch('/api/produtos?ativo=true')
+        .then(res => res.json())
+        .then(data => setProdutos(data))
+        .catch(console.error);
+    }
+  }, [modoAdicao]);
+
+  // Filtrar produtos pela busca
+  const produtosFiltrados = useMemo(() => {
+    if (!buscaProduto) return produtos.slice(0, 15);
+    const termo = buscaProduto.toLowerCase();
+    return produtos.filter(p => p.nome.toLowerCase().includes(termo)).slice(0, 15);
+  }, [produtos, buscaProduto]);
 
   // Carregar orçamentos
   const carregarOrcamentos = async () => {
@@ -158,7 +219,148 @@ export default function OrcamentosLista() {
   // Visualizar orçamento
   const handleVisualizar = (orcamento: Orcamento) => {
     setOrcamentoSelecionado(orcamento);
+    setModoEdicao(false);
+    setModoAdicao(false);
+    setItensEditados({});
+    setBuscaProduto('');
+    setProdutoSelecionado(null);
+    setQuantidadeAdicionar('');
+    setTamanhoSelecionado('');
+    setObservacaoNovoItem('');
     setDialogOpen(true);
+  };
+
+  // Editar quantidade de item
+  const handleEditarQuantidade = (itemId: string, valor: string) => {
+    setItensEditados(prev => ({
+      ...prev,
+      [itemId]: valor,
+    }));
+  };
+
+  // Salvar edição de quantidades
+  const handleSalvarEdicao = async () => {
+    if (!orcamentoSelecionado) return;
+    
+    const itensAlterados = orcamentoSelecionado.itens.filter(item => {
+      const novoValor = itensEditados[item.id];
+      if (novoValor === undefined) return false;
+      const novaQtd = parseFloat(novoValor.replace(',', '.'));
+      return !isNaN(novaQtd) && novaQtd !== item.quantidade;
+    });
+
+    if (itensAlterados.length === 0) {
+      toast({ title: 'Nenhuma alteração', description: 'Não há alterações para salvar.' });
+      return;
+    }
+
+    setProcessando(true);
+    try {
+      const itensParaAtualizar = orcamentoSelecionado.itens.map(item => {
+        const novoValor = itensEditados[item.id];
+        if (novoValor !== undefined) {
+          const novaQtd = parseFloat(novoValor.replace(',', '.'));
+          if (!isNaN(novaQtd)) {
+            return { id: item.id, quantidade: novaQtd, subtotal: novaQtd * item.valorUnit };
+          }
+        }
+        return null;
+      }).filter(Boolean);
+
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          itens: itensParaAtualizar,
+        }),
+      });
+
+      const orcamentoAtualizado = await response.json();
+      
+      if (!response.ok) throw new Error(orcamentoAtualizado.error || 'Erro ao atualizar');
+
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      setModoEdicao(false);
+      setItensEditados({});
+      
+      toast({ title: 'Orçamento atualizado!' });
+    } catch (error) {
+      console.error('Erro ao salvar edição:', error);
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  // Adicionar produto ao orçamento
+  const handleAdicionarProduto = async () => {
+    if (!orcamentoSelecionado || !produtoSelecionado) return;
+
+    let quantidade = 0;
+    let valorUnit = 0;
+    let tamanho: string | undefined = undefined;
+
+    if (produtoSelecionado.tipoProduto === 'ESPECIAL') {
+      if (!tamanhoSelecionado) {
+        toast({ title: 'Selecione o tamanho', variant: 'destructive' });
+        return;
+      }
+      const precoTamanho = produtoSelecionado.precosTamanhos?.[tamanhoSelecionado];
+      valorUnit = (precoTamanho && !isNaN(precoTamanho) && precoTamanho > 0) ? precoTamanho : produtoSelecionado.valorUnit;
+      quantidade = 1;
+      tamanho = tamanhoSelecionado;
+    } else {
+      quantidade = parseFloat(quantidadeAdicionar.replace(',', '.')) || 0;
+      valorUnit = produtoSelecionado.valorUnit;
+      if (quantidade <= 0) {
+        toast({ title: 'Quantidade inválida', variant: 'destructive' });
+        return;
+      }
+    }
+
+    const subtotal = quantidade * valorUnit;
+    setAdicionandoProduto(true);
+
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          novosItens: [{
+            produtoId: produtoSelecionado.id,
+            quantidade,
+            valorUnit,
+            subtotal,
+            observacao: observacaoNovoItem || undefined,
+            tamanho,
+          }],
+        }),
+      });
+
+      const orcamentoAtualizado = await response.json();
+      if (!response.ok) throw new Error(orcamentoAtualizado.error || 'Erro ao adicionar');
+
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      
+      // Limpar formulário
+      setProdutoSelecionado(null);
+      setQuantidadeAdicionar('');
+      setTamanhoSelecionado('');
+      setObservacaoNovoItem('');
+      setBuscaProduto('');
+      setModoAdicao(false);
+      
+      toast({ title: 'Produto adicionado!', description: produtoSelecionado.nome });
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+      toast({ title: 'Erro ao adicionar', variant: 'destructive' });
+    } finally {
+      setAdicionandoProduto(false);
+    }
   };
 
   // Imprimir cupom do orçamento
@@ -589,21 +791,219 @@ export default function OrcamentosLista() {
 
               {/* Itens */}
               <div>
-                <h4 className="font-semibold text-sm mb-2">Itens</h4>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-sm">Itens</h4>
+                  {!modoEdicao && !modoAdicao && orcamentoSelecionado.status === 'PENDENTE' && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setModoEdicao(true)}
+                        className="h-7 px-2 text-xs"
+                        title="Editar quantidades"
+                      >
+                        <Edit2 className="w-3 h-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setModoAdicao(true)}
+                        className="h-7 px-2 text-xs"
+                        title="Adicionar produto"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Adicionar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
                   {orcamentoSelecionado.itens.map((item) => (
                     <div key={item.id} className="flex justify-between items-center py-1.5 border-b border-border/50">
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{item.produto.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                          {item.observacao && <span className="ml-2 text-primary">({item.observacao})</span>}
-                        </p>
+                        <p className="font-medium text-sm">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
+                        {modoEdicao ? (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Input
+                              type="number"
+                              step={item.produto.tipoVenda === 'KG' ? '0.1' : '1'}
+                              min="0"
+                              className="w-16 h-7 text-xs"
+                              value={itensEditados[item.id] !== undefined ? itensEditados[item.id] : item.quantidade.toString()}
+                              onChange={(e) => handleEditarQuantidade(item.id, e.target.value)}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
+                            {item.observacao && <span className="ml-2 text-primary italic">({item.observacao})</span>}
+                          </p>
+                        )}
                       </div>
                       <p className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</p>
                     </div>
                   ))}
                 </div>
+                
+                {/* Botões de edição */}
+                {modoEdicao && (
+                  <div className="flex gap-1 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setModoEdicao(false); setItensEditados({}); }}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSalvarEdicao}
+                      disabled={processando}
+                      className="flex-1 btn-padaria h-8 text-xs"
+                    >
+                      {processando ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
+                      Salvar
+                    </Button>
+                  </div>
+                )}
+                
+                {/* Interface de adição de produtos */}
+                {modoAdicao && (
+                  <div className="mt-2 p-2 bg-muted/30 rounded-lg border border-border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">Adicionar Produto</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setModoAdicao(false);
+                          setProdutoSelecionado(null);
+                          setBuscaProduto('');
+                        }}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar produto..."
+                        className="pl-7 h-8 text-xs"
+                        value={buscaProduto}
+                        onChange={(e) => setBuscaProduto(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="max-h-20 overflow-y-auto space-y-0.5">
+                      {produtosFiltrados.map(produto => (
+                        <button
+                          key={produto.id}
+                          type="button"
+                          onClick={() => setProdutoSelecionado(produto)}
+                          className={`w-full p-1.5 text-left rounded text-xs transition-colors ${
+                            produtoSelecionado?.id === produto.id 
+                              ? 'bg-primary/20 border border-primary' 
+                              : 'bg-card hover:bg-muted border border-border/50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">{produto.nome}</span>
+                            <span className="text-muted-foreground">
+                              {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {produtoSelecionado && (
+                      <div className="space-y-1.5 pt-1.5 border-t border-border/50">
+                        {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
+                          <div className="flex gap-1">
+                            {['P', 'M', 'G', 'GG']
+                              .filter(tam => {
+                                const preco = produtoSelecionado.precosTamanhos?.[tam];
+                                return preco && !isNaN(preco) && preco > 0;
+                              })
+                              .map(tam => (
+                                <Button
+                                  key={tam}
+                                  type="button"
+                                  variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                                  size="sm"
+                                  className={`h-7 flex-1 text-xs ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                                  onClick={() => setTamanhoSelecionado(tam)}
+                                >
+                                  {tam}
+                                </Button>
+                              ))}
+                          </div>
+                        ) : produtoSelecionado.tipoVenda === 'KG' ? (
+                          <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Peso" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {OPCOES_KG.map(op => (
+                                <SelectItem key={op.valor} value={op.valor.toString()} className="text-xs">
+                                  {op.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            type="number"
+                            min="1"
+                            placeholder="Quantidade"
+                            className="h-8 text-xs"
+                            value={quantidadeAdicionar}
+                            onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                          />
+                        )}
+                        
+                        <Input
+                          placeholder="Obs (opcional)"
+                          className="h-8 text-xs"
+                          value={observacaoNovoItem}
+                          onChange={(e) => setObservacaoNovoItem(e.target.value)}
+                        />
+                        
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setModoAdicao(false);
+                              setProdutoSelecionado(null);
+                              setBuscaProduto('');
+                            }}
+                            className="flex-1 h-8 text-xs"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleAdicionarProduto}
+                            disabled={adicionandoProduto}
+                            className="flex-1 btn-padaria h-8 text-xs"
+                          >
+                            {adicionandoProduto ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
+                            Adicionar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Observações */}
@@ -621,54 +1021,56 @@ export default function OrcamentosLista() {
                 <span className="text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
               </div>
 
-              {/* Botões de ação - sempre visíveis */}
-              <div className="space-y-2 pt-2 border-t border-border">
-                {/* Botão de enviar via WhatsApp */}
-                <Button
-                  onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Enviar Orçamento via WhatsApp
-                </Button>
-
-                {/* Botão de impressão */}
-                <Button
-                  onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
-                  variant="outline"
-                  className="w-full h-11"
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Imprimir Orçamento
-                </Button>
-
-                {/* Botões de aprovação/rejeição */}
-                {orcamentoSelecionado.status === 'PENDENTE' && (
-                  <div className="flex gap-2">
+              {/* Botões de ação - otimizados lado a lado */}
+              {!modoEdicao && !modoAdicao && (
+                <div className="pt-2 border-t border-border space-y-2">
+                  {/* Linha 1: WhatsApp e Impressão */}
+                  <div className="flex gap-1">
                     <Button
-                      variant="outline"
-                      onClick={() => handleRejeitar(orcamentoSelecionado)}
-                      disabled={processando}
-                      className="flex-1 h-11 text-destructive border-destructive hover:bg-destructive/10"
+                      onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white h-9 text-xs"
                     >
-                      <X className="w-4 h-4 mr-2" />
-                      Rejeitar
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      WhatsApp
                     </Button>
                     <Button
-                      onClick={() => handleAprovar(orcamentoSelecionado)}
-                      disabled={processando}
-                      className="flex-1 h-11 btn-padaria"
+                      onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
+                      variant="outline"
+                      className="flex-1 h-9 text-xs"
                     >
-                      {processando ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                      )}
-                      Aprovar e Criar Pedido
+                      <Printer className="w-4 h-4 mr-1" />
+                      Imprimir
                     </Button>
                   </div>
-                )}
-              </div>
+                  
+                  {/* Linha 2: Aprovar/Rejeitar (se pendente) */}
+                  {orcamentoSelecionado.status === 'PENDENTE' && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleRejeitar(orcamentoSelecionado)}
+                        disabled={processando}
+                        className="flex-1 h-9 text-xs text-destructive border-destructive hover:bg-destructive/10"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Rejeitar
+                      </Button>
+                      <Button
+                        onClick={() => handleAprovar(orcamentoSelecionado)}
+                        disabled={processando}
+                        className="flex-1 h-9 btn-padaria text-xs"
+                      >
+                        {processando ? (
+                          <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <ShoppingCart className="w-4 h-4 mr-1" />
+                        )}
+                        Aprovar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

@@ -190,11 +190,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Atualizar status do orçamento (aprovar/rejeitar) ou converter para pedido
+// PUT - Atualizar orçamento (status, itens, adicionar produtos)
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, converterParaPedido } = body;
+    const { id, status, converterParaPedido, itens, novosItens } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -283,28 +283,73 @@ export async function PUT(request: NextRequest) {
       });
     }
     
-    // Atualização simples de status
-    if (status) {
-      const orcamento = await db.orcamento.update({
-        where: { id },
-        data: { status },
-        include: {
-          cliente: true,
-          itens: {
-            include: {
-              produto: true,
+    // Atualização de itens existentes
+    if (itens && Array.isArray(itens)) {
+      for (const itemUpdate of itens) {
+        if (itemUpdate.id) {
+          await db.itemOrcamento.update({
+            where: { id: itemUpdate.id },
+            data: {
+              quantidade: itemUpdate.quantidade,
+              subtotal: itemUpdate.subtotal,
             },
-          },
-        },
-      });
-      
-      return NextResponse.json(orcamento);
+          });
+        }
+      }
     }
     
-    return NextResponse.json(
-      { error: 'Nenhuma ação especificada' },
-      { status: 400 }
-    );
+    // Adicionar novos itens
+    if (novosItens && Array.isArray(novosItens)) {
+      for (const novoItem of novosItens) {
+        await db.itemOrcamento.create({
+          data: {
+            orcamentoId: id,
+            produtoId: novoItem.produtoId,
+            quantidade: novoItem.quantidade,
+            valorUnit: novoItem.valorUnit,
+            subtotal: novoItem.subtotal,
+            observacao: novoItem.observacao || null,
+            tamanho: novoItem.tamanho || null,
+          },
+        });
+      }
+    }
+    
+    // Recalcular total do orçamento
+    if (itens || novosItens) {
+      const itensAtualizados = await db.itemOrcamento.findMany({
+        where: { orcamentoId: id },
+      });
+      const novoTotal = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      await db.orcamento.update({
+        where: { id },
+        data: { total: novoTotal },
+      });
+    }
+    
+    // Atualização de status
+    if (status) {
+      await db.orcamento.update({
+        where: { id },
+        data: { status },
+      });
+    }
+    
+    // Buscar orçamento atualizado
+    const orcamentoAtualizado = await db.orcamento.findUnique({
+      where: { id },
+      include: {
+        cliente: true,
+        itens: {
+          include: {
+            produto: true,
+          },
+        },
+      },
+    });
+    
+    return NextResponse.json(orcamentoAtualizado);
   } catch (error) {
     console.error('Erro ao atualizar orçamento:', error);
     return NextResponse.json(
