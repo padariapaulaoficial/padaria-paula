@@ -310,50 +310,50 @@ export default function ProdutosLista() {
   }
 
   return (
-    <div className="space-y-3 animate-fade-in pb-20 lg:pb-0">
+    <div className="space-y-2 animate-fade-in pb-20 lg:pb-0">
       {/* Cliente Selecionado + Dados de Entrega */}
       {cliente && (
         <Card className="card-padaria border-primary/30 bg-primary/5">
-          <CardContent className="p-3">
+          <CardContent className="p-2">
             <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="bg-primary/20 rounded-full p-2">
-                  <User className="w-4 h-4 text-primary" />
+              <div className="flex items-start gap-2">
+                <div className="bg-primary/20 rounded-full p-1.5">
+                  <User className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-sm text-primary truncate">{cliente.nome}</h4>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
+                  <h4 className="font-semibold text-xs text-primary truncate">{cliente.nome}</h4>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground mt-0.5">
+                    <span className="flex items-center gap-0.5">
+                      <Phone className="w-2.5 h-2.5" />
                       {cliente.telefone}
                     </span>
                   </div>
                   {/* Dados de Entrega */}
-                  <div className="mt-1.5 pt-1.5 border-t border-primary/20">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] flex items-center gap-1">
+                  <div className="mt-1 pt-1 border-t border-primary/20">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] h-4 flex items-center gap-0.5 px-1">
                         {entrega.tipoEntrega === 'RETIRA' ? (
                           <>
-                            <Store className="w-3 h-3" />
-                            Cliente Retira
+                            <Store className="w-2.5 h-2.5" />
+                            Retira
                           </>
                         ) : (
                           <>
-                            <Truck className="w-3 h-3" />
-                            Tele Entrega
+                            <Truck className="w-2.5 h-2.5" />
+                            Entrega
                           </>
                         )}
                       </Badge>
                       {entrega.dataEntrega && (
-                        <Badge variant="secondary" className="text-[10px] flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                        <Badge variant="secondary" className="text-[10px] h-4 flex items-center gap-0.5 px-1">
+                          <Calendar className="w-2.5 h-2.5" />
                           {formatarDataEntrega(entrega.dataEntrega)}
                         </Badge>
                       )}
                     </div>
                     {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.enderecoEntrega && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                        <MapPin className="w-3 h-3 shrink-0" />
+                      <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground mt-0.5">
+                        <MapPin className="w-2.5 h-2.5 shrink-0" />
                         <span className="truncate">
                           {entrega.enderecoEntrega}
                           {entrega.bairroEntrega && ` - ${entrega.bairroEntrega}`}
@@ -366,10 +366,10 @@ export default function ProdutosLista() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs shrink-0"
+                className="h-6 px-1.5 text-[10px] shrink-0"
                 onClick={() => setTela('novo-pedido')}
               >
-                <Edit2 className="w-3 h-3 mr-1" />
+                <Edit2 className="w-2.5 h-2.5 mr-0.5" />
                 Editar
               </Button>
             </div>
@@ -379,10 +379,10 @@ export default function ProdutosLista() {
 
       {/* Barra de busca */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
           placeholder="Buscar produtos..."
-          className="input-padaria pl-10 h-11"
+          className="input-padaria pl-9 h-9 text-sm"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
@@ -391,12 +391,12 @@ export default function ProdutosLista() {
       {/* Tabs de categorias */}
       <Tabs value={categoriaAtiva} onValueChange={setCategoriaAtiva} className="w-full">
         <ScrollArea className="w-full">
-          <TabsList className="flex flex-nowrap h-auto gap-1 bg-muted/50 p-1 w-max">
+          <TabsList className="flex flex-nowrap h-auto gap-0.5 bg-muted/50 p-0.5 w-max">
             {categorias.map(cat => (
               <TabsTrigger 
                 key={cat} 
                 value={cat}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-3"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap px-2 py-1 text-xs h-7"
               >
                 {cat}
               </TabsTrigger>
@@ -404,17 +404,17 @@ export default function ProdutosLista() {
           </TabsList>
         </ScrollArea>
 
-        <TabsContent value={categoriaAtiva} className="mt-3">
-          <ScrollArea className="h-[calc(100vh-340px)] sm:h-[calc(100vh-320px)] pr-2">
+        <TabsContent value={categoriaAtiva} className="mt-2">
+          <ScrollArea className="h-[calc(100vh-300px)] pr-1">
             {Object.entries(produtosPorCategoria).map(([categoria, prods]) => (
-              <div key={categoria} className="mb-4 last:mb-0">
+              <div key={categoria} className="mb-3 last:mb-0">
                 {categoriaAtiva === 'Todos' && (
-                  <h3 className="font-display text-base font-semibold mb-2 text-primary border-b border-border pb-1">
+                  <h3 className="font-display text-sm font-semibold mb-1.5 text-primary border-b border-border pb-0.5">
                     {categoria}
                   </h3>
                 )}
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-1.5">
                   {prods.map(produto => (
                     <ProdutoCard
                       key={produto.id}
@@ -438,9 +438,9 @@ export default function ProdutosLista() {
             ))}
 
             {produtosFiltrados.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum produto encontrado</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Nenhum produto encontrado</p>
               </div>
             )}
           </ScrollArea>
@@ -450,28 +450,28 @@ export default function ProdutosLista() {
       {/* Carrinho Resumo - Mobile */}
       {itens.length > 0 && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-40 safe-area-bottom">
-          <div className="p-2 space-y-2">
+          <div className="p-1.5 space-y-1.5">
             {/* Total */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">{itens.length} {itens.length === 1 ? 'item' : 'itens'}</Badge>
+              <div className="flex items-center gap-1">
+                <Badge variant="secondary" className="text-[10px] h-5">{itens.length} {itens.length === 1 ? 'item' : 'itens'}</Badge>
               </div>
-              <span className="font-bold text-lg text-primary">{formatarValor(total)}</span>
+              <span className="font-bold text-base text-primary">{formatarValor(total)}</span>
             </div>
             
             {/* Botões */}
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 h-9"
+                className="flex-1 h-8 text-xs"
                 onClick={() => setTela('novo-pedido')}
               >
                 Cliente
               </Button>
               <Button
                 size="sm"
-                className="flex-1 btn-padaria h-9"
+                className="flex-1 btn-padaria h-8 text-xs"
                 onClick={() => setTela('resumo')}
               >
                 Ver Pedido
@@ -530,22 +530,22 @@ function ProdutoCard({
     : [];
 
   return (
-    <Card className={`card-padaria hover:shadow-md transition-shadow ${produto.tipoProduto === 'ESPECIAL' ? 'ring-2 ring-primary/30' : ''}`}>
-      <CardContent className="p-3">
+    <Card className={`card-padaria hover:shadow-md transition-shadow ${produto.tipoProduto === 'ESPECIAL' ? 'ring-1 ring-primary/30' : ''}`}>
+      <CardContent className="p-2">
         {/* Header do produto */}
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex justify-between items-start mb-1.5">
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-foreground truncate">{produto.nome}</h4>
+            <h4 className="font-semibold text-xs text-foreground truncate">{produto.nome}</h4>
             {produto.descricao && (
-              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{produto.descricao}</p>
+              <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{produto.descricao}</p>
             )}
           </div>
           {produto.tipoProduto === 'ESPECIAL' ? (
-            <Badge className="ml-2 shrink-0 text-[10px] px-1.5 py-0.5 bg-primary text-primary-foreground">
+            <Badge className="ml-1.5 shrink-0 text-[9px] px-1 py-0 h-4 bg-primary text-primary-foreground">
               Torta
             </Badge>
           ) : (
-            <Badge variant="secondary" className="ml-2 flex items-center gap-1 shrink-0 text-[10px] px-1.5 py-0.5">
+            <Badge variant="secondary" className="ml-1.5 flex items-center gap-0.5 shrink-0 text-[9px] px-1 py-0 h-4">
               {iconeTipo}
               {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
             </Badge>
@@ -554,55 +554,53 @@ function ProdutoCard({
 
         {/* Preço */}
         {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-          <div className="mb-3 text-xs text-muted-foreground">
+          <div className="mb-2 text-[10px] text-muted-foreground">
             {tamanhosOrdenados
               .filter(tam => {
                 const preco = produto.precosTamanhos?.[tam];
                 return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
               })
               .map(tam => (
-                <span key={tam} className="mr-2">
+                <span key={tam} className="mr-1.5">
                   <strong className="text-primary">{tam}</strong>: {formatarMoeda(produto.precosTamanhos![tam])}
                 </span>
               ))}
           </div>
         ) : (
-          <div className="flex items-center gap-1 mb-3">
-            <span className="text-lg font-bold text-primary">
+          <div className="flex items-center gap-0.5 mb-2">
+            <span className="text-base font-bold text-primary">
               {formatarMoeda(produto.valorUnit)}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground">
               /{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
             </span>
           </div>
         )}
 
         {/* Seletor de quantidade / tamanho */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {produto.tipoProduto === 'ESPECIAL' ? (
             <>
               {/* Seleção de tamanho para torta */}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Tamanho:</Label>
-                <div className="flex gap-1">
-                  {tamanhosOrdenados.map(tam => (
-                    <Button
-                      key={tam}
-                      type="button"
-                      variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
-                      size="sm"
-                      className={`flex-1 h-8 text-xs ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
-                      onClick={() => onSelectTamanho(tam)}
-                    >
-                      {tam}
-                    </Button>
-                  ))}
-                </div>
+              <Label className="text-[10px] text-muted-foreground">Tamanho:</Label>
+              <div className="flex gap-0.5">
+                {tamanhosOrdenados.map(tam => (
+                  <Button
+                    key={tam}
+                    type="button"
+                    variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                    size="sm"
+                    className={`flex-1 h-7 text-xs ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                    onClick={() => onSelectTamanho(tam)}
+                  >
+                    {tam}
+                  </Button>
+                ))}
               </div>
               {/* Campo de observação */}
               <Input
-                placeholder="Observação (opcional)"
-                className="h-9 text-sm"
+                placeholder="Obs (opcional)"
+                className="h-7 text-xs"
                 value={observacao || ''}
                 onChange={(e) => onChangeObservacao(e.target.value)}
               />
@@ -613,15 +611,15 @@ function ProdutoCard({
               value={quantidadeKG?.toString() || '0'}
               onValueChange={(value) => onSelectKG(parseFloat(value))}
             >
-              <SelectTrigger className="h-9 text-sm">
+              <SelectTrigger className="h-7 text-xs">
                 <SelectValue placeholder="Quantidade" />
               </SelectTrigger>
-              <SelectContent className="max-h-60">
+              <SelectContent className="max-h-48">
                 {OPCOES_KG.map((opcao) => (
                   <SelectItem
                     key={opcao.valor}
                     value={opcao.valor.toString()}
-                    className="text-sm"
+                    className="text-xs"
                   >
                     {opcao.label}
                   </SelectItem>
@@ -634,8 +632,8 @@ function ProdutoCard({
               type="number"
               min="1"
               step="1"
-              placeholder="Digite a quantidade"
-              className="h-9 text-sm"
+              placeholder="Quantidade"
+              className="h-7 text-xs"
               value={quantidadeUnidade || ''}
               onChange={(e) => onChangeUnidade(e.target.value)}
             />
@@ -645,13 +643,13 @@ function ProdutoCard({
         {/* Botão adicionar */}
         <Button
           onClick={onAdicionar}
-          className="w-full btn-padaria mt-2 h-9"
+          className="w-full btn-padaria mt-1.5 h-8 text-xs"
           disabled={!temQuantidade}
         >
-          <Plus className="w-4 h-4 mr-1" />
+          <Plus className="w-3.5 h-3.5 mr-0.5" />
           Adicionar
           {subtotal && (
-            <Badge variant="secondary" className="ml-2 bg-primary-foreground/20 text-primary-foreground text-[10px]">
+            <Badge variant="secondary" className="ml-1.5 bg-primary-foreground/20 text-primary-foreground text-[9px] h-4 px-1">
               {formatarMoeda(subtotal)}
             </Badge>
           )}

@@ -500,97 +500,92 @@ export default function ClientesLista() {
   }
 
   return (
-    <div className="space-y-3 animate-fade-in">
+    <div className="space-y-2 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col sm:flex-row gap-1.5">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente por nome ou telefone..."
-            className="input-padaria pl-10 h-11"
+            placeholder="Buscar cliente..."
+            className="input-padaria pl-9 h-9 text-sm"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
         </div>
-        <Button onClick={handleNovoCliente} className="btn-padaria h-11">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Cliente
+        <Button onClick={handleNovoCliente} className="btn-padaria h-9">
+          <Plus className="w-4 h-4 mr-1" />
+          Novo
         </Button>
       </div>
 
       {/* Lista de clientes */}
-      <ScrollArea className="h-[calc(100vh-220px)] sm:h-[calc(100vh-200px)] pr-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      <ScrollArea className="h-[calc(100vh-180px)] pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
           {clientesFiltrados.map((cliente) => (
             <Card key={cliente.id} className="card-padaria hover:shadow-md transition-shadow">
-              <CardContent className="p-3">
+              <CardContent className="p-2">
                 {/* Dados do cliente */}
                 <button 
                   onClick={() => handleVerDetalhes(cliente)}
-                  className="w-full text-left mb-2"
+                  className="w-full text-left mb-1.5"
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm">{cliente.nome}</h4>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-xs truncate">{cliente.nome}</h4>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   </div>
                   {cliente._count && cliente._count.pedidos > 0 && (
-                    <Badge variant="secondary" className="text-[10px] mt-0.5">
-                      {cliente._count.pedidos} pedido{cliente._count.pedidos > 1 ? 's' : ''}
+                    <Badge variant="secondary" className="text-[10px] mt-0.5 h-4 px-1">
+                      {cliente._count.pedidos} ped
                     </Badge>
                   )}
                 </button>
                 
-                <div className="space-y-0.5 text-xs text-muted-foreground mb-3">
-                  <div className="flex items-center gap-1.5">
+                <div className="space-y-0.5 text-[10px] text-muted-foreground mb-2">
+                  <div className="flex items-center gap-1">
                     <MessageCircle className="w-3 h-3 text-green-600" />
-                    <span>{cliente.telefone}</span>
+                    <span className="truncate">{cliente.telefone}</span>
                   </div>
                   {cliente.cpfCnpj && (
-                    <div className="text-xs">
+                    <div className="truncate">
                       {cliente.tipoPessoa || 'CPF'}: {cliente.cpfCnpj}
                     </div>
                   )}
                   {(cliente.endereco || cliente.bairro) && (
-                    <div className="flex items-start gap-1.5 mt-1">
+                    <div className="flex items-start gap-1">
                       <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-2">
-                        {cliente.endereco}
-                        {cliente.bairro && cliente.endereco && ', '}
-                        {cliente.bairro}
+                      <span className="line-clamp-1">
+                        {cliente.endereco}{cliente.bairro && cliente.endereco && ', '}{cliente.bairro}
                       </span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex gap-1.5">
-                  {/* Botão Orçamento */}
+                <div className="flex gap-1">
                   <Button
                     size="sm"
-                    className="flex-1 btn-padaria h-9 text-xs"
+                    className="flex-1 btn-padaria h-7 text-[10px]"
                     onClick={() => handleNovoOrcamento(cliente)}
                   >
-                    <FileText className="w-4 h-4 mr-1" />
+                    <FileText className="w-3 h-3 mr-0.5" />
                     Orçamento
                   </Button>
-                  {/* Editar */}
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-9 w-9 p-0"
+                    className="h-7 w-7 p-0"
                     onClick={() => handleEditar(cliente)}
                     title="Editar"
                   >
-                    <Edit className="w-3.5 h-3.5" />
+                    <Edit className="w-3 h-3" />
                   </Button>
-                  {/* Excluir */}
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     onClick={() => handleConfirmarExclusao(cliente)}
                     title="Excluir"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
               </CardContent>
@@ -599,7 +594,7 @@ export default function ClientesLista() {
         </div>
 
         {clientesFiltrados.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground text-sm">
             <p>Nenhum cliente encontrado</p>
           </div>
         )}
@@ -607,19 +602,19 @@ export default function ClientesLista() {
 
       {/* Modal de detalhes do cliente */}
       <Dialog open={modalDetalhesOpen} onOpenChange={setModalDetalhesOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{clienteDetalhes?.nome}</DialogTitle>
-            <DialogDescription>
-              Detalhes do cliente e histórico de pedidos
+        <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-3 border-b border-border shrink-0">
+            <DialogTitle className="text-base">{clienteDetalhes?.nome}</DialogTitle>
+            <DialogDescription className="text-xs">
+              Detalhes e histórico de pedidos
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {/* Dados do cliente */}
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-green-600" />
+            <div className="space-y-0.5 text-xs">
+              <div className="flex items-center gap-1.5">
+                <MessageCircle className="w-3.5 h-3.5 text-green-600" />
                 <span>{clienteDetalhes?.telefone}</span>
               </div>
               {clienteDetalhes?.cpfCnpj && (
@@ -628,8 +623,8 @@ export default function ClientesLista() {
                 </div>
               )}
               {(clienteDetalhes?.endereco || clienteDetalhes?.bairro) && (
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-1.5 text-muted-foreground">
+                  <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                   <span>
                     {clienteDetalhes?.endereco}
                     {clienteDetalhes?.bairro && clienteDetalhes?.endereco && ', '}
@@ -641,41 +636,41 @@ export default function ClientesLista() {
 
             {/* Histórico de pedidos */}
             <div>
-              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                <Package className="w-4 h-4" />
+              <h4 className="font-semibold text-xs mb-1.5 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" />
                 Últimos Pedidos
               </h4>
               
               {loadingPedidos ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+                <p className="text-xs text-muted-foreground text-center py-2">Carregando...</p>
               ) : pedidosCliente.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhum pedido encontrado</p>
+                <p className="text-xs text-muted-foreground text-center py-2">Nenhum pedido</p>
               ) : (
-                <ScrollArea className="max-h-48">
-                  <div className="space-y-2">
+                <ScrollArea className="max-h-32">
+                  <div className="space-y-1">
                     {pedidosCliente.map((pedido) => (
-                      <div key={pedido.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm">
+                      <div key={pedido.id} className="flex items-center justify-between p-1.5 bg-muted/50 rounded text-xs">
                         <div className="flex-1">
                           <div className="font-medium">#{pedido.numero.toString().padStart(4, '0')}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-[10px] text-muted-foreground">
                             {new Date(pedido.createdAt).toLocaleDateString('pt-BR')}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <div className="text-right">
                             <div className="font-semibold text-primary">{formatarMoeda(pedido.total)}</div>
-                            <Badge className={`text-[10px] ${corStatus(pedido.status)}`}>
+                            <Badge className={`text-[10px] h-4 ${corStatus(pedido.status)}`}>
                               {formatarStatus(pedido.status)}
                             </Badge>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0"
+                            className="h-6 w-6 p-0"
                             onClick={() => handleVerPedidoDetalhes(pedido.id)}
-                            title="Ver detalhes"
+                            title="Ver"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
@@ -686,16 +681,18 @@ export default function ClientesLista() {
             </div>
 
             {/* Botões */}
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 shrink-0">
               <Button
                 variant="outline"
-                className="flex-1"
+                size="sm"
+                className="flex-1 h-8 text-xs"
                 onClick={() => setModalDetalhesOpen(false)}
               >
                 Fechar
               </Button>
               <Button
-                className="flex-1 btn-padaria"
+                size="sm"
+                className="flex-1 btn-padaria h-8 text-xs"
                 onClick={() => {
                   if (clienteDetalhes) {
                     handleNovoOrcamento(clienteDetalhes);
@@ -703,7 +700,7 @@ export default function ClientesLista() {
                   }
                 }}
               >
-                <FileText className="w-4 h-4 mr-2" />
+                <FileText className="w-3 h-3 mr-1" />
                 Novo Orçamento
               </Button>
             </div>
@@ -713,32 +710,32 @@ export default function ClientesLista() {
 
       {/* Modal de edição/criação */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-3 border-b border-border shrink-0">
+            <DialogTitle className="text-base">
               {clienteEditando ? 'Editar Cliente' : 'Novo Cliente'}
             </DialogTitle>
-            <DialogDescription>
-              {clienteEditando ? 'Atualize os dados do cliente' : 'Preencha os dados do novo cliente'}
+            <DialogDescription className="text-xs">
+              {clienteEditando ? 'Atualize os dados' : 'Preencha os dados'}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="nome">Nome *</Label>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="space-y-1">
+              <Label htmlFor="nome" className="text-xs">Nome *</Label>
               <Input
                 id="nome"
                 value={formNome}
                 onChange={(e) => setFormNome(e.target.value)}
                 placeholder="Nome completo"
-                className="input-padaria"
+                className="input-padaria h-9 text-sm"
                 autoComplete="off"
               />
             </div>
             
-            <div className="space-y-1.5">
-              <Label htmlFor="telefone" className="flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4 text-green-600" />
+            <div className="space-y-1">
+              <Label htmlFor="telefone" className="text-xs flex items-center gap-1">
+                <MessageCircle className="w-3 h-3 text-green-600" />
                 WhatsApp *
               </Label>
               <Input
@@ -746,25 +743,26 @@ export default function ClientesLista() {
                 value={formTelefone}
                 onChange={(e) => setFormTelefone(formatarTelefone(e.target.value))}
                 placeholder="(00) 00000-0000"
-                className="input-padaria"
+                className="input-padaria h-9 text-sm"
                 maxLength={15}
                 autoComplete="off"
               />
             </div>
             
             {/* CPF/CNPJ com Switch */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2 text-sm">
+                <Label className="text-xs">
                   {formTipoPessoa === 'CPF' ? 'CPF' : 'CNPJ'}
                 </Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">CPF</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">CPF</span>
                   <Switch
                     checked={formTipoPessoa === 'CNPJ'}
                     onCheckedChange={handleTrocarTipoPessoa}
+                    className="h-4 w-7"
                   />
-                  <span className="text-xs text-muted-foreground">CNPJ</span>
+                  <span className="text-[10px] text-muted-foreground">CNPJ</span>
                 </div>
               </div>
               <Input
@@ -777,49 +775,51 @@ export default function ClientesLista() {
                   setFormCpfCnpj(formatado);
                 }}
                 placeholder={formTipoPessoa === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00'}
-                className="input-padaria"
+                className="input-padaria h-9 text-sm"
                 maxLength={formTipoPessoa === 'CPF' ? 14 : 18}
                 autoComplete="off"
               />
             </div>
             
             {/* Endereço e Bairro */}
-            <div className="space-y-1.5">
-              <Label htmlFor="endereco">Endereço</Label>
+            <div className="space-y-1">
+              <Label htmlFor="endereco" className="text-xs">Endereço</Label>
               <Input
                 id="endereco"
                 value={formEndereco}
                 onChange={(e) => setFormEndereco(e.target.value)}
-                placeholder="Rua, número, complemento"
-                className="input-padaria"
+                placeholder="Rua, número"
+                className="input-padaria h-9 text-sm"
                 autoComplete="off"
               />
             </div>
             
-            <div className="space-y-1.5">
-              <Label htmlFor="bairro">Bairro</Label>
+            <div className="space-y-1">
+              <Label htmlFor="bairro" className="text-xs">Bairro</Label>
               <Input
                 id="bairro"
                 value={formBairro}
                 onChange={(e) => setFormBairro(e.target.value)}
-                placeholder="Nome do bairro"
-                className="input-padaria"
+                placeholder="Bairro"
+                className="input-padaria h-9 text-sm"
                 autoComplete="off"
               />
             </div>
           </div>
           
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-1.5 p-3 border-t border-border shrink-0">
             <Button
               variant="outline"
-              className="flex-1"
+              size="sm"
+              className="flex-1 h-9 text-xs"
               onClick={() => setModalAberto(false)}
               disabled={salvando}
             >
               Cancelar
             </Button>
             <Button
-              className="flex-1 btn-padaria"
+              size="sm"
+              className="flex-1 btn-padaria h-9 text-xs"
               onClick={clienteEditando ? handleSalvar : handleCriarNovo}
               disabled={salvando}
             >
@@ -857,47 +857,47 @@ export default function ClientesLista() {
 
       {/* Modal de detalhes do pedido */}
       <Dialog open={modalPedidoDetalhesOpen} onOpenChange={setModalPedidoDetalhesOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
+        <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-3 border-b border-border shrink-0">
+            <DialogTitle className="flex items-center gap-1.5 text-base">
+              <Package className="w-4 h-4" />
               Pedido #{pedidoDetalhes && formatarNumeroPedido(pedidoDetalhes.numero)}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               {pedidoDetalhes && new Date(pedidoDetalhes.createdAt).toLocaleString('pt-BR')}
             </DialogDescription>
           </DialogHeader>
           
           {pedidoDetalhes && (
-            <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {/* Status e tipo de entrega */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge className={`text-xs ${corStatus(pedidoDetalhes.status)}`}>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge className={`text-[10px] h-5 ${corStatus(pedidoDetalhes.status)}`}>
                   {formatarStatus(pedidoDetalhes.status)}
                 </Badge>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-[10px] h-5">
                   {pedidoDetalhes.tipoEntrega === 'RETIRA' ? (
-                    <><Store className="w-3 h-3 mr-1" />Cliente Retira</>
+                    <><Store className="w-3 h-3 mr-0.5" />Retira</>
                   ) : (
-                    <><Truck className="w-3 h-3 mr-1" />Tele Entrega</>
+                    <><Truck className="w-3 h-3 mr-0.5" />Entrega</>
                   )}
                 </Badge>
               </div>
 
               {/* Dados de entrega */}
-              <div className="bg-muted/30 rounded-lg p-2 text-xs space-y-1">
-                <div className="flex items-center gap-2">
+              <div className="bg-muted/30 rounded-lg p-1.5 text-[10px] space-y-0.5">
+                <div className="flex items-center gap-1.5">
                   <Calendar className="w-3 h-3" />
                   <span>{new Date(pedidoDetalhes.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                   {pedidoDetalhes.horarioEntrega && (
                     <>
-                      <Clock className="w-3 h-3 ml-2" />
+                      <Clock className="w-3 h-3 ml-1" />
                       <span>{pedidoDetalhes.horarioEntrega}</span>
                     </>
                   )}
                 </div>
                 {pedidoDetalhes.tipoEntrega === 'TELE_ENTREGA' && pedidoDetalhes.enderecoEntrega && (
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-1">
                     <MapPin className="w-3 h-3 mt-0.5" />
                     <span>{pedidoDetalhes.enderecoEntrega}{pedidoDetalhes.bairroEntrega && ` - ${pedidoDetalhes.bairroEntrega}`}</span>
                   </div>
@@ -906,14 +906,14 @@ export default function ClientesLista() {
 
               {/* Itens */}
               <div>
-                <h4 className="font-semibold text-sm mb-1">Itens</h4>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
+                <h4 className="font-semibold text-xs mb-1">Itens</h4>
+                <div className="space-y-0.5 max-h-24 overflow-y-auto">
                   {pedidoDetalhes.itens.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/50 text-sm">
+                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/30 text-xs">
                       <div>
                         <span className="font-medium">{item.produto.nome}</span>
                         {item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] text-muted-foreground">
                           {item.quantidade}{item.produto.tipoVenda === 'KG' ? 'kg' : 'un'} × {formatarMoeda(item.valorUnit)}
                           {item.observacao && <span className="text-primary italic ml-1">({item.observacao})</span>}
                         </p>
@@ -925,28 +925,28 @@ export default function ClientesLista() {
               </div>
 
               {/* Total */}
-              <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border">
+              <div className="flex justify-between items-center text-sm font-bold pt-1.5 border-t border-border">
                 <span>Total:</span>
                 <span className="text-primary">{formatarMoeda(pedidoDetalhes.total)}</span>
               </div>
 
               {/* Botões de impressão */}
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1"
+                  className="flex-1 h-8 text-xs"
                   onClick={() => handleImprimirCupom(pedidoDetalhes)}
                 >
-                  <FileText className="w-4 h-4 mr-1" />
+                  <FileText className="w-3 h-3 mr-0.5" />
                   Cupom
                 </Button>
                 <Button
                   size="sm"
-                  className="flex-1 btn-padaria"
+                  className="flex-1 btn-padaria h-8 text-xs"
                   onClick={() => handleImprimirComanda(pedidoDetalhes)}
                 >
-                  <Package className="w-4 h-4 mr-1" />
+                  <Package className="w-3 h-3 mr-0.5" />
                   Comanda
                 </Button>
               </div>

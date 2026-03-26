@@ -1015,302 +1015,209 @@ export default function HistoricoPedidos() {
         </ScrollArea>
       )}
 
-      {/* Dialog de detalhes com preview do cupom */}
+      {/* Dialog de detalhes otimizado para tela única */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <FileText className="w-5 h-5" />
-              Pedido #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
-            </DialogTitle>
-            <DialogDescription>
-              {pedidoSelecionado && formatarData(pedidoSelecionado.createdAt)} - {pedidoSelecionado?.cliente?.nome}
+        <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
+          {/* Header compacto com barra de ações */}
+          <DialogHeader className="p-3 border-b border-border shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-base">
+                  #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
+                </DialogTitle>
+                {pedidoSelecionado && getStatusBadge(pedidoSelecionado.status)}
+              </div>
+              {/* Barra de ações com ícones */}
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => pedidoSelecionado && handleConfirmarPedido(pedidoSelecionado)}
+                  title="WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4 text-green-600" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => pedidoSelecionado && handleImprimirCliente(pedidoSelecionado)}
+                  title="Cupom Cliente"
+                >
+                  <FileText className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => pedidoSelecionado && handleImprimirCozinha(pedidoSelecionado)}
+                  title="Comanda Cozinha"
+                >
+                  <Printer className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setModoEdicao(true)}
+                  title="Editar Itens"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <DialogDescription className="text-xs">
+              {pedidoSelecionado?.cliente?.nome} • {pedidoSelecionado && formatarData(pedidoSelecionado.createdAt)}
             </DialogDescription>
           </DialogHeader>
 
           {pedidoSelecionado && (
-            <div className="space-y-3">
-              {/* Sistema de Status - Melhorado */}
-              <div className="bg-muted/30 rounded-lg p-3">
-                <h4 className="font-semibold text-sm mb-3">Status do Pedido</h4>
-                <div className="grid grid-cols-4 gap-1">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {/* Status - Linha compacta */}
+              <div className="grid grid-cols-4 gap-1">
+                {[
+                  { status: 'PENDENTE', icon: Clock, label: 'Pendente', bg: 'bg-yellow-500' },
+                  { status: 'PRODUCAO', icon: Package, label: 'Produção', bg: 'bg-blue-500' },
+                  { status: 'PRONTO', icon: Check, label: 'Pronto', bg: 'bg-green-500' },
+                  { status: 'ENTREGUE', icon: Truck, label: 'Entregue', bg: 'bg-primary' },
+                ].map(({ status, icon: Icon, label, bg }) => (
                   <button
-                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PENDENTE')}
-                    disabled={pedidoSelecionado.status === 'PENDENTE'}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
-                      pedidoSelecionado.status === 'PENDENTE' 
-                        ? 'bg-yellow-500 text-white shadow-md' 
-                        : 'bg-muted hover:bg-yellow-100 text-muted-foreground hover:text-yellow-700'
+                    key={status}
+                    onClick={() => handleAtualizarStatus(pedidoSelecionado, status)}
+                    disabled={pedidoSelecionado.status === status}
+                    className={`flex items-center justify-center gap-1 p-1.5 rounded text-xs font-medium transition-all ${
+                      pedidoSelecionado.status === status 
+                        ? `${bg} text-white` 
+                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
                     }`}
                   >
-                    <Clock className="w-5 h-5 mb-1" />
-                    <span className="text-xs font-medium">Pendente</span>
+                    <Icon className="w-3 h-3" />
+                    {label}
                   </button>
-                  <button
-                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PRODUCAO')}
-                    disabled={pedidoSelecionado.status === 'PRODUCAO'}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
-                      pedidoSelecionado.status === 'PRODUCAO' 
-                        ? 'bg-blue-500 text-white shadow-md' 
-                        : 'bg-muted hover:bg-blue-100 text-muted-foreground hover:text-blue-700'
-                    }`}
-                  >
-                    <Package className="w-5 h-5 mb-1" />
-                    <span className="text-xs font-medium">Produção</span>
-                  </button>
-                  <button
-                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PRONTO')}
-                    disabled={pedidoSelecionado.status === 'PRONTO'}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
-                      pedidoSelecionado.status === 'PRONTO' 
-                        ? 'bg-green-500 text-white shadow-md' 
-                        : 'bg-muted hover:bg-green-100 text-muted-foreground hover:text-green-700'
-                    }`}
-                  >
-                    <Check className="w-5 h-5 mb-1" />
-                    <span className="text-xs font-medium">Pronto</span>
-                  </button>
-                  <button
-                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'ENTREGUE')}
-                    disabled={pedidoSelecionado.status === 'ENTREGUE'}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
-                      pedidoSelecionado.status === 'ENTREGUE' 
-                        ? 'bg-primary text-white shadow-md' 
-                        : 'bg-muted hover:bg-primary/20 text-muted-foreground hover:text-primary'
-                    }`}
-                  >
-                    <Truck className="w-5 h-5 mb-1" />
-                    <span className="text-xs font-medium">Entregue</span>
-                  </button>
-                </div>
+                ))}
               </div>
 
-              {/* Dados do cliente e entrega */}
-              <div className="bg-muted/30 rounded-lg p-3">
-                <h4 className="font-semibold text-sm mb-1">Cliente</h4>
-                <p className="text-sm"><strong>Nome:</strong> {pedidoSelecionado.cliente.nome}</p>
-                <p className="text-sm"><strong>Telefone:</strong> {pedidoSelecionado.cliente.telefone}</p>
-                {pedidoSelecionado.cliente.cpfCnpj && (
-                  <p className="text-sm"><strong>{pedidoSelecionado.cliente.tipoPessoa || 'CPF'}:</strong> {pedidoSelecionado.cliente.cpfCnpj}</p>
-                )}
-                
-                {/* Dados de Entrega */}
-                {pedidoSelecionado.tipoEntrega && (
-                  <div className="mt-2 pt-2 border-t border-border/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm">
-                        {pedidoSelecionado.tipoEntrega === 'RETIRA' ? (
-                          <>
-                            <Store className="w-4 h-4 text-primary" />
-                            <span className="font-medium">Cliente Retira</span>
-                          </>
-                        ) : (
-                          <>
-                            <Truck className="w-4 h-4 text-primary" />
-                            <span className="font-medium">Tele Entrega</span>
-                          </>
-                        )}
-                      </div>
-                      {!modoEdicaoData && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={handleIniciarEdicaoData}
-                        >
-                          <Edit2 className="w-3 h-3 mr-1" />
-                          Editar Data
-                        </Button>
+              {/* Cliente + Entrega - Compacto */}
+              <div className="bg-muted/30 rounded-lg p-2 text-xs space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{pedidoSelecionado.cliente.nome}</span>
+                  {pedidoSelecionado.tipoEntrega && (
+                    <Badge variant="outline" className="text-[10px] h-5">
+                      {pedidoSelecionado.tipoEntrega === 'RETIRA' ? (
+                        <><Store className="w-3 h-3 mr-0.5" />Retira</>
+                      ) : (
+                        <><Truck className="w-3 h-3 mr-0.5" />Entrega</>
                       )}
-                    </div>
-                    
-                    {/* Modo edição de data */}
-                    {modoEdicaoData ? (
-                      <div className="mt-3 p-3 bg-background rounded-lg border border-border space-y-3">
-                        <h5 className="font-medium text-sm">Editar Data de Entrega</h5>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Data</Label>
-                            <Input
-                              type="date"
-                              className="h-9 text-sm"
-                              value={novaDataEntrega}
-                              onChange={(e) => setNovaDataEntrega(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Horário</Label>
-                            <Select value={novoHorarioEntrega} onValueChange={setNovoHorarioEntrega}>
-                              <SelectTrigger className="h-9 text-sm">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {['07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'].map(h => (
-                                  <SelectItem key={h} value={h}>{h}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-8"
-                            onClick={handleCancelarEdicaoData}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1 btn-padaria h-8"
-                            onClick={handleSalvarDataEntrega}
-                            disabled={salvandoData || !novaDataEntrega}
-                          >
-                            {salvandoData ? 'Salvando...' : 'Salvar'}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {pedidoSelecionado.dataEntrega && (
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              <span>{formatarDataEntrega(pedidoSelecionado.dataEntrega)}</span>
-                            </div>
-                            {pedidoSelecionado.horarioEntrega && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                <span>{pedidoSelecionado.horarioEntrega}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && pedidoSelecionado.enderecoEntrega && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                            <MapPin className="w-3 h-3" />
-                            {pedidoSelecionado.enderecoEntrega}
-                            {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Itens com edição */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-sm">Itens</h4>
-                  {!modoEdicao && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setModoEdicao(true)}
-                      className="h-8"
-                    >
-                      <Edit2 className="w-3 h-3 mr-1" />
-                      Editar
-                    </Button>
+                    </Badge>
                   )}
                 </div>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <span>{pedidoSelecionado.cliente.telefone}</span>
+                  {pedidoSelecionado.dataEntrega && (
+                    <span className="flex items-center gap-0.5">
+                      <Calendar className="w-3 h-3" />
+                      {formatarDataEntrega(pedidoSelecionado.dataEntrega)}
+                      {pedidoSelecionado.horarioEntrega && ` ${pedidoSelecionado.horarioEntrega}`}
+                    </span>
+                  )}
+                </div>
+                {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && pedidoSelecionado.enderecoEntrega && (
+                  <div className="flex items-start gap-1 text-muted-foreground">
+                    <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                    <span>{pedidoSelecionado.enderecoEntrega}{pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}</span>
+                  </div>
+                )}
+                
+              </div>
+
+              {/* Itens - Lista compacta */}
+              <div className="bg-muted/30 rounded-lg p-2">
+                <div className="space-y-1 max-h-24 overflow-y-auto">
                   {pedidoSelecionado.itens.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-1.5 border-b border-border/50">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">
+                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/30 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium truncate block">
                           {item.produto.nome}
                           {item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}
-                        </p>
-                        
-                        {/* Modo edição para qualquer tipo de produto */}
+                        </span>
                         {modoEdicao ? (
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1 mt-0.5">
                             <Input
                               type="number"
                               step={item.produto.tipoVenda === 'KG' ? '0.001' : '1'}
                               min="0"
-                              className="w-24 h-8 text-sm"
+                              className="w-16 h-7 text-xs"
                               value={itensEditados[item.id] !== undefined 
                                 ? itensEditados[item.id]
                                 : item.quantidade.toString()
                               }
                               onChange={(e) => handleEditarPesoLivre(item.id, e.target.value)}
-                              placeholder={item.produto.tipoVenda === 'KG' ? '0.000' : '0'}
                             />
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-[10px] text-muted-foreground">
                               {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
                             </span>
                           </div>
                         ) : (
-                          <p className="text-xs text-muted-foreground">
+                          <span className="text-[10px] text-muted-foreground">
                             {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                            {item.observacao && <span className="ml-2 text-primary italic">({item.observacao})</span>}
-                          </p>
+                            {item.observacao && <span className="text-primary italic ml-1">({item.observacao})</span>}
+                          </span>
                         )}
                       </div>
-                      <p className="font-semibold text-sm">
+                      <span className="text-xs font-semibold">
                         {formatarMoeda(
                           itensEditados[item.id] !== undefined 
                             ? parseFloat(itensEditados[item.id].replace(',', '.')) * item.valorUnit 
                             : item.subtotal
                         )}
-                      </p>
+                      </span>
                     </div>
                   ))}
                 </div>
                 
-                {/* Botões de edição */}
+                {/* Botões de edição compactos */}
                 {modoEdicao && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-1 mt-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleCancelarEdicao}
-                      className="flex-1 h-9"
+                      className="flex-1 h-8 text-xs"
                     >
-                      <X className="w-4 h-4 mr-1" />
+                      <X className="w-3 h-3 mr-1" />
                       Cancelar
                     </Button>
                     <Button
                       size="sm"
                       onClick={handleSalvarEdicao}
-                      className="flex-1 btn-padaria h-9"
+                      className="flex-1 btn-padaria h-8 text-xs"
                       disabled={salvando}
                     >
-                      {salvando ? (
-                        <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                      ) : (
-                        <Check className="w-4 h-4 mr-1" />
-                      )}
+                      {salvando ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
                       Salvar
                     </Button>
                   </div>
                 )}
                 
-                {/* Botão para adicionar produtos - só aparece se não estiver entregue */}
+                {/* Botão adicionar produto */}
                 {!modoEdicao && !modoAdicao && pedidoSelecionado.status !== 'ENTREGUE' && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setModoAdicao(true)}
-                    className="w-full h-9 mt-2 border-dashed border-2"
+                    className="w-full h-8 text-xs border-dashed mt-1"
                   >
-                    <Plus className="w-4 h-4 mr-1" />
+                    <Plus className="w-3 h-3 mr-1" />
                     Adicionar Produto
                   </Button>
                 )}
                 
-                {/* Interface de adição de produtos */}
+                {/* Interface de adição de produtos compacta */}
                 {modoAdicao && (
-                  <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border space-y-3">
+                  <div className="mt-2 p-2 bg-muted/30 rounded-lg border border-border space-y-2">
                     <div className="flex items-center justify-between">
-                      <h5 className="font-semibold text-sm flex items-center gap-2">
-                        <Plus className="w-4 h-4" />
-                        Adicionar Produto
-                      </h5>
+                      <span className="text-xs font-medium">Adicionar Produto</span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1322,138 +1229,102 @@ export default function HistoricoPedidos() {
                           setObservacaoNovoItem('');
                           setBuscaProduto('');
                         }}
-                        className="h-7 w-7 p-0"
+                        className="h-6 w-6 p-0"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3 h-3" />
                       </Button>
                     </div>
                     
-                    {/* Busca de produto */}
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                       <Input
                         placeholder="Buscar produto..."
-                        className="pl-10 h-9"
+                        className="pl-7 h-8 text-xs"
                         value={buscaProduto}
                         onChange={(e) => setBuscaProduto(e.target.value)}
                       />
                     </div>
                     
-                    {/* Lista de produtos */}
-                    <ScrollArea className="h-32">
-                      <div className="space-y-1">
+                    <ScrollArea className="h-20">
+                      <div className="space-y-0.5">
                         {produtosFiltrados.map(produto => (
                           <button
                             key={produto.id}
                             type="button"
                             onClick={() => setProdutoSelecionado(produto)}
-                            className={`w-full p-2 text-left rounded-lg transition-colors ${
+                            className={`w-full p-1.5 text-left rounded text-xs transition-colors ${
                               produtoSelecionado?.id === produto.id 
                                 ? 'bg-primary/20 border border-primary' 
                                 : 'bg-card hover:bg-muted border border-border/50'
                             }`}
                           >
                             <div className="flex justify-between items-center">
-                              <div>
-                                <p className="font-medium text-sm">{produto.nome}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {produto.tipoProduto === 'ESPECIAL' ? (
-                                    produto.precosTamanhos && Object.entries(produto.precosTamanhos)
-                                      .filter(([tam, preco]) => {
-                                        const tamanhosValidos = ['P', 'M', 'G', 'GG'];
-                                        return tamanhosValidos.includes(tam) && preco && !isNaN(preco) && preco > 0;
-                                      })
-                                      .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
-                                      .map(([tam, preco]) => `${tam}: ${formatarMoeda(preco)}`)
-                                      .join(' | ')
-                                  ) : (
-                                    `${formatarMoeda(produto.valorUnit)}/${produto.tipoVenda === 'KG' ? 'kg' : 'un'}`
-                                  )}
-                                </p>
-                              </div>
-                              {produto.tipoProduto === 'ESPECIAL' ? (
-                                <Badge className="text-[10px] bg-primary text-primary-foreground">Torta</Badge>
-                              ) : (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {produto.tipoVenda === 'KG' ? <Scale className="w-3 h-3 mr-0.5" /> : <Hash className="w-3 h-3 mr-0.5" />}
-                                  {produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                                </Badge>
-                              )}
+                              <span className="font-medium">{produto.nome}</span>
+                              <span className="text-muted-foreground">
+                                {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                              </span>
                             </div>
                           </button>
                         ))}
                       </div>
                     </ScrollArea>
                     
-                    {/* Configuração do produto selecionado */}
                     {produtoSelecionado && (
-                      <div className="space-y-2 pt-2 border-t border-border/50">
+                      <div className="space-y-1.5 pt-1.5 border-t border-border/50">
                         {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
-                          <>
-                            {/* Seleção de tamanho para torta */}
-                            <Label className="text-xs">Tamanho:</Label>
-                            <div className="flex gap-1">
-                              {['P', 'M', 'G', 'GG']
-                                .filter(tam => {
-                                  const temTamanho = produtoSelecionado.tamanhos?.includes(tam);
-                                  const preco = produtoSelecionado.precosTamanhos?.[tam];
-                                  return temTamanho && preco && !isNaN(preco) && preco > 0;
-                                })
-                                .map(tam => (
-                                  <Button
-                                    key={tam}
-                                    type="button"
-                                    variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
-                                    size="sm"
-                                    className={`h-8 flex-1 ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
-                                    onClick={() => setTamanhoSelecionado(tam)}
-                                  >
-                                    {tam}
-                                  </Button>
-                                ))}
-                            </div>
-                          </>
+                          <div className="flex gap-1">
+                            {['P', 'M', 'G', 'GG']
+                              .filter(tam => {
+                                const preco = produtoSelecionado.precosTamanhos?.[tam];
+                                return preco && !isNaN(preco) && preco > 0;
+                              })
+                              .map(tam => (
+                                <Button
+                                  key={tam}
+                                  type="button"
+                                  variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                                  size="sm"
+                                  className={`h-7 flex-1 text-xs ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                                  onClick={() => setTamanhoSelecionado(tam)}
+                                >
+                                  {tam}
+                                </Button>
+                              ))}
+                          </div>
                         ) : (
-                          <>
-                            {/* Quantidade para produtos normais */}
-                            <Label className="text-xs">Quantidade:</Label>
-                            {produtoSelecionado.tipoVenda === 'KG' ? (
-                              <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue placeholder="Selecione o peso" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {OPCOES_KG.filter(op => op.valor > 0).map(op => (
-                                    <SelectItem key={op.valor} value={op.valor.toString()}>
-                                      {op.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                type="number"
-                                min="1"
-                                step="1"
-                                placeholder="Quantidade"
-                                className="h-9"
-                                value={quantidadeAdicionar}
-                                onChange={(e) => setQuantidadeAdicionar(e.target.value)}
-                              />
-                            )}
-                          </>
+                          produtoSelecionado.tipoVenda === 'KG' ? (
+                            <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Peso" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {OPCOES_KG.filter(op => op.valor > 0).map(op => (
+                                  <SelectItem key={op.valor} value={op.valor.toString()} className="text-xs">
+                                    {op.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              type="number"
+                              min="1"
+                              placeholder="Qtd"
+                              className="h-8 text-xs"
+                              value={quantidadeAdicionar}
+                              onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                            />
+                          )
                         )}
                         
-                        {/* Observação */}
                         <Input
-                          placeholder="Observação (opcional)"
-                          className="h-9"
+                          placeholder="Obs (opcional)"
+                          className="h-8 text-xs"
                           value={observacaoNovoItem}
                           onChange={(e) => setObservacaoNovoItem(e.target.value)}
                         />
                         
-                        {/* Botões de ação */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           <Button
                             variant="outline"
                             size="sm"
@@ -1465,22 +1336,17 @@ export default function HistoricoPedidos() {
                               setObservacaoNovoItem('');
                               setBuscaProduto('');
                             }}
-                            className="flex-1 h-9"
+                            className="flex-1 h-8 text-xs"
                           >
-                            <X className="w-4 h-4 mr-1" />
                             Cancelar
                           </Button>
                           <Button
                             size="sm"
                             onClick={handleAdicionarProduto}
-                            className="flex-1 btn-padaria h-9"
+                            className="flex-1 btn-padaria h-8 text-xs"
                             disabled={adicionandoProduto}
                           >
-                            {adicionandoProduto ? (
-                              <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                            ) : (
-                              <Check className="w-4 h-4 mr-1" />
-                            )}
+                            {adicionandoProduto ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
                             Adicionar
                           </Button>
                         </div>
@@ -1490,195 +1356,106 @@ export default function HistoricoPedidos() {
                 )}
               </div>
 
-              {/* Total */}
-              <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border">
-                <span>Total:</span>
-                <span className="text-primary">
-                  {formatarMoeda(
-                    modoEdicao ? calcularTotalEditado() : pedidoSelecionado.total
-                  )}
-                </span>
-              </div>
-
-              {/* Seção de Entrada/Pagamento */}
-              {pedidoSelecionado.status !== 'ENTREGUE' && pedidoSelecionado.status !== 'CANCELADO' && (
-                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      Entrada / Pagamento
-                    </h4>
-                    {(pedidoSelecionado as any).valorEntrada > 0 && !modoEntrada && (
+              {/* Total + Entrada - Footer compacto */}
+              <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Total:</span>
+                  <span className="text-base font-bold text-primary">
+                    {formatarMoeda(modoEdicao ? calcularTotalEditado() : pedidoSelecionado.total)}
+                  </span>
+                </div>
+                
+                {/* Entrada existente */}
+                {(pedidoSelecionado as any).valorEntrada > 0 && !modoEntrada && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-green-600">
+                      Entrada: {formatarMoeda((pedidoSelecionado as any).valorEntrada)} ({(pedidoSelecionado as any).formaPagamentoEntrada})
+                    </span>
+                    <span className="font-medium">
+                      Restante: {formatarMoeda(pedidoSelecionado.total - ((pedidoSelecionado as any).valorEntrada || 0))}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Botão registrar entrada */}
+                {pedidoSelecionado.status !== 'ENTREGUE' && pedidoSelecionado.status !== 'CANCELADO' && !modoEntrada && !(pedidoSelecionado as any).valorEntrada && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setModoEntrada(true)}
+                    className="w-full h-8 text-xs border-dashed"
+                  >
+                    <DollarSign className="w-3 h-3 mr-1" />
+                    Registrar Entrada
+                  </Button>
+                )}
+                
+                {/* Formulário de entrada compacto */}
+                {modoEntrada && (
+                  <div className="space-y-1.5 pt-1.5 border-t border-border/50">
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        max={pedidoSelecionado.total}
+                        placeholder="0,00"
+                        className="pl-8 h-8 text-xs"
+                        value={valorEntrada}
+                        onChange={(e) => setValorEntrada(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {[
+                        { value: 'DINHEIRO', icon: Banknote },
+                        { value: 'PIX', icon: Smartphone },
+                        { value: 'CARTAO', icon: CreditCard },
+                      ].map(({ value, icon: Icon }) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          size="sm"
+                          variant={formaPagamentoEntrada === value ? 'default' : 'outline'}
+                          onClick={() => setFormaPagamentoEntrada(value)}
+                          className={`h-7 text-[10px] ${formaPagamentoEntrada === value ? 'btn-padaria' : ''}`}
+                        >
+                          <Icon className="w-3 h-3 mr-0.5" />
+                          {value === 'DINHEIRO' ? 'Din' : value === 'PIX' ? 'PIX' : 'Cart'}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setModoEntrada(true)}
-                        className="h-7 text-xs"
+                        onClick={() => { setModoEntrada(false); setValorEntrada(''); setFormaPagamentoEntrada(''); }}
+                        className="flex-1 h-8 text-xs"
                       >
-                        <Edit2 className="w-3 h-3 mr-1" />
-                        Alterar
+                        Cancelar
                       </Button>
-                    )}
-                  </div>
-                  
-                  {/* Mostrar entrada já registrada */}
-                  {(pedidoSelecionado as any).valorEntrada > 0 && !modoEntrada ? (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-green-800">
-                            Entrada: {formatarMoeda((pedidoSelecionado as any).valorEntrada)}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-green-600">
-                            {(pedidoSelecionado as any).formaPagamentoEntrada === 'DINHEIRO' && <Banknote className="w-3 h-3" />}
-                            {(pedidoSelecionado as any).formaPagamentoEntrada === 'PIX' && <Smartphone className="w-3 h-3" />}
-                            {(pedidoSelecionado as any).formaPagamentoEntrada === 'CARTAO' && <CreditCard className="w-3 h-3" />}
-                            <span>{(pedidoSelecionado as any).formaPagamentoEntrada}</span>
-                            {(pedidoSelecionado as any).dataEntrada && (
-                              <span className="ml-2">
-                                • {new Date((pedidoSelecionado as any).dataEntrada).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Restante:</p>
-                          <p className="font-bold text-primary">
-                            {formatarMoeda(pedidoSelecionado.total - ((pedidoSelecionado as any).valorEntrada || 0))}
-                          </p>
-                        </div>
-                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleSalvarEntrada}
+                        className="flex-1 btn-padaria h-8 text-xs"
+                        disabled={salvandoEntrada || !valorEntrada || !formaPagamentoEntrada}
+                      >
+                        {salvandoEntrada ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Salvar'}
+                      </Button>
                     </div>
-                  ) : (
-                    <>
-                      {!modoEntrada ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setModoEntrada(true)}
-                          className="w-full h-9 border-dashed border-2"
-                        >
-                          <DollarSign className="w-4 h-4 mr-1" />
-                          Registrar Entrada
-                        </Button>
-                      ) : (
-                        <div className="space-y-2">
-                          {/* Valor */}
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              max={pedidoSelecionado.total}
-                              placeholder="0,00"
-                              className="pl-10 h-9"
-                              value={valorEntrada}
-                              onChange={(e) => setValorEntrada(e.target.value)}
-                            />
-                          </div>
-                          
-                          {/* Formas de pagamento */}
-                          <div className="grid grid-cols-3 gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={formaPagamentoEntrada === 'DINHEIRO' ? 'default' : 'outline'}
-                              onClick={() => setFormaPagamentoEntrada('DINHEIRO')}
-                              className={`h-9 flex-col gap-0.5 ${formaPagamentoEntrada === 'DINHEIRO' ? 'btn-padaria' : ''}`}
-                            >
-                              <Banknote className="w-4 h-4" />
-                              <span className="text-[10px]">Dinheiro</span>
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={formaPagamentoEntrada === 'PIX' ? 'default' : 'outline'}
-                              onClick={() => setFormaPagamentoEntrada('PIX')}
-                              className={`h-9 flex-col gap-0.5 ${formaPagamentoEntrada === 'PIX' ? 'btn-padaria' : ''}`}
-                            >
-                              <Smartphone className="w-4 h-4" />
-                              <span className="text-[10px]">PIX</span>
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={formaPagamentoEntrada === 'CARTAO' ? 'default' : 'outline'}
-                              onClick={() => setFormaPagamentoEntrada('CARTAO')}
-                              className={`h-9 flex-col gap-0.5 ${formaPagamentoEntrada === 'CARTAO' ? 'btn-padaria' : ''}`}
-                            >
-                              <CreditCard className="w-4 h-4" />
-                              <span className="text-[10px]">Cartão</span>
-                            </Button>
-                          </div>
-                          
-                          {/* Botões */}
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setModoEntrada(false);
-                                setValorEntrada('');
-                                setFormaPagamentoEntrada('');
-                              }}
-                              className="flex-1 h-9"
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={handleSalvarEntrada}
-                              className="flex-1 btn-padaria h-9"
-                              disabled={salvandoEntrada || !valorEntrada || !formaPagamentoEntrada}
-                            >
-                              {salvandoEntrada ? (
-                                <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                              ) : (
-                                <Check className="w-4 h-4 mr-1" />
-                              )}
-                              Salvar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
 
-              {/* Botão de mensagem quando PRONTO */}
+              {/* Botão WhatsApp quando PRONTO */}
               {pedidoSelecionado.status === 'PRONTO' && (
                 <Button 
                   onClick={() => handleEnviarMensagemPronto(pedidoSelecionado)} 
-                  className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white h-9 text-sm"
                 >
-                  <MessageCircle className="w-4 h-4 mr-2" />
+                  <MessageCircle className="w-4 h-4 mr-1" />
                   Avisar Cliente via WhatsApp
                 </Button>
               )}
-
-              {/* Botões de impressão */}
-              <div className="space-y-2 pt-2 border-t border-border">
-                <Button onClick={() => handleImprimirCliente(pedidoSelecionado)} className="w-full btn-padaria h-11">
-                  <Printer className="w-4 h-4 mr-2" />
-                  Imprimir Cupom Cliente
-                </Button>
-                <Button onClick={() => handleImprimirCozinha(pedidoSelecionado)} variant="outline" className="w-full h-11">
-                  <Printer className="w-4 h-4 mr-2" />
-                  Imprimir Comanda Cozinha
-                </Button>
-                
-                {/* Botão discreto para confirmar pedido */}
-                <Button 
-                  onClick={() => handleConfirmarPedido(pedidoSelecionado)} 
-                  variant="ghost" 
-                  className="w-full h-9 text-muted-foreground hover:text-green-600 hover:bg-green-50"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Confirmar Pedido via WhatsApp
-                </Button>
-              </div>
             </div>
           )}
         </DialogContent>
