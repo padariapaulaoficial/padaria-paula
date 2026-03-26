@@ -417,17 +417,17 @@ export default function NovoOrcamento() {
     return (
       <div 
         key={produto.id}
-        className="p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col"
+        className="p-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col"
       >
         {/* Nome - truncado */}
-        <div className="text-xs font-medium truncate mb-1" title={produto.nome}>
+        <div className="text-[11px] font-medium truncate mb-0.5" title={produto.nome}>
           {produto.nome}
         </div>
         
         {/* Preço compacto */}
-        <div className="text-[10px] text-primary font-semibold mb-2">
+        <div className="text-[10px] text-primary font-semibold mb-1">
           {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-            <span>
+            <span className="truncate block">
               {Object.entries(produto.precosTamanhos)
                 .filter(([tam, preco]) => {
                   const tamanhosValidos = ['P', 'M', 'G', 'GG'];
@@ -443,7 +443,7 @@ export default function NovoOrcamento() {
         </div>
 
         {/* Seletor compacto */}
-        <div className="flex items-center gap-1 mt-auto">
+        <div className="flex items-center gap-1">
           {produto.tipoProduto === 'ESPECIAL' ? (
             <div className="flex gap-0.5 flex-1">
               {['P', 'M', 'G', 'GG']
@@ -459,7 +459,7 @@ export default function NovoOrcamento() {
                     type="button"
                     variant={selecao.tamanho === tam ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-7 w-7 p-0 text-[10px] font-bold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
+                    className={`h-6 w-6 p-0 text-[9px] font-bold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
                     onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
                   >
                     {tam}
@@ -471,7 +471,7 @@ export default function NovoOrcamento() {
               value={selecao.quantidade?.toString() || '0'}
               onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
             >
-              <SelectTrigger className="h-7 w-full text-[10px] px-1">
+              <SelectTrigger className="h-6 w-full text-[9px] px-1">
                 <SelectValue placeholder="Qtd" />
               </SelectTrigger>
               <SelectContent className="max-h-48">
@@ -488,7 +488,7 @@ export default function NovoOrcamento() {
               min="1"
               step="1"
               placeholder="Qtd"
-              className="h-7 w-full text-[10px] text-center px-1"
+              className="h-6 w-full text-[10px] text-center px-1"
               value={selecao.quantidade || ''}
               onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
             />
@@ -497,12 +497,22 @@ export default function NovoOrcamento() {
           {/* Botão adicionar */}
           <Button
             onClick={() => handleAdicionarProduto(produto)}
-            className="h-7 w-7 p-0 btn-padaria shrink-0"
+            className="h-6 w-6 p-0 btn-padaria shrink-0"
             disabled={!temSelecao}
           >
             <Plus className="w-3 h-3" />
           </Button>
         </div>
+        
+        {/* Campo observação para torta especial quando tamanho selecionado */}
+        {produto.tipoProduto === 'ESPECIAL' && selecao.tamanho && (
+          <Input
+            placeholder="Obs..."
+            className="h-6 text-[9px] mt-1 px-1"
+            value={selecao.observacao || ''}
+            onChange={(e) => atualizarSelecao(produto.id, { observacao: e.target.value })}
+          />
+        )}
       </div>
     );
   }, [selecoes, atualizarSelecao, handleAdicionarProduto]);

@@ -170,6 +170,21 @@ function formatarDataEntrega(dataStr: string | null): string {
   return data.toLocaleDateString('pt-BR');
 }
 
+// Formatar data de entrega com dia da semana para cupom
+function formatarDataEntregaCompleta(dataStr: string | null, horario?: string | null): string {
+  if (!dataStr) return '';
+  
+  const diasSemana = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+  const data = new Date(dataStr + 'T12:00:00');
+  const diaSemana = diasSemana[data.getDay()];
+  const dataFormatada = data.toLocaleDateString('pt-BR');
+  
+  if (horario) {
+    return `${diaSemana} ${dataFormatada} as ${horario}`;
+  }
+  return `${diaSemana} ${dataFormatada}`;
+}
+
 /**
  * Gera o conteúdo do cupom do CLIENTE (com valores)
  * Mostra peso final ajustado se houver diferença
@@ -204,7 +219,7 @@ export function gerarCupomCliente(
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (pedido.dataEntrega) {
-    linhas.push(`DATA: ${formatarDataEntrega(pedido.dataEntrega)}`);
+    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -344,9 +359,7 @@ export function gerarCupomCozinha(
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (pedido.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(pedido.dataEntrega);
-    const horario = pedido.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -414,16 +427,7 @@ export function gerarCupomCozinhaGrande(
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (pedido.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(pedido.dataEntrega);
-    const horario = pedido.horarioEntrega || '';
-    
-    // Dia da semana
-    const diasSemana = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-    const dataObj = new Date(pedido.dataEntrega + 'T12:00:00');
-    const diaSemana = diasSemana[dataObj.getDay()];
-    
-    // Formato: segunda-feira 25/03/2026 - HORARIO: 14:00
-    linhas.push(`DATA: ${diaSemana} ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
   linhas.push('');
   linhas.push('----------------------------------------');
@@ -617,9 +621,7 @@ export function gerarCupomOrcamento(
   const tipoEntrega = orcamento.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (orcamento.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(orcamento.dataEntrega);
-    const horario = orcamento.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+    linhas.push(formatarDataEntregaCompleta(orcamento.dataEntrega, orcamento.horarioEntrega));
   }
   linhas.push(linhaDivisoria('-'));
   
