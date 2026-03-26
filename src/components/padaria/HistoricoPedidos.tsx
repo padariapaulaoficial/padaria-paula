@@ -174,6 +174,12 @@ export default function HistoricoPedidos() {
   const [novaDataEntrega, setNovaDataEntrega] = useState('');
   const [novoHorarioEntrega, setNovoHorarioEntrega] = useState('');
   const [salvandoData, setSalvandoData] = useState(false);
+  
+  // Diálogos separados
+  const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
+  const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
+  const [dialogEntradaOpen, setDialogEntradaOpen] = useState(false);
+  const [dialogDataOpen, setDialogDataOpen] = useState(false);
 
   // Carregar configurações
   useEffect(() => {
@@ -1060,10 +1066,28 @@ export default function HistoricoPedidos() {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={() => setModoEdicao(true)}
+                  onClick={() => setDialogEdicaoOpen(true)}
                   title="Editar Itens"
                 >
                   <Edit2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setDialogAdicaoOpen(true)}
+                  title="Adicionar Produto"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setDialogEntradaOpen(true)}
+                  title="Registrar Entrada"
+                >
+                  <DollarSign className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -1513,6 +1537,302 @@ export default function HistoricoPedidos() {
                 </>
               ) : (
                 'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Edição de Itens */}
+      <AlertDialog open={dialogEdicaoOpen} onOpenChange={setDialogEdicaoOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-4 h-4" />
+              Editar Quantidades
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ajuste as quantidades dos itens do pedido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="max-h-60 overflow-y-auto space-y-2 py-2">
+            {pedidoSelecionado?.itens.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{item.produto.nome}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatarMoeda(item.valorUnit)}/{item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    step={item.produto.tipoVenda === 'KG' ? '0.001' : '1'}
+                    min="0"
+                    className="w-20 h-8 text-sm text-center"
+                    value={itensEditados[item.id] !== undefined ? itensEditados[item.id] : item.quantidade.toString()}
+                    onChange={(e) => handleEditarPesoLivre(item.id, e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground w-6">
+                    {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setItensEditados({}); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSalvarEdicao}
+              disabled={salvando}
+              className="btn-padaria"
+            >
+              {salvando ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Salvar Alterações
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Adição de Produtos */}
+      <AlertDialog open={dialogAdicaoOpen} onOpenChange={(open) => {
+        setDialogAdicaoOpen(open);
+        if (!open) {
+          setProdutoSelecionado(null);
+          setBuscaProduto('');
+          setQuantidadeAdicionar('');
+          setTamanhoSelecionado('');
+          setObservacaoNovoItem('');
+        }
+      }}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Adicionar Produto
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecione um produto para adicionar ao pedido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-3 py-2">
+            {/* Busca */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto..."
+                className="pl-10 h-10"
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+              />
+            </div>
+            
+            {/* Lista de produtos */}
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {produtosFiltrados.map(produto => (
+                <button
+                  key={produto.id}
+                  type="button"
+                  onClick={() => setProdutoSelecionado(produto)}
+                  className={`w-full p-2 text-left rounded-lg transition-colors ${
+                    produtoSelecionado?.id === produto.id 
+                      ? 'bg-primary/20 border-2 border-primary' 
+                      : 'bg-muted/30 border border-border hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{produto.nome}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+              {produtosFiltrados.length === 0 && (
+                <p className="text-center text-muted-foreground py-4 text-sm">
+                  Nenhum produto encontrado
+                </p>
+              )}
+            </div>
+            
+            {/* Seleção de quantidade/tamanho */}
+            {produtoSelecionado && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Tamanho</Label>
+                    <div className="flex gap-2">
+                      {['P', 'M', 'G', 'GG']
+                        .filter(tam => {
+                          const preco = produtoSelecionado.precosTamanhos?.[tam];
+                          return preco && !isNaN(preco) && preco > 0;
+                        })
+                        .map(tam => (
+                          <Button
+                            key={tam}
+                            type="button"
+                            variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                            className={`flex-1 ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                            onClick={() => setTamanhoSelecionado(tam)}
+                          >
+                            {tam} - {formatarMoeda(produtoSelecionado.precosTamanhos?.[tam] || 0)}
+                          </Button>
+                        ))}
+                    </div>
+                  </div>
+                ) : produtoSelecionado.tipoVenda === 'KG' ? (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Peso</Label>
+                    <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o peso" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPCOES_KG.filter(op => op.valor > 0).map(op => (
+                          <SelectItem key={op.valor} value={op.valor.toString()}>
+                            {op.label} - {formatarMoeda(op.valor * produtoSelecionado.valorUnit)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Quantidade</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Quantidade"
+                      value={quantidadeAdicionar}
+                      onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Observação (opcional)</Label>
+                  <Input
+                    placeholder="Ex: Sem cebola..."
+                    value={observacaoNovoItem}
+                    onChange={(e) => setObservacaoNovoItem(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAdicionarProduto}
+              disabled={!produtoSelecionado || adicionandoProduto || 
+                (produtoSelecionado?.tipoProduto === 'ESPECIAL' ? !tamanhoSelecionado : !quantidadeAdicionar)}
+              className="btn-padaria"
+            >
+              {adicionandoProduto ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Adicionando...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Registro de Entrada */}
+      <AlertDialog open={dialogEntradaOpen} onOpenChange={(open) => {
+        setDialogEntradaOpen(open);
+        if (!open) {
+          setValorEntrada('');
+          setFormaPagamentoEntrada('');
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Registrar Entrada
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Valor restante: <strong>{pedidoSelecionado && formatarMoeda(pedidoSelecionado.total - ((pedidoSelecionado as any).valorEntrada || 0))}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Valor da Entrada</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  max={pedidoSelecionado ? pedidoSelecionado.total - ((pedidoSelecionado as any).valorEntrada || 0) : 0}
+                  placeholder="0,00"
+                  className="pl-10"
+                  value={valorEntrada}
+                  onChange={(e) => setValorEntrada(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Forma de Pagamento</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'DINHEIRO', icon: Banknote, label: 'Dinheiro' },
+                  { value: 'PIX', icon: Smartphone, label: 'PIX' },
+                  { value: 'CARTAO', icon: CreditCard, label: 'Cartão' },
+                ].map(({ value, icon: Icon, label }) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={formaPagamentoEntrada === value ? 'default' : 'outline'}
+                    onClick={() => setFormaPagamentoEntrada(value)}
+                    className={`h-12 flex flex-col ${formaPagamentoEntrada === value ? 'btn-padaria' : ''}`}
+                  >
+                    <Icon className="w-5 h-5 mb-1" />
+                    <span className="text-xs">{label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSalvarEntrada}
+              disabled={salvandoEntrada || !valorEntrada || !formaPagamentoEntrada}
+              className="btn-padaria"
+            >
+              {salvandoEntrada ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Confirmar Entrada
+                </>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
