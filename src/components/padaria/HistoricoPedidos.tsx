@@ -129,6 +129,15 @@ const OPCOES_KG = [
   { valor: 10.0, label: '10 kg' },
 ];
 
+// Horários comerciais disponíveis
+const HORARIOS_COMERCIAIS = [
+  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+  '19:00', '19:30', '20:00', '20:30', '21:00'
+];
+
 export default function HistoricoPedidos() {
   const { toast } = useToast();
   
@@ -189,15 +198,15 @@ export default function HistoricoPedidos() {
       .catch(console.error);
   }, []);
   
-  // Carregar produtos para adição
+  // Carregar produtos para adição - carrega quando o dialog abre
   useEffect(() => {
-    if (modoAdicao) {
+    if (dialogAdicaoOpen) {
       fetch('/api/produtos?ativo=true')
         .then(res => res.json())
         .then(data => setProdutos(data))
         .catch(console.error);
     }
-  }, [modoAdicao]);
+  }, [dialogAdicaoOpen]);
 
   // Filtrar produtos pela busca
   const produtosFiltrados = useMemo(() => {
@@ -1062,16 +1071,7 @@ export default function HistoricoPedidos() {
                 ))}
               </div>
 
-              {/* 3. BOTÃO WHATSAPP QUANDO PRONTO */}
-              {pedidoSelecionado.status === 'PRONTO' && (
-                <Button 
-                  onClick={() => handleEnviarMensagemPronto(pedidoSelecionado)} 
-                  className="w-full bg-green-600 hover:bg-green-700 text-white h-10 text-sm"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Avisar Cliente via WhatsApp
-                </Button>
-              )}
+              {/* Botão WhatsApp removido daqui - agora só aparece nos botões de ação abaixo */}
 
               {/* 4. DADOS DO CLIENTE + DATA + ÍCONE EDITAR DATA */}
               <div className="bg-muted/30 rounded-lg p-3 space-y-2">
@@ -1606,12 +1606,16 @@ export default function HistoricoPedidos() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground mb-1 block">Novo Horário</Label>
-              <Input
-                type="time"
-                value={novoHorarioEntrega}
-                onChange={(e) => setNovoHorarioEntrega(e.target.value)}
-                className="h-10"
-              />
+              <Select value={novoHorarioEntrega} onValueChange={setNovoHorarioEntrega}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Selecione o horário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {HORARIOS_COMERCIAIS.map((h) => (
+                    <SelectItem key={h} value={h}>{h}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           

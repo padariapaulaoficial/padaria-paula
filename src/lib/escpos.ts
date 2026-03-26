@@ -289,6 +289,14 @@ export function gerarCupomCliente(
   
   linhas.push(linhaDivisoria('-'));
   
+  // Observações gerais do pedido (acima do subtotal)
+  if (pedido.observacoes) {
+    linhas.push('OBSERVACOES:');
+    const linhasObs = quebrarLinha(pedido.observacoes.toUpperCase(), LARGURA_PAPEL);
+    linhas.push(...linhasObs);
+    linhas.push(linhaDivisoria('-'));
+  }
+  
   // Subtotal dos itens
   const subtotalItens = pedido.itens.reduce((sum, item) => sum + item.subtotal, 0);
   const subtotalStr = formatarMoeda(subtotalItens);
