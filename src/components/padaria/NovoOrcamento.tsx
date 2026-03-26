@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock,
-  Package, Scale, Hash, Trash2, FileText, X, DollarSign
+  Package, Scale, Hash, Trash2, FileText, X, DollarSign, LayoutGrid, List
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,6 +118,9 @@ export default function NovoOrcamento() {
   
   // Estado unificado para seleções - mais eficiente
   const [selecoes, setSelecoes] = useState<Record<string, {quantidade: number, tamanho?: string, observacao?: string}>>({});
+  
+  // Modo de visualização: lista ou grade compacta
+  const [modoVisualizacao, setModoVisualizacao] = useState<'lista' | 'grade'>('grade');
 
   // Carregar produtos
   useEffect(() => {
@@ -403,6 +406,106 @@ export default function NovoOrcamento() {
   };
 
   const dataMinima = new Date().toISOString().split('T')[0];
+
+  // Renderizar card COMPACTO para grade (5 por linha)
+  const renderProdutoCardCompacto = useCallback((produto: Produto) => {
+    const selecao = selecoes[produto.id] || {};
+    const temSelecao = produto.tipoProduto === 'ESPECIAL' 
+      ? !!selecao.tamanho 
+      : (selecao.quantidade && selecao.quantidade > 0);
+    
+    return (
+      <div 
+        key={produto.id}
+        className="p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col"
+      >
+        {/* Nome - truncado */}
+        <div className="text-xs font-medium truncate mb-1" title={produto.nome}>
+          {produto.nome}
+        </div>
+        
+        {/* Preço compacto */}
+        <div className="text-[10px] text-primary font-semibold mb-2">
+          {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+            <span>
+              {Object.entries(produto.precosTamanhos)
+                .filter(([tam, preco]) => {
+                  const tamanhosValidos = ['P', 'M', 'G', 'GG'];
+                  return tamanhosValidos.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                })
+                .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
+                .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
+                .join(' ')}
+            </span>
+          ) : (
+            <span>{formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}</span>
+          )}
+        </div>
+
+        {/* Seletor compacto */}
+        <div className="flex items-center gap-1 mt-auto">
+          {produto.tipoProduto === 'ESPECIAL' ? (
+            <div className="flex gap-0.5 flex-1">
+              {['P', 'M', 'G', 'GG']
+                .filter(tam => {
+                  const temTamanho = produto.tamanhos?.includes(tam);
+                  const preco = produto.precosTamanhos?.[tam];
+                  const temPrecoValido = preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                  return temTamanho && temPrecoValido;
+                })
+                .map(tam => (
+                  <Button
+                    key={tam}
+                    type="button"
+                    variant={selecao.tamanho === tam ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 w-7 p-0 text-[10px] font-bold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
+                    onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
+                  >
+                    {tam}
+                  </Button>
+                ))}
+            </div>
+          ) : produto.tipoVenda === 'KG' ? (
+            <Select
+              value={selecao.quantidade?.toString() || '0'}
+              onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
+            >
+              <SelectTrigger className="h-7 w-full text-[10px] px-1">
+                <SelectValue placeholder="Qtd" />
+              </SelectTrigger>
+              <SelectContent className="max-h-48">
+                {OPCOES_KG.map((opcao) => (
+                  <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-xs">
+                    {opcao.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Qtd"
+              className="h-7 w-full text-[10px] text-center px-1"
+              value={selecao.quantidade || ''}
+              onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
+            />
+          )}
+
+          {/* Botão adicionar */}
+          <Button
+            onClick={() => handleAdicionarProduto(produto)}
+            className="h-7 w-7 p-0 btn-padaria shrink-0"
+            disabled={!temSelecao}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }, [selecoes, atualizarSelecao, handleAdicionarProduto]);
 
   // Renderizar card do produto - memoizado
   const renderProdutoCard = useCallback((produto: Produto) => {
@@ -815,16 +918,58 @@ export default function NovoOrcamento() {
             </Select>
           </div>
 
-          {/* Lista de Produtos - Layout Compacto */}
+          {/* Lista de Produtos */}
           <Card className="card-padaria">
             <CardContent className="p-0">
-              <div className="h-[calc(100vh-380px)] overflow-y-auto">
+              {/* Toggle de visualização */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30">
+                <span className="text-sm font-medium text-muted-foreground">
+                  {produtosFiltrados.length} produtos
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant={modoVisualizacao === 'grade' ? 'default' : 'ghost'}
+                    size="sm"
+                    className={`h-8 w-8 p-0 ${modoVisualizacao === 'grade' ? 'btn-padaria' : ''}`}
+                    onClick={() => setModoVisualizacao('grade')}
+                    title="Visualização em grade"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={modoVisualizacao === 'lista' ? 'default' : 'ghost'}
+                    size="sm"
+                    className={`h-8 w-8 p-0 ${modoVisualizacao === 'lista' ? 'btn-padaria' : ''}`}
+                    onClick={() => setModoVisualizacao('lista')}
+                    title="Visualização em lista"
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="h-[calc(100vh-420px)] overflow-y-auto">
                 {loadingProdutos ? (
                   <div className="flex items-center justify-center py-12">
                     <Package className="w-8 h-8 animate-pulse text-muted-foreground" />
                     <span className="ml-2 text-muted-foreground">Carregando...</span>
                   </div>
+                ) : modoVisualizacao === 'grade' ? (
+                  /* GRADE COMPACTA - 5 por linha */
+                  <div className="p-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
+                      {produtosFiltrados.map(produto => renderProdutoCardCompacto(produto))}
+                    </div>
+                    
+                    {produtosFiltrados.length === 0 && (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhum produto encontrado</p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
+                  /* LISTA COMPLETA - com categorias */
                   <div className="p-2">
                     {Object.entries(produtosPorCategoria).map(([categoria, prods]) => (
                       <div key={categoria} className="mb-4">
