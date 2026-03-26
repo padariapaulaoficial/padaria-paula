@@ -1369,8 +1369,8 @@ export default function HistoricoPedidos() {
           setObservacaoNovoItem('');
         }
       }}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
+        <AlertDialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col">
+          <AlertDialogHeader className="shrink-0">
             <AlertDialogTitle className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
               Adicionar Produto
@@ -1380,9 +1380,9 @@ export default function HistoricoPedidos() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           
-          <div className="space-y-3 py-2">
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
             {/* Busca */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar produto..."
@@ -1393,7 +1393,7 @@ export default function HistoricoPedidos() {
             </div>
             
             {/* Lista de produtos */}
-            <div className="max-h-40 overflow-y-auto space-y-1">
+            <div className="space-y-1">
               {produtosFiltrados.map(produto => (
                 <button
                   key={produto.id}
@@ -1422,7 +1422,7 @@ export default function HistoricoPedidos() {
             
             {/* Seleção de quantidade/tamanho */}
             {produtoSelecionado && (
-              <div className="space-y-2 pt-2 border-t border-border">
+              <div className="space-y-2 pt-2 border-t border-border shrink-0">
                 {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
                   <div>
                     <Label className="text-xs text-muted-foreground mb-1 block">Tamanho</Label>
@@ -1486,7 +1486,7 @@ export default function HistoricoPedidos() {
             )}
           </div>
           
-          <AlertDialogFooter>
+          <AlertDialogFooter className="shrink-0 pt-2 border-t border-border">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAdicionarProduto}
