@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -128,6 +129,10 @@ export default function OrcamentosLista() {
   const [observacaoNovoItem, setObservacaoNovoItem] = useState('');
   const [adicionandoProduto, setAdicionandoProduto] = useState(false);
   const [itensEditados, setItensEditados] = useState<Record<string, string>>({});
+  
+  // Estados para diálogos separados
+  const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
+  const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
 
   // Carregar configurações
   useEffect(() => {
@@ -793,12 +798,12 @@ export default function OrcamentosLista() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-sm">Itens</h4>
-                  {!modoEdicao && !modoAdicao && orcamentoSelecionado.status === 'PENDENTE' && (
+                  {orcamentoSelecionado.status === 'PENDENTE' && (
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setModoEdicao(true)}
+                        onClick={() => setDialogEdicaoOpen(true)}
                         className="h-7 px-2 text-xs"
                         title="Editar quantidades"
                       >
@@ -808,7 +813,7 @@ export default function OrcamentosLista() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setModoAdicao(true)}
+                        onClick={() => setDialogAdicaoOpen(true)}
                         className="h-7 px-2 text-xs"
                         title="Adicionar produto"
                       >
@@ -823,187 +828,15 @@ export default function OrcamentosLista() {
                     <div key={item.id} className="flex justify-between items-center py-1.5 border-b border-border/50">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
-                        {modoEdicao ? (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Input
-                              type="number"
-                              step={item.produto.tipoVenda === 'KG' ? '0.1' : '1'}
-                              min="0"
-                              className="w-16 h-7 text-xs"
-                              value={itensEditados[item.id] !== undefined ? itensEditados[item.id] : item.quantidade.toString()}
-                              onChange={(e) => handleEditarQuantidade(item.id, e.target.value)}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                            </span>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                            {item.observacao && <span className="ml-2 text-primary italic">({item.observacao})</span>}
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
+                          {item.observacao && <span className="ml-2 text-primary italic">({item.observacao})</span>}
+                        </p>
                       </div>
                       <p className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</p>
                     </div>
                   ))}
                 </div>
-                
-                {/* Botões de edição */}
-                {modoEdicao && (
-                  <div className="flex gap-1 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { setModoEdicao(false); setItensEditados({}); }}
-                      className="flex-1 h-8 text-xs"
-                    >
-                      <X className="w-3 h-3 mr-1" />
-                      Cancelar
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSalvarEdicao}
-                      disabled={processando}
-                      className="flex-1 btn-padaria h-8 text-xs"
-                    >
-                      {processando ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
-                      Salvar
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Interface de adição de produtos */}
-                {modoAdicao && (
-                  <div className="mt-2 p-2 bg-muted/30 rounded-lg border border-border space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">Adicionar Produto</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setModoAdicao(false);
-                          setProdutoSelecionado(null);
-                          setBuscaProduto('');
-                        }}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar produto..."
-                        className="pl-7 h-8 text-xs"
-                        value={buscaProduto}
-                        onChange={(e) => setBuscaProduto(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="max-h-20 overflow-y-auto space-y-0.5">
-                      {produtosFiltrados.map(produto => (
-                        <button
-                          key={produto.id}
-                          type="button"
-                          onClick={() => setProdutoSelecionado(produto)}
-                          className={`w-full p-1.5 text-left rounded text-xs transition-colors ${
-                            produtoSelecionado?.id === produto.id 
-                              ? 'bg-primary/20 border border-primary' 
-                              : 'bg-card hover:bg-muted border border-border/50'
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">{produto.nome}</span>
-                            <span className="text-muted-foreground">
-                              {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    
-                    {produtoSelecionado && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-border/50">
-                        {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
-                          <div className="flex gap-1">
-                            {['P', 'M', 'G', 'GG']
-                              .filter(tam => {
-                                const preco = produtoSelecionado.precosTamanhos?.[tam];
-                                return preco && !isNaN(preco) && preco > 0;
-                              })
-                              .map(tam => (
-                                <Button
-                                  key={tam}
-                                  type="button"
-                                  variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
-                                  size="sm"
-                                  className={`h-7 flex-1 text-xs ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
-                                  onClick={() => setTamanhoSelecionado(tam)}
-                                >
-                                  {tam}
-                                </Button>
-                              ))}
-                          </div>
-                        ) : produtoSelecionado.tipoVenda === 'KG' ? (
-                          <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Peso" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {OPCOES_KG.map(op => (
-                                <SelectItem key={op.valor} value={op.valor.toString()} className="text-xs">
-                                  {op.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            type="number"
-                            min="1"
-                            placeholder="Quantidade"
-                            className="h-8 text-xs"
-                            value={quantidadeAdicionar}
-                            onChange={(e) => setQuantidadeAdicionar(e.target.value)}
-                          />
-                        )}
-                        
-                        <Input
-                          placeholder="Obs (opcional)"
-                          className="h-8 text-xs"
-                          value={observacaoNovoItem}
-                          onChange={(e) => setObservacaoNovoItem(e.target.value)}
-                        />
-                        
-                        <div className="flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setModoAdicao(false);
-                              setProdutoSelecionado(null);
-                              setBuscaProduto('');
-                            }}
-                            className="flex-1 h-8 text-xs"
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleAdicionarProduto}
-                            disabled={adicionandoProduto}
-                            className="flex-1 btn-padaria h-8 text-xs"
-                          >
-                            {adicionandoProduto ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
-                            Adicionar
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Observações */}
@@ -1094,6 +927,220 @@ export default function OrcamentosLista() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Edição de Itens */}
+      <AlertDialog open={dialogEdicaoOpen} onOpenChange={setDialogEdicaoOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-4 h-4" />
+              Editar Quantidades
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ajuste as quantidades dos itens do orçamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="max-h-60 overflow-y-auto space-y-2 py-2">
+            {orcamentoSelecionado?.itens.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{item.produto.nome}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatarMoeda(item.valorUnit)}/{item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    step={item.produto.tipoVenda === 'KG' ? '0.1' : '1'}
+                    min="0"
+                    className="w-20 h-8 text-sm text-center"
+                    value={itensEditados[item.id] !== undefined ? itensEditados[item.id] : item.quantidade.toString()}
+                    onChange={(e) => handleEditarQuantidade(item.id, e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground w-6">
+                    {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setItensEditados({}); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSalvarEdicao}
+              disabled={processando}
+              className="btn-padaria"
+            >
+              {processando ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Salvar Alterações
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Adição de Produtos */}
+      <AlertDialog open={dialogAdicaoOpen} onOpenChange={(open) => {
+        setDialogAdicaoOpen(open);
+        if (!open) {
+          setProdutoSelecionado(null);
+          setBuscaProduto('');
+          setQuantidadeAdicionar('');
+          setTamanhoSelecionado('');
+          setObservacaoNovoItem('');
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Adicionar Produto
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Selecione um produto para adicionar ao orçamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-3 py-2">
+            {/* Busca */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto..."
+                className="pl-10 h-10"
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+              />
+            </div>
+            
+            {/* Lista de produtos */}
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {produtosFiltrados.map(produto => (
+                <button
+                  key={produto.id}
+                  type="button"
+                  onClick={() => setProdutoSelecionado(produto)}
+                  className={`w-full p-2 text-left rounded-lg transition-colors ${
+                    produtoSelecionado?.id === produto.id 
+                      ? 'bg-primary/20 border-2 border-primary' 
+                      : 'bg-muted/30 border border-border hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{produto.nome}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+              {produtosFiltrados.length === 0 && (
+                <p className="text-center text-muted-foreground py-4 text-sm">
+                  Nenhum produto encontrado
+                </p>
+              )}
+            </div>
+            
+            {/* Seleção de quantidade/tamanho */}
+            {produtoSelecionado && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Tamanho</Label>
+                    <div className="flex gap-2">
+                      {['P', 'M', 'G', 'GG']
+                        .filter(tam => {
+                          const preco = produtoSelecionado.precosTamanhos?.[tam];
+                          return preco && !isNaN(preco) && preco > 0;
+                        })
+                        .map(tam => (
+                          <Button
+                            key={tam}
+                            type="button"
+                            variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                            className={`flex-1 ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                            onClick={() => setTamanhoSelecionado(tam)}
+                          >
+                            {tam} - {formatarMoeda(produtoSelecionado.precosTamanhos?.[tam] || 0)}
+                          </Button>
+                        ))}
+                    </div>
+                  </div>
+                ) : produtoSelecionado.tipoVenda === 'KG' ? (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Peso</Label>
+                    <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o peso" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPCOES_KG.map(op => (
+                          <SelectItem key={op.valor} value={op.valor.toString()}>
+                            {op.label} - {formatarMoeda(op.valor * produtoSelecionado.valorUnit)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Quantidade</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Quantidade"
+                      value={quantidadeAdicionar}
+                      onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Observação (opcional)</Label>
+                  <Input
+                    placeholder="Ex: Sem cebola..."
+                    value={observacaoNovoItem}
+                    onChange={(e) => setObservacaoNovoItem(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAdicionarProduto}
+              disabled={!produtoSelecionado || adicionandoProduto || 
+                (produtoSelecionado?.tipoProduto === 'ESPECIAL' ? !tamanhoSelecionado : !quantidadeAdicionar)}
+              className="btn-padaria"
+            >
+              {adicionandoProduto ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Adicionando...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar
+                </>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
