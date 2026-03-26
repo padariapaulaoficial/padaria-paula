@@ -729,111 +729,80 @@ export default function OrcamentosLista() {
         </ScrollArea>
       )}
 
-      {/* Dialog de detalhes */}
+      {/* Dialog de detalhes - COMPACTO */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <FileText className="w-5 h-5" />
-              Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
-            </DialogTitle>
-            <DialogDescription>
-              {orcamentoSelecionado && formatarData(orcamentoSelecionado.createdAt)}
-            </DialogDescription>
+        <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
+          {/* Header compacto */}
+          <DialogHeader className="p-3 border-b border-border shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-base font-bold">
+                  Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
+                </DialogTitle>
+                {orcamentoSelecionado && getStatusBadge(orcamentoSelecionado.status)}
+              </div>
+            </div>
           </DialogHeader>
 
           {orcamentoSelecionado && (
-            <div className="space-y-3">
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                {getStatusBadge(orcamentoSelecionado.status)}
-              </div>
-
-              {/* Dados do cliente */}
-              <div className="bg-muted/30 rounded-lg p-3">
-                <h4 className="font-semibold text-sm mb-1">Cliente</h4>
-                <p className="text-sm"><strong>Nome:</strong> {orcamentoSelecionado.cliente.nome}</p>
-                <p className="text-sm"><strong>Telefone:</strong> {orcamentoSelecionado.cliente.telefone}</p>
-                
-                {/* Dados de Entrega */}
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2 text-sm">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {/* Dados do cliente + Entrega em grid compacto */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Cliente */}
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="font-semibold text-xs text-muted-foreground">Cliente</p>
+                  <p className="font-medium text-sm truncate">{orcamentoSelecionado.cliente.nome}</p>
+                  <p className="text-xs text-muted-foreground">{orcamentoSelecionado.cliente.telefone}</p>
+                </div>
+                {/* Entrega */}
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <div className="flex items-center gap-1">
                     {orcamentoSelecionado.tipoEntrega === 'RETIRA' ? (
-                      <>
-                        <Store className="w-4 h-4 text-primary" />
-                        <span className="font-medium">Cliente Retira</span>
-                      </>
+                      <><Store className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Retira</span></>
                     ) : (
-                      <>
-                        <Truck className="w-4 h-4 text-primary" />
-                        <span className="font-medium">Tele Entrega</span>
-                      </>
+                      <><Truck className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Entrega</span></>
                     )}
                   </div>
-                  {orcamentoSelecionado.dataEntrega && (
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatarDataEntrega(orcamentoSelecionado.dataEntrega)}</span>
-                      </div>
-                      {orcamentoSelecionado.horarioEntrega && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          <span>{orcamentoSelecionado.horarioEntrega}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {orcamentoSelecionado.tipoEntrega === 'TELE_ENTREGA' && orcamentoSelecionado.enderecoEntrega && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      <MapPin className="w-3 h-3" />
-                      {orcamentoSelecionado.enderecoEntrega}
-                      {orcamentoSelecionado.bairroEntrega && ` - ${orcamentoSelecionado.bairroEntrega}`}
-                    </p>
-                  )}
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {orcamentoSelecionado.dataEntrega && formatarDataEntrega(orcamentoSelecionado.dataEntrega)}
+                    {orcamentoSelecionado.horarioEntrega && ` ${orcamentoSelecionado.horarioEntrega}`}
+                  </div>
                 </div>
               </div>
+
+              {/* Endereço se tele-entrega */}
+              {orcamentoSelecionado.tipoEntrega === 'TELE_ENTREGA' && orcamentoSelecionado.enderecoEntrega && (
+                <div className="bg-muted/30 rounded-lg p-2 flex items-start gap-1">
+                  <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="text-xs">{orcamentoSelecionado.enderecoEntrega}{orcamentoSelecionado.bairroEntrega && ` - ${orcamentoSelecionado.bairroEntrega}`}</span>
+                </div>
+              )}
 
               {/* Itens */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-sm">Itens</h4>
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="font-semibold text-xs">Itens ({orcamentoSelecionado.itens.length})</h4>
                   {orcamentoSelecionado.status === 'PENDENTE' && (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDialogEdicaoOpen(true)}
-                        className="h-7 px-2 text-xs"
-                        title="Editar quantidades"
-                      >
-                        <Edit2 className="w-3 h-3 mr-1" />
-                        Editar
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="sm" onClick={() => setDialogEdicaoOpen(true)} className="h-6 px-1.5 text-[10px]">
+                        <Edit2 className="w-2.5 h-2.5 mr-0.5" />Editar
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDialogAdicaoOpen(true)}
-                        className="h-7 px-2 text-xs"
-                        title="Adicionar produto"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Adicionar
+                      <Button variant="ghost" size="sm" onClick={() => setDialogAdicaoOpen(true)} className="h-6 px-1.5 text-[10px]">
+                        <Plus className="w-2.5 h-2.5 mr-0.5" />Adicionar
                       </Button>
                     </div>
                   )}
                 </div>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div className="bg-muted/30 rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
                   {orcamentoSelecionado.itens.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-1.5 border-b border-border/50">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
-                        <p className="text-xs text-muted-foreground">
+                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/30 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
+                        <p className="text-[10px] text-muted-foreground">
                           {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                          {item.observacao && <span className="ml-2 text-primary italic">({item.observacao})</span>}
                         </p>
                       </div>
-                      <p className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</p>
+                      <p className="text-xs font-semibold ml-1">{formatarMoeda(item.subtotal)}</p>
                     </div>
                   ))}
                 </div>
@@ -842,66 +811,55 @@ export default function OrcamentosLista() {
               {/* Observações */}
               {orcamentoSelecionado.observacoes && (
                 <div className="p-2 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground">
-                    <strong>Obs:</strong> {orcamentoSelecionado.observacoes}
-                  </p>
+                  <p className="text-[10px] text-muted-foreground"><strong>Obs:</strong> {orcamentoSelecionado.observacoes}</p>
                 </div>
               )}
 
               {/* Total */}
-              <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border">
-                <span>Total:</span>
-                <span className="text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
+              <div className="flex justify-between items-center font-bold pt-1 border-t border-border">
+                <span className="text-sm">Total:</span>
+                <span className="text-base text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
               </div>
+            </div>
+          )}
 
-              {/* Botões de ação - otimizados lado a lado */}
-              {!modoEdicao && !modoAdicao && (
-                <div className="pt-2 border-t border-border space-y-2">
-                  {/* Linha 1: WhatsApp e Impressão */}
-                  <div className="flex gap-1">
-                    <Button
-                      onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white h-9 text-xs"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-1" />
-                      WhatsApp
-                    </Button>
-                    <Button
-                      onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
-                      variant="outline"
-                      className="flex-1 h-9 text-xs"
-                    >
-                      <Printer className="w-4 h-4 mr-1" />
-                      Imprimir
-                    </Button>
-                  </div>
-                  
-                  {/* Linha 2: Aprovar/Rejeitar (se pendente) */}
-                  {orcamentoSelecionado.status === 'PENDENTE' && (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        onClick={() => handleRejeitar(orcamentoSelecionado)}
-                        disabled={processando}
-                        className="flex-1 h-9 text-xs text-destructive border-destructive hover:bg-destructive/10"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Rejeitar
-                      </Button>
-                      <Button
-                        onClick={() => handleAprovar(orcamentoSelecionado)}
-                        disabled={processando}
-                        className="flex-1 h-9 btn-padaria text-xs"
-                      >
-                        {processando ? (
-                          <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                        ) : (
-                          <ShoppingCart className="w-4 h-4 mr-1" />
-                        )}
-                        Aprovar
-                      </Button>
-                    </div>
-                  )}
+          {/* Botões de ação - SEMPRE VISÍVEIS */}
+          {orcamentoSelecionado && !modoEdicao && !modoAdicao && (
+            <div className="shrink-0 p-3 border-t border-border space-y-1.5 bg-background">
+              {/* Linha 1: WhatsApp e Impressão */}
+              <div className="flex gap-1">
+                <Button
+                  onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 mr-1" />WhatsApp
+                </Button>
+                <Button
+                  onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
+                  variant="outline"
+                  className="flex-1 h-8 text-xs"
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1" />Imprimir
+                </Button>
+              </div>
+              {/* Linha 2: Aprovar/Rejeitar */}
+              {orcamentoSelecionado.status === 'PENDENTE' && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleRejeitar(orcamentoSelecionado)}
+                    disabled={processando}
+                    className="flex-1 h-8 text-xs text-destructive border-destructive hover:bg-destructive/10"
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />Rejeitar
+                  </Button>
+                  <Button
+                    onClick={() => handleAprovar(orcamentoSelecionado)}
+                    disabled={processando}
+                    className="flex-1 h-8 btn-padaria text-xs"
+                  >
+                    {processando ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 mr-1" />}Aprovar
+                  </Button>
                 </div>
               )}
             </div>
