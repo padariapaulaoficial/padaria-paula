@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// Endpoint de diagnóstico - remove após resolver o problema
+// Endpoint de diagnóstico para verificar senhas e duplicatas
 export async function GET() {
   const diagnostico: Record<string, any> = {
     timestamp: new Date().toISOString(),
@@ -10,28 +10,43 @@ export async function GET() {
       status: 'verificando',
       erro: null as string | null,
       configExiste: false,
-      senhaDefinida: false,
-      senhaAdminDefinida: false,
+      totalLinhas: 0,
+      linhas: [] as any[],
     },
   };
 
   try {
-    // Tenta conectar ao banco e buscar configuração
-    const config = await db.configuracao.findFirst();
+    // Busca TODAS as linhas da tabela Configuracao
+    const todasConfigs = await db.configuracao.findMany({
+      select: {
+        id: true,
+        nomeLoja: true,
+        senha: true,
+        senhaAdmin: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
     
     diagnostico.banco.status = 'conectado';
-    diagnostico.banco.configExiste = !!config;
-    diagnostico.banco.senhaDefinida = !!config?.senha;
-    diagnostico.banco.senhaAdminDefinida = !!config?.senhaAdmin;
+    diagnostico.banco.totalLinhas = todasConfigs.length;
+    diagnostico.banco.configExiste = todasConfigs.length > 0;
     
-    if (config) {
-      diagnostico.banco.dados = {
-        id: config.id,
-        nomeLoja: config.nomeLoja,
-        temSenha: !!config.senha,
-        temSenhaAdmin: !!config.senhaAdmin,
-        // NÃO retorna as senhas por segurança
-      };
+    // Mostra informações de cada linha (sem expor senhas completamente)
+    diagnostico.banco.linhas = todasConfigs.map((c, idx) => ({
+      indice: idx + 1,
+      id: c.id,
+      nomeLoja: c.nomeLoja,
+      senhaValor: c.senha,
+      senhaAdminValor: c.senhaAdmin || '(null)',
+      senhaTamanho: c.senha?.length || 0,
+      senhaAdminTamanho: c.senhaAdmin?.length || 0,
+      updatedAt: c.updatedAt,
+    }));
+    
+    // Alerta se houver duplicatas
+    if (todasConfigs.length > 1) {
+      diagnostico.banco.alerta = `⚠️ DUPLICATAS DETECTADAS! ${todasConfigs.length} linhas na tabela Configuracao. Execute /api/limpar-duplicados para corrigir.`;
     }
   } catch (error: any) {
     diagnostico.banco.status = 'erro';

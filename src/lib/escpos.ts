@@ -482,7 +482,7 @@ export function gerarCupomCozinha(
 }
 
 /**
- * Gera comanda de cozinha - Layout simples e grande
+ * Gera comanda de cozinha - Layout compacto para economizar papel
  * Apenas: Nome, Telefone e Lista de itens
  */
 export function gerarCupomCozinhaGrande(
@@ -491,33 +491,27 @@ export function gerarCupomCozinhaGrande(
 ): string {
   const linhas: string[] = [];
 
-  // Cabeçalho simples
-  linhas.push('');
+  // Cabeçalho compacto
   linhas.push('========================================');
-  linhas.push('');
   linhas.push(`        PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`);
-  linhas.push('');
   linhas.push('========================================');
-  linhas.push('');
 
-  // Tipo de entrega com data e horário
+  // Tipo de entrega com data e horário (em uma linha)
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
-  linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
+  const tipoEntregaStr = tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA';
   if (pedido.dataEntrega) {
-    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
+    const dataStr = formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega);
+    linhas.push(`ENTREGA: ${tipoEntregaStr} - ${dataStr}`);
+  } else {
+    linhas.push(`ENTREGA: ${tipoEntregaStr}`);
   }
-  linhas.push('');
-  linhas.push('----------------------------------------');
-  linhas.push('');
 
-  // Nome do cliente em destaque
+  // Nome do cliente e telefone (compacto)
   linhas.push(`CLIENTE: ${pedido.cliente.nome.toUpperCase()}`);
-  linhas.push(`TELEFONE: ${formatarTelefone(pedido.cliente.telefone)}`);
-  linhas.push('');
-  linhas.push('----------------------------------------');
-  linhas.push('');
+  linhas.push(`FONE: ${formatarTelefone(pedido.cliente.telefone)}`);
   
-  // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
+  // Lista de itens (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
+  linhas.push('----------------------------------------');
   linhas.push('ITENS:');
   
   // Filtrar itens com quantidade 0
@@ -536,9 +530,9 @@ export function gerarCupomCozinhaGrande(
       const kgStr = kg % 1 === 0 
         ? kg.toString() 
         : kg.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
-      qtdStr = `${kgStr} KG`;
+      qtdStr = `${kgStr}kg`;
     } else {
-      qtdStr = `${Math.round(qtdProd)} UN`;
+      qtdStr = `${Math.round(qtdProd)}un`;
     }
     
     // Incluir tamanho no nome se existir (para tortas especiais)
@@ -547,26 +541,21 @@ export function gerarCupomCozinhaGrande(
       : item.produto.nome;
     const produto = nomeCompleto.toUpperCase();
     
-    // Formato mais destacado para itens
-    linhas.push(`  > ${qtdStr}  ${produto}`);
+    // Formato compacto para itens
+    linhas.push(`> ${qtdStr} ${produto}`);
     
     if (item.observacao) {
-      linhas.push(`       -> ${truncar(item.observacao.toUpperCase(), 32)}`);
+      linhas.push(`  -> ${truncar(item.observacao.toUpperCase(), 36)}`);
     }
   }
   
-  linhas.push('');
-  linhas.push('----------------------------------------');
-  
-  // Observações gerais
+  // Observações gerais (se houver)
   if (pedido.observacoes) {
-    linhas.push('');
-    linhas.push(`OBS: ${pedido.observacoes.toUpperCase()}`);
-    linhas.push('');
+    linhas.push('----------------------------------------');
+    linhas.push(`OBS: ${truncar(pedido.observacoes.toUpperCase(), 40)}`);
   }
   
   linhas.push('========================================');
-  linhas.push('');
   
   return linhas.join('\n');
 }

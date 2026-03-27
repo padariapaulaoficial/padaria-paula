@@ -84,6 +84,13 @@ export async function PUT(request: NextRequest) {
   try {
     const { senhaAtual, novaSenha, tipo } = await request.json();
 
+    console.log('[AUTH] Tentativa de alteração de senha:', {
+      tipo: tipo || 'app',
+      temSenhaAtual: !!senhaAtual,
+      temNovaSenha: !!novaSenha,
+      novaSenhaTamanho: novaSenha?.length
+    });
+
     if (!senhaAtual || !novaSenha || novaSenha.length !== 4) {
       return NextResponse.json({
         success: false,
@@ -94,39 +101,68 @@ export async function PUT(request: NextRequest) {
     const config = await db.configuracao.findFirst();
 
     if (!config) {
+      console.log('[AUTH] Configuração não encontrada');
       return NextResponse.json({ success: false, error: 'Configuração não encontrada' });
     }
+
+    console.log('[AUTH] Config encontrada:', {
+      id: config.id,
+      temSenha: !!config.senha,
+      temSenhaAdmin: !!config.senhaAdmin
+    });
 
     // Determina qual senha verificar/alterar
     if (tipo === 'admin') {
       // Alterar senha do admin
       const senhaCorreta = config.senhaAdmin || config.senha;
       
+      console.log('[AUTH] Verificando senha admin:', {
+        senhaAtualFornecida: senhaAtual,
+        senhaCorretaEsperada: senhaCorreta,
+        confere: senhaAtual === senhaCorreta
+      });
+      
       if (senhaAtual !== senhaCorreta) {
         return NextResponse.json({ success: false, error: 'Senha atual incorreta' });
       }
 
-      await db.configuracao.update({
+      const resultado = await db.configuracao.update({
         where: { id: config.id },
         data: { senhaAdmin: novaSenha },
+      });
+      
+      console.log('[AUTH] Senha admin atualizada:', {
+        id: resultado.id,
+        novaSenhaAdmin: resultado.senhaAdmin
       });
 
       return NextResponse.json({ success: true, message: 'Senha administrativa alterada com sucesso' });
     } else {
       // Alterar senha do app
+      console.log('[AUTH] Verificando senha app:', {
+        senhaAtualFornecida: senhaAtual,
+        senhaCorretaEsperada: config.senha,
+        confere: senhaAtual === config.senha
+      });
+      
       if (senhaAtual !== config.senha) {
         return NextResponse.json({ success: false, error: 'Senha atual incorreta' });
       }
 
-      await db.configuracao.update({
+      const resultado = await db.configuracao.update({
         where: { id: config.id },
         data: { senha: novaSenha },
+      });
+      
+      console.log('[AUTH] Senha app atualizada:', {
+        id: resultado.id,
+        novaSenha: resultado.senha
       });
 
       return NextResponse.json({ success: true, message: 'Senha de acesso alterada com sucesso' });
     }
-  } catch (error) {
-    console.error('Erro ao alterar senha:', error);
+  } catch (error: any) {
+    console.error('[AUTH] Erro ao alterar senha:', error);
     return NextResponse.json({ success: false, error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

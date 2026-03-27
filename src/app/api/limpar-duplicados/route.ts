@@ -1,5 +1,5 @@
 // API para limpar duplicados na tabela Configuracao
-// e garantir que a senha admin funcione
+// Preserva as senhas existentes
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -31,22 +31,38 @@ export async function GET() {
     }
 
     if (total === 1) {
-      // Não há duplicados, apenas garantir que a senha está correta
-      await db.$executeRawUnsafe(`
-        UPDATE "Configuracao"
-        SET senha = '2026', "senhaAdmin" = '2026'
-      `);
+      // Não há duplicados
+      const config = todasConfiguracoes[0];
+      
+      // Verificar se senhaAdmin está null e corrigir
+      if (!config.senhaAdmin) {
+        await db.$executeRawUnsafe(`
+          UPDATE "Configuracao"
+          SET "senhaAdmin" = senha
+          WHERE id = '${config.id}'
+        `);
+        
+        return NextResponse.json({
+          success: true,
+          message: 'senhaAdmin estava null, foi sincronizado com senha',
+          total: total,
+          acao: 'senhaAdmin_sincronizado'
+        });
+      }
       
       return NextResponse.json({
         success: true,
-        message: 'Nenhum duplicado encontrado, senhas atualizadas',
+        message: 'Nenhum problema encontrado',
         total: total,
-        acao: 'senhas_atualizadas'
+        senhaAtual: config.senha ? 'definida' : 'null',
+        senhaAdminAtual: config.senhaAdmin ? 'definida' : 'null',
+        acao: 'nenuma_acao_necessaria'
       });
     }
 
     // Há duplicados - manter apenas o mais recente
-    const manterId = todasConfiguracoes[0].id;
+    const manter = todasConfiguracoes[0];
+    const manterId = manter.id;
     
     // Remover todos exceto o primeiro (mais recente)
     for (let i = 1; i < todasConfiguracoes.length; i++) {
@@ -57,20 +73,24 @@ export async function GET() {
       }
     }
 
-    // Garantir que a senha está correta
-    await db.$executeRawUnsafe(`
-      UPDATE "Configuracao"
-      SET senha = '2026', "senhaAdmin" = '2026'
-      WHERE id = '${manterId}'
-    `);
+    // Garantir que senhaAdmin não seja null
+    if (!manter.senhaAdmin) {
+      await db.$executeRawUnsafe(`
+        UPDATE "Configuracao"
+        SET "senhaAdmin" = senha
+        WHERE id = '${manterId}'
+      `);
+    }
 
     return NextResponse.json({
       success: true,
       message: `${total - 1} duplicados removidos`,
       totalAnterior: total,
       mantido: manterId,
+      senhaPreservada: manter.senha ? 'sim' : 'nao',
+      senhaAdminPreservada: manter.senhaAdmin ? 'sim' : 'nao',
       removidos: total - 1,
-      acao: 'duplicados_removidos_e_senhas_atualizadas'
+      acao: 'duplicados_removidos_senhas_preservadas'
     });
 
   } catch (error: any) {
