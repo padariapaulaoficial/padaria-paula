@@ -90,7 +90,7 @@ export default function AdminProdutos() {
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
 
   // Estados de visualização
-  const [visaoGrid, setVisaoGrid] = useState(true);
+  const [visaoGrid, setVisaoGrid] = useState(false); // Lista como padrão
   const [busca, setBusca] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('TODOS');
   const [filtroStatus, setFiltroStatus] = useState('TODOS');
@@ -451,7 +451,7 @@ export default function AdminProdutos() {
 
       {/* Modal de Produtos Cadastrados */}
       <Dialog open={modalProdutos} onOpenChange={setModalProdutos}>
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Grid3X3 className="w-5 h-5" />
@@ -514,8 +514,8 @@ export default function AdminProdutos() {
             </div>
           </div>
 
-          {/* Lista/Grid de Produtos */}
-          <ScrollArea className="flex-1">
+          {/* Lista/Grid de Produtos com scroll */}
+          <div className="flex-1 overflow-y-auto pr-2">
             {loading ? (
               <div className="flex items-center justify-center h-32">
                 <RefreshCw className="w-6 h-6 animate-spin text-primary" />
@@ -682,7 +682,7 @@ export default function AdminProdutos() {
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
