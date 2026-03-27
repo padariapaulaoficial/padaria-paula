@@ -36,6 +36,7 @@ export async function GET() {
       { name: 'dataEntrada', sql: `ALTER TABLE "Pedido" ADD COLUMN IF NOT EXISTS "dataEntrada" TIMESTAMP(3)` },
       { name: 'alertaProducaoEnviado', sql: `ALTER TABLE "Pedido" ADD COLUMN IF NOT EXISTS "alertaProducaoEnviado" BOOLEAN DEFAULT false` },
       { name: 'valorTeleEntrega', sql: `ALTER TABLE "Pedido" ADD COLUMN IF NOT EXISTS "valorTeleEntrega" DOUBLE PRECISION` },
+      { name: 'orcamentoId', sql: `ALTER TABLE "Pedido" ADD COLUMN IF NOT EXISTS "orcamentoId" TEXT` },
     ];
 
     for (const col of pedidoColumns) {
@@ -45,6 +46,14 @@ export async function GET() {
       } catch (err: any) {
         results.push(`Coluna Pedido.${col.name}: ${err.message}`);
       }
+    }
+
+    // Criar índice para orcamentoId se não existir
+    try {
+      await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Pedido_orcamentoId_idx" ON "Pedido"("orcamentoId")`);
+      results.push('Índice Pedido_orcamentoId_idx verificado/criado');
+    } catch (err: any) {
+      results.push(`Índice Pedido_orcamentoId_idx: ${err.message}`);
     }
 
     // Verificar colunas faltantes na tabela Produto
