@@ -189,6 +189,11 @@ export default function HistoricoPedidos() {
   const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
   const [dialogEntradaOpen, setDialogEntradaOpen] = useState(false);
   const [dialogDataOpen, setDialogDataOpen] = useState(false);
+  
+  // Diálogo de confirmação de finalização
+  const [dialogFinalizarOpen, setDialogFinalizarOpen] = useState(false);
+  const [pedidoParaFinalizar, setPedidoParaFinalizar] = useState<Pedido | null>(null);
+  const [finalizando, setFinalizando] = useState(false);
 
   // Carregar configurações
   useEffect(() => {
@@ -552,6 +557,19 @@ export default function HistoricoPedidos() {
 
   // Atualizar status
   const handleAtualizarStatus = async (pedido: Pedido, novoStatus: string) => {
+    // Se for ENTREGUE, mostrar confirmação primeiro
+    if (novoStatus === 'ENTREGUE') {
+      setPedidoParaFinalizar(pedido);
+      setDialogFinalizarOpen(true);
+      return;
+    }
+    
+    // Para outros status, atualizar diretamente
+    await atualizarStatusDireto(pedido, novoStatus);
+  };
+  
+  // Função para atualizar status diretamente (sem confirmação)
+  const atualizarStatusDireto = async (pedido: Pedido, novoStatus: string) => {
     try {
       const response = await fetch('/api/pedidos', {
         method: 'PUT',
@@ -578,6 +596,45 @@ export default function HistoricoPedidos() {
         description: 'Não foi possível atualizar o status.',
         variant: 'destructive',
       });
+    }
+  };
+  
+  // Confirmar finalização do pedido
+  const handleConfirmarFinalizacao = async () => {
+    if (!pedidoParaFinalizar) return;
+    
+    setFinalizando(true);
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoParaFinalizar.id,
+          status: 'ENTREGUE',
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      setDialogFinalizarOpen(false);
+      setPedidoParaFinalizar(null);
+      
+      toast({
+        title: 'Pedido finalizado!',
+        description: `Pedido #${formatarNumeroPedido(pedidoParaFinalizar.numero)} marcado como ENTREGUE.`,
+      });
+    } catch (error) {
+      console.error('Erro ao finalizar pedido:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível finalizar o pedido.',
+        variant: 'destructive',
+      });
+    } finally {
+      setFinalizando(false);
     }
   };
 
@@ -1081,11 +1138,13 @@ export default function HistoricoPedidos() {
                   <button
                     key={status}
                     onClick={() => handleAtualizarStatus(pedidoSelecionado, status)}
-                    disabled={pedidoSelecionado.status === status}
+                    disabled={pedidoSelecionado.status === status || pedidoSelecionado.status === 'ENTREGUE'}
                     className={`flex flex-col items-center justify-center gap-0.5 p-1.5 rounded-lg text-[10px] font-medium transition-all ${
                       pedidoSelecionado.status === status 
                         ? `${bg} text-white shadow-md` 
-                        : 'bg-muted text-muted-foreground border border-border hover:bg-muted/80'
+                        : pedidoSelecionado.status === 'ENTREGUE'
+                          ? 'bg-muted/50 text-muted-foreground/50 border border-border cursor-not-allowed'
+                          : 'bg-muted text-muted-foreground border border-border hover:bg-muted/80'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -1093,6 +1152,16 @@ export default function HistoricoPedidos() {
                   </button>
                 ))}
               </div>
+              
+              {/* Aviso de pedido finalizado */}
+              {pedidoSelecionado.status === 'ENTREGUE' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <p className="text-xs text-green-700 font-medium">
+                    Pedido finalizado - não pode ser editado
+                  </p>
+                </div>
+              )}
 
               {/* DADOS DO CLIENTE + DATA */}
               <div className="bg-muted/30 rounded-lg p-2 space-y-1">
@@ -1105,9 +1174,11 @@ export default function HistoricoPedidos() {
                       </Badge>
                     )}
                   </div>
-                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setDialogDataOpen(true)} title="Editar data/hora">
-                    <Edit2 className="w-3 h-3 text-muted-foreground" />
-                  </Button>
+                  {pedidoSelecionado.status !== 'ENTREGUE' && (
+                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setDialogDataOpen(true)} title="Editar data/hora">
+                      <Edit2 className="w-3 h-3 text-muted-foreground" />
+                    </Button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                   <span>{pedidoSelecionado.cliente.telefone}</span>
@@ -1131,14 +1202,16 @@ export default function HistoricoPedidos() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-semibold text-[10px]">Itens ({pedidoSelecionado.itens.length})</span>
-                  <div className="flex gap-0.5">
-                    <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setDialogEdicaoOpen(true)}>
-                      <Edit2 className="w-2.5 h-2.5 mr-0.5" />Editar
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setDialogAdicaoOpen(true)}>
-                      <Plus className="w-2.5 h-2.5 mr-0.5" />Adicionar
-                    </Button>
-                  </div>
+                  {pedidoSelecionado.status !== 'ENTREGUE' && (
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setDialogEdicaoOpen(true)}>
+                        <Edit2 className="w-2.5 h-2.5 mr-0.5" />Editar
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setDialogAdicaoOpen(true)}>
+                        <Plus className="w-2.5 h-2.5 mr-0.5" />Adicionar
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className="bg-muted/30 rounded-lg p-1.5 space-y-0.5 max-h-24 overflow-y-auto">
                   {pedidoSelecionado.itens.map((item) => (
@@ -1607,6 +1680,46 @@ export default function HistoricoPedidos() {
                 <>
                   <Check className="w-4 h-4 mr-2" />
                   Salvar
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Confirmação de Finalização */}
+      <AlertDialog open={dialogFinalizarOpen} onOpenChange={setDialogFinalizarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="w-5 h-5" />
+              Confirmar Finalização
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left">
+              Você está prestes a marcar o pedido <strong>#{pedidoParaFinalizar && formatarNumeroPedido(pedidoParaFinalizar.numero)}</strong> como <strong>ENTREGUE</strong>.
+              <br /><br />
+              <span className="text-amber-600 font-medium">⚠️ Atenção:</span> Após a finalização, o pedido não poderá mais ser editado.
+              <br /><br />
+              Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={finalizando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarFinalizacao}
+              disabled={finalizando}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {finalizando ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Finalizando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Sim, Finalizar Pedido
                 </>
               )}
             </AlertDialogAction>

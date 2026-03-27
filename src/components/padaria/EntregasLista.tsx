@@ -4,12 +4,22 @@
 // Lista de pedidos TELE ENTREGA pendentes
 
 import { useState, useEffect } from 'react';
-import { Truck, RefreshCw, Eye, Check, MapPin, Phone, Clock, Calendar, Navigation } from 'lucide-react';
+import { Truck, RefreshCw, Eye, Check, MapPin, Phone, Clock, Calendar, Navigation, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { formatarNumeroPedido } from '@/lib/escpos';
@@ -57,6 +67,11 @@ export default function EntregasLista() {
   const [loading, setLoading] = useState(true);
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Diálogo de confirmação de finalização
+  const [dialogFinalizarOpen, setDialogFinalizarOpen] = useState(false);
+  const [pedidoParaFinalizar, setPedidoParaFinalizar] = useState<Pedido | null>(null);
+  const [finalizando, setFinalizando] = useState(false);
 
   // Carregar pedidos TELE_ENTREGA pendentes
   const carregarPedidos = async () => {
@@ -124,14 +139,24 @@ export default function EntregasLista() {
     setDialogOpen(true);
   };
 
-  // Marcar como entregue
+  // Marcar como entregue (com confirmação)
   const handleMarcarEntregue = async (pedido: Pedido) => {
+    setPedidoParaFinalizar(pedido);
+    setDialogFinalizarOpen(true);
+  };
+  
+  // Confirmar finalização do pedido
+  const handleConfirmarFinalizacao = async () => {
+    if (!pedidoParaFinalizar) return;
+    
+    setFinalizando(true);
+    
     try {
       const response = await fetch('/api/pedidos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: pedido.id,
+          id: pedidoParaFinalizar.id,
           status: 'ENTREGUE',
         }),
       });
@@ -139,14 +164,16 @@ export default function EntregasLista() {
       const pedidoAtualizado = await response.json();
 
       // Remover da lista de entregas
-      setPedidos(prev => prev.filter(p => p.id !== pedido.id));
+      setPedidos(prev => prev.filter(p => p.id !== pedidoParaFinalizar.id));
+      
+      setDialogFinalizarOpen(false);
+      setDialogOpen(false);
+      setPedidoParaFinalizar(null);
 
       toast({
-        title: 'Pedido entregue!',
-        description: `Pedido #${formatarNumeroPedido(pedido.numero)} marcado como entregue.`,
+        title: 'Pedido finalizado!',
+        description: `Pedido #${formatarNumeroPedido(pedidoParaFinalizar.numero)} marcado como ENTREGUE.`,
       });
-
-      setDialogOpen(false);
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       toast({
@@ -154,6 +181,8 @@ export default function EntregasLista() {
         description: 'Não foi possível atualizar o status.',
         variant: 'destructive',
       });
+    } finally {
+      setFinalizando(false);
     }
   };
 
@@ -407,6 +436,46 @@ export default function EntregasLista() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Confirmação de Finalização */}
+      <AlertDialog open={dialogFinalizarOpen} onOpenChange={setDialogFinalizarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="w-5 h-5" />
+              Confirmar Finalização
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left">
+              Você está prestes a marcar o pedido <strong>#{pedidoParaFinalizar && formatarNumeroPedido(pedidoParaFinalizar.numero)}</strong> como <strong>ENTREGUE</strong>.
+              <br /><br />
+              <span className="text-amber-600 font-medium">⚠️ Atenção:</span> Após a finalização, o pedido não poderá mais ser editado.
+              <br /><br />
+              Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={finalizando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarFinalizacao}
+              disabled={finalizando}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {finalizando ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Finalizando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Sim, Finalizar Pedido
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
