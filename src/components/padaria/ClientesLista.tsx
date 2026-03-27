@@ -3,8 +3,8 @@
 // ClientesLista - Padaria Paula
 // Lista de clientes cadastrados com opção de criar orçamento
 
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, AlertTriangle, MapPin, MessageCircle, FileText, ChevronRight, Package, Eye, Clock, Calendar, Truck, Store } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Plus, Edit, Trash2, AlertTriangle, MapPin, MessageCircle, FileText, ChevronRight, Package, Eye, Clock, Calendar, Truck, Store, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,6 +114,11 @@ export default function ClientesLista() {
   const [formTipoPessoa, setFormTipoPessoa] = useState<'CPF' | 'CNPJ'>('CPF');
   const [formEndereco, setFormEndereco] = useState('');
   const [formBairro, setFormBairro] = useState('');
+
+  // PIN para exclusão de cliente - senha admin necessária
+  const [pinParaExcluir, setPinParaExcluir] = useState(['', '', '', '']);
+  const [verificandoPin, setVerificandoPin] = useState(false);
+  const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Carregar clientes
   useEffect(() => {
@@ -424,14 +429,82 @@ export default function ClientesLista() {
   // Abrir diálogo de exclusão
   const handleConfirmarExclusao = (cliente: Cliente) => {
     setClienteParaExcluir(cliente);
+    setPinParaExcluir(['', '', '', '']);
     setDialogExcluirOpen(true);
+    // Focar no primeiro input após abrir o diálogo
+    setTimeout(() => pinInputRefs.current[0]?.focus(), 100);
   };
 
-  // Excluir cliente
+  // Handler para cada dígito do PIN
+  const handlePinInputChange = (index: number, value: string) => {
+    if (value && !/^\d$/.test(value)) return;
+
+    const novoPin = [...pinParaExcluir];
+    novoPin[index] = value;
+    setPinParaExcluir(novoPin);
+
+    if (value && index < 3) {
+      pinInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  // Handler para teclas (backspace)
+  const handlePinKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !pinParaExcluir[index] && index > 0) {
+      pinInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  // Handler para colar
+  const handlePinPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+
+    if (pastedData) {
+      const novoPin = pastedData.split('').concat(['', '', '', '']).slice(0, 4);
+      setPinParaExcluir(novoPin);
+    }
+  };
+
+  // Excluir cliente com verificação de PIN Admin
   const handleExcluirCliente = async () => {
     if (!clienteParaExcluir) return;
 
+    const senha = pinParaExcluir.join('');
+    if (senha.length !== 4) {
+      toast({
+        title: 'PIN incompleto',
+        description: 'Digite os 4 dígitos da senha Admin.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setVerificandoPin(true);
+
     try {
+      // Verificar PIN de ADMIN para exclusão
+      const authRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senha, tipo: 'admin' }),
+      });
+
+      const authData = await authRes.json();
+
+      if (!authData.autenticado) {
+        toast({
+          title: 'Senha incorreta',
+          description: 'A senha Admin digitada está incorreta.',
+          variant: 'destructive',
+        });
+        setVerificandoPin(false);
+        setPinParaExcluir(['', '', '', '']);
+        pinInputRefs.current[0]?.focus();
+        return;
+      }
+
+      // PIN correto, excluir cliente
       const response = await fetch(`/api/clientes?id=${clienteParaExcluir.id}`, {
         method: 'DELETE',
       });
@@ -445,6 +518,7 @@ export default function ClientesLista() {
           variant: 'destructive',
         });
         setDialogExcluirOpen(false);
+        setVerificandoPin(false);
         return;
       }
 
@@ -463,6 +537,8 @@ export default function ClientesLista() {
         description: 'Não foi possível excluir o cliente.',
         variant: 'destructive',
       });
+    } finally {
+      setVerificandoPin(false);
     }
   };
 
@@ -829,27 +905,53 @@ export default function ClientesLista() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de confirmação de exclusão */}
+      {/* Dialog de confirmação de exclusão com PIN Admin */}
       <AlertDialog open={dialogExcluirOpen} onOpenChange={setDialogExcluirOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <Lock className="w-5 h-5 text-primary" />
               Confirmar Exclusão
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o cliente <strong>{clienteParaExcluir?.nome}</strong>?
-              <br />
-              Esta ação não pode ser desfeita.
+              Para excluir o cliente <strong>{clienteParaExcluir?.nome}</strong>, digite a senha Admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          
+          {/* PIN Input */}
+          <div className="flex justify-center gap-2 py-4">
+            {[0, 1, 2, 3].map((index) => (
+              <Input
+                key={index}
+                ref={(el) => { pinInputRefs.current[index] = el; }}
+                type="password"
+                inputMode="numeric"
+                maxLength={1}
+                value={pinParaExcluir[index]}
+                onChange={(e) => handlePinInputChange(index, e.target.value)}
+                onKeyDown={(e) => handlePinKeyDown(index, e)}
+                onPaste={index === 0 ? handlePinPaste : undefined}
+                className="w-12 h-14 text-center text-xl font-bold"
+                disabled={verificandoPin}
+              />
+            ))}
+          </div>
+          
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={verificandoPin}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleExcluirCliente}
+              disabled={verificandoPin}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Excluir
+              {verificandoPin ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verificando...
+                </>
+              ) : (
+                'Excluir'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

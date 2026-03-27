@@ -65,6 +65,7 @@ model Pedido {
   id                  String       @id @default(cuid())
   numero              Int
   clienteId           String
+  orcamentoId         String?      // ID do orçamento que originou este pedido
   observacoes         String?
   total               Float
   totalPedida         Float        @default(0)
@@ -89,6 +90,7 @@ model Pedido {
   @@index([clienteId])
   @@index([createdAt])
   @@index([dataEntrega])
+  @@index([orcamentoId])
 }
 
 model ItemPedido {

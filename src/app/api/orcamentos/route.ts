@@ -259,11 +259,12 @@ export async function PUT(request: NextRequest) {
       });
       const novoNumero = (ultimoPedido?.numero || 0) + 1;
       
-      // Criar pedido a partir do orçamento
+      // Criar pedido a partir do orçamento (incluindo orcamentoId para rastreamento)
       const pedido = await db.pedido.create({
         data: {
           numero: novoNumero,
           clienteId: orcamentoAtual.clienteId,
+          orcamentoId: id, // Guarda referência ao orçamento de origem
           observacoes: orcamentoAtual.observacoes,
           total: orcamentoAtual.total,
           totalPedida: orcamentoAtual.total,

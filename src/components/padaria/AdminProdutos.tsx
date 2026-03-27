@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Package, Plus, Grid3X3, List, Search, Edit, Trash2, ToggleLeft, ToggleRight,
+  Package, Plus, List, Search, Edit, Trash2, ToggleLeft, ToggleRight,
   Cake, X, Check, RefreshCw, DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,6 @@ export default function AdminProdutos() {
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
 
   // Estados de visualização
-  const [visaoGrid, setVisaoGrid] = useState(false); // Lista como padrão
   const [busca, setBusca] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('TODOS');
   const [filtroStatus, setFiltroStatus] = useState('TODOS');
@@ -410,7 +409,7 @@ export default function AdminProdutos() {
                 variant="outline"
                 className="gap-2"
               >
-                <Grid3X3 className="w-4 h-4" />
+                <List className="w-4 h-4" />
                 Ver Produtos
               </Button>
               <Button
@@ -454,7 +453,7 @@ export default function AdminProdutos() {
         <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
-              <Grid3X3 className="w-5 h-5" />
+              <List className="w-5 h-5" />
               Produtos Cadastrados
             </DialogTitle>
             <DialogDescription>
@@ -494,27 +493,9 @@ export default function AdminProdutos() {
                 <SelectItem value="INATIVO">Inativos</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex gap-1">
-              <Button
-                variant={visaoGrid ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => setVisaoGrid(true)}
-                className={visaoGrid ? 'btn-padaria' : ''}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={!visaoGrid ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => setVisaoGrid(false)}
-                className={!visaoGrid ? 'btn-padaria' : ''}
-              >
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
           </div>
 
-          {/* Lista/Grid de Produtos com scroll */}
+          {/* Lista de Produtos com scroll */}
           <div className="flex-1 overflow-y-auto pr-2">
             {loading ? (
               <div className="flex items-center justify-center h-32">
@@ -524,89 +505,6 @@ export default function AdminProdutos() {
               <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                 <Package className="w-12 h-12 mb-2 opacity-50" />
                 <p>Nenhum produto encontrado</p>
-              </div>
-            ) : visaoGrid ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
-                {produtosFiltrados.map((produto) => (
-                  <div
-                    key={produto.id}
-                    className={`relative group rounded-lg border-2 p-3 transition-all hover:shadow-md cursor-pointer ${
-                      produto.tipoProduto === 'ESPECIAL'
-                        ? 'bg-primary/5 border-primary/30 hover:border-primary'
-                        : 'bg-card border-border hover:border-primary/50'
-                    } ${!produto.ativo ? 'opacity-50' : ''}`}
-                  >
-                    {/* Badge de tipo */}
-                    {produto.tipoProduto === 'ESPECIAL' && (
-                      <div className="absolute -top-2 -right-2">
-                        <Badge className="text-[10px] bg-primary text-primary-foreground">
-                          <Cake className="w-3 h-3 mr-1" />
-                          Torta
-                        </Badge>
-                      </div>
-                    )}
-
-                    {/* Status */}
-                    {!produto.ativo && (
-                      <Badge variant="outline" className="absolute top-1 left-1 text-[10px]">
-                        Inativo
-                      </Badge>
-                    )}
-
-                    {/* Conteúdo */}
-                    <div className="mt-2" onClick={() => handleEditar(produto)}>
-                      <p className="font-semibold text-sm truncate">{produto.nome}</p>
-                      <p className="text-xs text-muted-foreground mb-2">{produto.categoria}</p>
-                      
-                      {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-                        <div className="space-y-0.5">
-                          {Object.entries(produto.precosTamanhos)
-                            .filter(([, preco]) => preco !== undefined && preco !== null && !isNaN(preco))
-                            .slice(0, 3)
-                            .map(([tam, preco]) => (
-                              <div key={tam} className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">{tam}:</span>
-                                <span className="font-medium text-primary">{formatarMoeda(preco)}</span>
-                              </div>
-                            ))}
-                        </div>
-                      ) : (
-                        <div className="flex justify-between items-center">
-                          <Badge variant="secondary" className="text-[10px]">
-                            {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
-                          </Badge>
-                          <span className="font-bold text-primary text-sm">{formatarMoeda(produto.valorUnit)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ações */}
-                    <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleToggleAtivo(produto); }}
-                        className="h-7 w-7 p-0"
-                        title={produto.ativo ? 'Desativar' : 'Ativar'}
-                      >
-                        {produto.ativo ? (
-                          <ToggleRight className="w-4 h-4 text-primary" />
-                        ) : (
-                          <ToggleLeft className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleConfirmarExclusao(produto); }}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
               </div>
             ) : (
               <div className="space-y-1 p-1">
