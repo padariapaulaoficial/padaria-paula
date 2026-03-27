@@ -1,17 +1,17 @@
 'use client';
 
 // AdminProdutos - Padaria Paula
-// Gestão completa de produtos com CRUD
+// Gestão completa de produtos com CRUD - Interface otimizada com grid e modais
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Package, Plus, Edit, Trash2, Save, RefreshCw, ToggleLeft, ToggleRight,
-  Cake, Search, Filter, AlertTriangle
+  Cake, Search, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -85,6 +85,7 @@ export default function AdminProdutos() {
 
   // Estado para novo produto
   const [modoCadastro, setModoCadastro] = useState<'COMUM' | 'ESPECIAL' | null>(null);
+  const [dialogNovoOpen, setDialogNovoOpen] = useState(false);
 
   // Estado para produto comum
   const [produtoComum, setProdutoComum] = useState({
@@ -127,16 +128,35 @@ export default function AdminProdutos() {
   }, []);
 
   // Filtrar produtos
-  const produtosFiltrados = produtos.filter(produto => {
-    const matchBusca = !busca || 
-      produto.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (produto.descricao && produto.descricao.toLowerCase().includes(busca.toLowerCase()));
-    const matchCategoria = filtroCategoria === 'todas' || produto.categoria === filtroCategoria;
-    const matchStatus = filtroStatus === 'todos' || 
-      (filtroStatus === 'ativo' && produto.ativo) ||
-      (filtroStatus === 'inativo' && !produto.ativo);
-    return matchBusca && matchCategoria && matchStatus;
-  });
+  const produtosFiltrados = useMemo(() => {
+    return produtos.filter(produto => {
+      const matchBusca = !busca || 
+        produto.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        (produto.descricao && produto.descricao.toLowerCase().includes(busca.toLowerCase()));
+      const matchCategoria = filtroCategoria === 'todas' || produto.categoria === filtroCategoria;
+      const matchStatus = filtroStatus === 'todos' || 
+        (filtroStatus === 'ativo' && produto.ativo) ||
+        (filtroStatus === 'inativo' && !produto.ativo);
+      return matchBusca && matchCategoria && matchStatus;
+    });
+  }, [produtos, busca, filtroCategoria, filtroStatus]);
+
+  // Agrupar produtos por categoria para melhor visualização
+  const produtosPorCategoria = useMemo(() => {
+    const grupos: Record<string, Produto[]> = {};
+    produtosFiltrados.forEach(produto => {
+      const cat = produto.categoria || 'Outros';
+      if (!grupos[cat]) grupos[cat] = [];
+      grupos[cat].push(produto);
+    });
+    return grupos;
+  }, [produtosFiltrados]);
+
+  // Abrir diálogo de novo produto
+  const handleAbrirNovoProduto = (tipo: 'COMUM' | 'ESPECIAL') => {
+    setModoCadastro(tipo);
+    setDialogNovoOpen(true);
+  };
 
   // Criar produto comum
   const handleCriarProdutoComum = async () => {
@@ -177,6 +197,7 @@ export default function AdminProdutos() {
 
       setProdutos([produto, ...produtos]);
       setProdutoComum({ nome: '', descricao: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '' });
+      setDialogNovoOpen(false);
       setModoCadastro(null);
 
       toast({
@@ -251,6 +272,7 @@ export default function AdminProdutos() {
 
       setProdutos([produto, ...produtos]);
       setProdutoEspecial({ nome: '', descricao: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
+      setDialogNovoOpen(false);
       setModoCadastro(null);
 
       toast({
@@ -380,89 +402,408 @@ export default function AdminProdutos() {
     setDialogExcluirOpen(true);
   };
 
+  // Card de produto compacto para grid
+  const ProdutoCard = ({ produto }: { produto: Produto }) => (
+    <div
+      className={`relative p-3 rounded-lg border transition-all hover:shadow-md ${
+        produto.tipoProduto === 'ESPECIAL'
+          ? 'bg-primary/5 border-primary/30 hover:border-primary/50'
+          : 'bg-card border-border/50 hover:border-border'
+      } ${!produto.ativo ? 'opacity-50' : ''}`}
+    >
+      {/* Badge de tipo no topo */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {produto.tipoProduto === 'ESPECIAL' ? (
+            <Badge className="text-[10px] h-5 bg-primary text-primary-foreground">
+              <Cake className="w-3 h-3 mr-0.5" />
+              Especial
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-[10px] h-5">
+              {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
+            </Badge>
+          )}
+          {!produto.ativo && (
+            <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground">
+              Inativo
+            </Badge>
+          )}
+        </div>
+        {/* Botões de ação */}
+        <div className="flex gap-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => handleToggleAtivo(produto)}
+            title={produto.ativo ? 'Desativar' : 'Ativar'}
+          >
+            {produto.ativo ? (
+              <ToggleRight className="w-4 h-4 text-green-600" />
+            ) : (
+              <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => handleEditar(produto)}
+            title="Editar"
+          >
+            <Edit className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+            onClick={() => handleConfirmarExclusao(produto)}
+            title="Excluir"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Nome do produto */}
+      <h3 className="font-semibold text-sm truncate mb-1" title={produto.nome}>
+        {produto.nome}
+      </h3>
+
+      {/* Preço(s) */}
+      <div className="text-xs font-semibold text-primary mb-1">
+        {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+          <div className="flex flex-wrap gap-1">
+            {Object.entries(produto.precosTamanhos)
+              .filter(([tam, preco]) => {
+                return TAMANHOS_FIXOS.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+              })
+              .sort((a, b) => TAMANHOS_FIXOS.indexOf(a[0]) - TAMANHOS_FIXOS.indexOf(b[0]))
+              .slice(0, 3)
+              .map(([tam, preco]) => (
+                <span key={tam} className="bg-primary/10 px-1.5 py-0.5 rounded text-[10px]">
+                  {tam}: {formatarMoeda(preco)}
+                </span>
+              ))}
+            {Object.keys(produto.precosTamanhos).length > 3 && (
+              <span className="text-muted-foreground text-[10px]">+{Object.keys(produto.precosTamanhos).length - 3}</span>
+            )}
+          </div>
+        ) : (
+          formatarMoeda(produto.valorUnit)
+        )}
+      </div>
+
+      {/* Categoria */}
+      <div className="text-[10px] text-muted-foreground">
+        {produto.categoria || 'Outros'}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Header com botões de ação */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-primary">Produtos</h2>
-          <p className="text-muted-foreground">Gerencie os produtos da padaria</p>
+          <h2 className="text-xl font-bold text-primary">Produtos</h2>
+          <p className="text-sm text-muted-foreground">{produtos.length} produtos cadastrados</p>
         </div>
-        <Button onClick={() => setModoCadastro('COMUM')} className="btn-padaria">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Produto
+        <div className="flex gap-2">
+          <Button onClick={() => handleAbrirNovoProduto('COMUM')} className="btn-padaria h-9">
+            <Package className="w-4 h-4 mr-1.5" />
+            Produto Comum
+          </Button>
+          <Button onClick={() => handleAbrirNovoProduto('ESPECIAL')} variant="outline" className="h-9 border-primary text-primary hover:bg-primary/10">
+            <Cake className="w-4 h-4 mr-1.5" />
+            Produto Especial
+          </Button>
+        </div>
+      </div>
+
+      {/* Filtros compactos */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar produtos..."
+            className="pl-9 h-9"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
+        <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+          <SelectTrigger className="w-full sm:w-36 h-9">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            {CATEGORIAS.map(cat => (
+              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <SelectTrigger className="w-full sm:w-28 h-9">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="ativo">Ativos</SelectItem>
+            <SelectItem value="inativo">Inativos</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="icon" className="h-9 w-9" onClick={carregarProdutos}>
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
-      {/* Filtros */}
-      <Card className="card-padaria">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou descrição..."
-                className="pl-10"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-              />
+      {/* Grid de produtos */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <ScrollArea className="h-[calc(100vh-240px)]">
+          {produtosFiltrados.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Package className="w-12 h-12 mb-3 opacity-30" />
+              <p>Nenhum produto encontrado</p>
             </div>
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas</SelectItem>
-                {CATEGORIAS.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="ativo">Ativos</SelectItem>
-                <SelectItem value="inativo">Inativos</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="icon" onClick={carregarProdutos}>
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          ) : (
+            <div className="space-y-4 pr-2">
+              {/* Renderizar por categoria */}
+              {Object.entries(produtosPorCategoria).map(([categoria, prods]) => (
+                <div key={categoria}>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                    {categoria}
+                    <Badge variant="outline" className="text-[10px]">{prods.length}</Badge>
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                    {prods.map((produto) => (
+                      <ProdutoCard key={produto.id} produto={produto} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      )}
 
-      {/* Formulário de cadastro */}
-      {modoCadastro && (
-        <Card className="card-padaria border-primary/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
+      {/* Dialog de Novo Produto */}
+      <Dialog open={dialogNovoOpen} onOpenChange={(open) => {
+        setDialogNovoOpen(open);
+        if (!open) {
+          setModoCadastro(null);
+          setProdutoComum({ nome: '', descricao: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '' });
+          setProdutoEspecial({ nome: '', descricao: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               {modoCadastro === 'ESPECIAL' ? <Cake className="w-5 h-5 text-primary" /> : <Package className="w-5 h-5" />}
-              {modoCadastro === 'ESPECIAL' ? 'Novo Produto Especial' : 'Novo Produto'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {modoCadastro === 'COMUM' ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome *</Label>
+              {modoCadastro === 'ESPECIAL' ? 'Novo Produto Especial' : 'Novo Produto Comum'}
+            </DialogTitle>
+            <DialogDescription>
+              {modoCadastro === 'ESPECIAL' 
+                ? 'Produtos especiais têm preços por tamanho (P, M, G, GG)'
+                : 'Produtos comuns são vendidos por kg ou unidade'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {modoCadastro === 'COMUM' ? (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-xs">Nome *</Label>
+                  <Input
+                    placeholder="Nome do produto"
+                    value={produtoComum.nome}
+                    onChange={(e) => setProdutoComum({ ...produtoComum, nome: e.target.value })}
+                    className="h-9"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo de Venda</Label>
+                  <Select
+                    value={produtoComum.tipoVenda}
+                    onValueChange={(value) => setProdutoComum({ ...produtoComum, tipoVenda: value as 'KG' | 'UNIDADE' })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_VENDA.map(tipo => (
+                        <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Categoria</Label>
+                  <Select
+                    value={produtoComum.categoria}
+                    onValueChange={(value) => setProdutoComum({ ...produtoComum, categoria: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIAS.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Valor *</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                     <Input
-                      placeholder="Nome do produto"
-                      value={produtoComum.nome}
-                      onChange={(e) => setProdutoComum({ ...produtoComum, nome: e.target.value })}
+                      type="number"
+                      step="0.01"
+                      placeholder="0,00"
+                      className="pl-10 h-9"
+                      value={produtoComum.valorUnit}
+                      onChange={(e) => setProdutoComum({ ...produtoComum, valorUnit: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Tipo de Venda *</Label>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    placeholder="Descrição opcional"
+                    value={produtoComum.descricao}
+                    onChange={(e) => setProdutoComum({ ...produtoComum, descricao: e.target.value })}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-xs">Nome *</Label>
+                  <Input
+                    placeholder="Nome do produto"
+                    value={produtoEspecial.nome}
+                    onChange={(e) => setProdutoEspecial({ ...produtoEspecial, nome: e.target.value })}
+                    className="h-9"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Categoria</Label>
+                  <Select
+                    value={produtoEspecial.categoria}
+                    onValueChange={(value) => setProdutoEspecial({ ...produtoEspecial, categoria: value })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIAS.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-xs font-semibold">Preços por Tamanho</Label>
+                <div className="grid grid-cols-4 gap-2 mt-1.5">
+                  {TAMANHOS_FIXOS.map(tam => (
+                    <div key={tam}>
+                      <Label className="text-[10px] text-muted-foreground">{tam}</Label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">R$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0"
+                          className="pl-6 h-8 text-sm"
+                          value={produtoEspecial.precos[tam]}
+                          onChange={(e) => setProdutoEspecial({
+                            ...produtoEspecial,
+                            precos: { ...produtoEspecial.precos, [tam]: e.target.value }
+                          })}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs">Descrição</Label>
+                <Input
+                  placeholder="Descrição opcional"
+                  value={produtoEspecial.descricao}
+                  onChange={(e) => setProdutoEspecial({ ...produtoEspecial, descricao: e.target.value })}
+                  className="h-9"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogNovoOpen(false)} className="h-9">
+              Cancelar
+            </Button>
+            <Button 
+              onClick={modoCadastro === 'COMUM' ? handleCriarProdutoComum : handleCriarProdutoEspecial} 
+              className="btn-padaria h-9"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Cadastrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de edição */}
+      <Dialog open={dialogProdutoOpen} onOpenChange={setDialogProdutoOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Editar Produto
+            </DialogTitle>
+            <DialogDescription>
+              Altere os dados do produto abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          {produtoEditando && (
+            <div className="space-y-3 py-2">
+              <div>
+                <Label className="text-xs">Nome</Label>
+                <Input
+                  value={produtoEditando.nome}
+                  onChange={(e) => setProdutoEditando({ ...produtoEditando, nome: e.target.value })}
+                  className="h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Descrição</Label>
+                <Input
+                  value={produtoEditando.descricao || ''}
+                  onChange={(e) => setProdutoEditando({ ...produtoEditando, descricao: e.target.value })}
+                  className="h-9"
+                />
+              </div>
+              {produtoEditando.tipoProduto === 'NORMAL' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Tipo de Venda</Label>
                     <Select
-                      value={produtoComum.tipoVenda}
-                      onValueChange={(value) => setProdutoComum({ ...produtoComum, tipoVenda: value as 'KG' | 'UNIDADE' })}
+                      value={produtoEditando.tipoVenda}
+                      onValueChange={(value) => setProdutoEditando({ ...produtoEditando, tipoVenda: value as 'KG' | 'UNIDADE' })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -472,293 +813,28 @@ export default function AdminProdutos() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select
-                      value={produtoComum.categoria}
-                      onValueChange={(value) => setProdutoComum({ ...produtoComum, categoria: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Valor *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={produtoComum.valorUnit}
-                      onChange={(e) => setProdutoComum({ ...produtoComum, valorUnit: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Descrição</Label>
-                  <Input
-                    placeholder="Descrição opcional"
-                    value={produtoComum.descricao}
-                    onChange={(e) => setProdutoComum({ ...produtoComum, descricao: e.target.value })}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome *</Label>
-                    <Input
-                      placeholder="Nome do produto"
-                      value={produtoEspecial.nome}
-                      onChange={(e) => setProdutoEspecial({ ...produtoEspecial, nome: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select
-                      value={produtoEspecial.categoria}
-                      onValueChange={(value) => setProdutoEspecial({ ...produtoEspecial, categoria: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Preços por Tamanho</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {TAMANHOS_FIXOS.map(tam => (
-                      <div key={tam} className="space-y-1">
-                        <Label className="text-muted-foreground">Tamanho {tam}</Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            className="pl-10"
-                            value={produtoEspecial.precos[tam]}
-                            onChange={(e) => setProdutoEspecial({
-                              ...produtoEspecial,
-                              precos: { ...produtoEspecial.precos, [tam]: e.target.value }
-                            })}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Descrição</Label>
-                  <Input
-                    placeholder="Descrição opcional"
-                    value={produtoEspecial.descricao}
-                    onChange={(e) => setProdutoEspecial({ ...produtoEspecial, descricao: e.target.value })}
-                  />
-                </div>
-              </>
-            )}
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setModoCadastro(null)}>
-                Cancelar
-              </Button>
-              {modoCadastro === 'COMUM' ? (
-                <Button onClick={handleCriarProdutoComum} className="btn-padaria">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Cadastrar
-                </Button>
-              ) : (
-                <Button onClick={handleCriarProdutoEspecial} className="btn-padaria">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Cadastrar
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Lista de produtos */}
-      <Card className="card-padaria">
-        <CardHeader>
-          <CardTitle className="text-lg">
-            Produtos ({produtosFiltrados.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="w-6 h-6 animate-spin" />
-            </div>
-          ) : (
-            <ScrollArea className="h-[calc(100vh-400px)]">
-              <div className="space-y-2">
-                {produtosFiltrados.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Nenhum produto encontrado</p>
-                ) : (
-                  produtosFiltrados.map((produto) => (
-                    <div
-                      key={produto.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        produto.tipoProduto === 'ESPECIAL'
-                          ? 'bg-primary/5 border-primary/30'
-                          : 'bg-card border-border/50'
-                      } ${!produto.ativo ? 'opacity-60' : ''}`}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{produto.nome}</span>
-                          {produto.tipoProduto === 'ESPECIAL' ? (
-                            <Badge className="text-xs bg-primary text-primary-foreground">
-                              <Cake className="w-3 h-3 mr-1" />
-                              Especial
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
-                            </Badge>
-                          )}
-                          {!produto.ativo && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
-                              Inativo
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-                            <span className="font-semibold text-primary">
-                              {Object.entries(produto.precosTamanhos)
-                                .filter(([tam, preco]) => {
-                                  const tamanhosValidos = ['P', 'M', 'G', 'GG'];
-                                  return tamanhosValidos.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
-                                })
-                                .sort((a, b) => TAMANHOS_FIXOS.indexOf(a[0]) - TAMANHOS_FIXOS.indexOf(b[0]))
-                                .map(([tam, preco]) => `${tam}: ${formatarMoeda(preco)}`)
-                                .join(' | ')}
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-primary">
-                              {formatarMoeda(produto.valorUnit)}
-                            </span>
-                          )}
-                          <span>{produto.categoria}</span>
-                        </div>
-                        {produto.descricao && (
-                          <p className="text-xs text-muted-foreground mt-1">{produto.descricao}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleAtivo(produto)}
-                          className={produto.ativo ? 'text-primary' : 'text-muted-foreground'}
-                          title={produto.ativo ? 'Desativar' : 'Ativar'}
-                        >
-                          {produto.ativo ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditar(produto)}
-                          title="Editar"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleConfirmarExclusao(produto)}
-                          className="text-muted-foreground hover:text-destructive"
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialog de edição */}
-      <Dialog open={dialogProdutoOpen} onOpenChange={setDialogProdutoOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Produto</DialogTitle>
-            <DialogDescription>
-              Altere os dados do produto abaixo.
-            </DialogDescription>
-          </DialogHeader>
-          {produtoEditando && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input
-                  value={produtoEditando.nome}
-                  onChange={(e) => setProdutoEditando({ ...produtoEditando, nome: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input
-                  value={produtoEditando.descricao || ''}
-                  onChange={(e) => setProdutoEditando({ ...produtoEditando, descricao: e.target.value })}
-                />
-              </div>
-              {produtoEditando.tipoProduto === 'NORMAL' && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tipo de Venda</Label>
-                      <Select
-                        value={produtoEditando.tipoVenda}
-                        onValueChange={(value) => setProdutoEditando({ ...produtoEditando, tipoVenda: value as 'KG' | 'UNIDADE' })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPOS_VENDA.map(tipo => (
-                            <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Valor</Label>
+                  <div>
+                    <Label className="text-xs">Valor</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                       <Input
                         type="number"
                         step="0.01"
+                        className="pl-10 h-9"
                         value={produtoEditando.valorUnit}
                         onChange={(e) => setProdutoEditando({ ...produtoEditando, valorUnit: parseFloat(e.target.value) })}
                       />
                     </div>
                   </div>
-                </>
+                </div>
               )}
-              <div className="space-y-2">
-                <Label>Categoria</Label>
+              <div>
+                <Label className="text-xs">Categoria</Label>
                 <Select
                   value={produtoEditando.categoria || 'Outros'}
                   onValueChange={(value) => setProdutoEditando({ ...produtoEditando, categoria: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -769,18 +845,18 @@ export default function AdminProdutos() {
                 </Select>
               </div>
               {produtoEditando.tipoProduto === 'ESPECIAL' && produtoEditando.precosTamanhos && (
-                <div className="space-y-2">
-                  <Label className="font-semibold">Preços por Tamanho</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs font-semibold">Preços por Tamanho</Label>
+                  <div className="grid grid-cols-4 gap-2 mt-1.5">
                     {TAMANHOS_FIXOS.map(tam => (
-                      <div key={tam} className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Tamanho {tam}</Label>
+                      <div key={tam}>
+                        <Label className="text-[10px] text-muted-foreground">{tam}</Label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">R$</span>
                           <Input
                             type="number"
                             step="0.01"
-                            className="pl-10"
+                            className="pl-6 h-8 text-sm"
                             value={produtoEditando.precosTamanhos?.[tam] || ''}
                             onChange={(e) => setProdutoEditando({
                               ...produtoEditando,
@@ -799,11 +875,11 @@ export default function AdminProdutos() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogProdutoOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogProdutoOpen(false)} className="h-9">
               Cancelar
             </Button>
-            <Button onClick={() => produtoEditando && handleAtualizarProduto(produtoEditando)} className="btn-padaria">
-              <Save className="w-4 h-4 mr-2" />
+            <Button onClick={() => produtoEditando && handleAtualizarProduto(produtoEditando)} className="btn-padaria h-9">
+              <Save className="w-4 h-4 mr-1.5" />
               Salvar
             </Button>
           </DialogFooter>
@@ -815,7 +891,7 @@ export default function AdminProdutos() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <Trash2 className="w-5 h-5 text-destructive" />
               Confirmar Exclusão
             </AlertDialogTitle>
             <AlertDialogDescription>
