@@ -9,6 +9,8 @@ const MENSAGENS_PADRAO = {
   mensagemOrcamento: 'Olá {nome}! Segue seu orçamento.',
   mensagemProntoRetirada: 'Olá {nome}! Seu pedido #{pedido} está *PRONTO* e esperando por você! Pode vir buscar quando quiser. 🍰 Agradecemos pela preferência! 🙏',
   mensagemProntoEntrega: 'Olá {nome}! Seu pedido #{pedido} está *PRONTO* e já está a caminho! 🚚 Agradecemos pela preferência! 🙏',
+  mensagemAprovacao: 'Olá {nome}! Seu orçamento foi aprovado! Estamos preparando seu pedido.',
+  mensagemRevisao: 'Olá {nome}! Por favor, revise seu pedido e confirme se está tudo correto.',
 };
 
 // GET - Buscar configurações
@@ -29,6 +31,9 @@ export async function GET() {
             mensagemOrcamento: MENSAGENS_PADRAO.mensagemOrcamento,
             mensagemProntoRetirada: MENSAGENS_PADRAO.mensagemProntoRetirada,
             mensagemProntoEntrega: MENSAGENS_PADRAO.mensagemProntoEntrega,
+            mensagemAprovacao: MENSAGENS_PADRAO.mensagemAprovacao,
+            mensagemRevisao: MENSAGENS_PADRAO.mensagemRevisao,
+            diasAlertaProducao: 3,
           },
         });
       } catch (createError) {
@@ -45,6 +50,9 @@ export async function GET() {
           mensagemOrcamento: MENSAGENS_PADRAO.mensagemOrcamento,
           mensagemProntoRetirada: MENSAGENS_PADRAO.mensagemProntoRetirada,
           mensagemProntoEntrega: MENSAGENS_PADRAO.mensagemProntoEntrega,
+          mensagemAprovacao: MENSAGENS_PADRAO.mensagemAprovacao,
+          mensagemRevisao: MENSAGENS_PADRAO.mensagemRevisao,
+          diasAlertaProducao: 3,
         });
       }
     }
@@ -61,6 +69,9 @@ export async function GET() {
       mensagemOrcamento: (config as any).mensagemOrcamento || MENSAGENS_PADRAO.mensagemOrcamento,
       mensagemProntoRetirada: (config as any).mensagemProntoRetirada || MENSAGENS_PADRAO.mensagemProntoRetirada,
       mensagemProntoEntrega: (config as any).mensagemProntoEntrega || MENSAGENS_PADRAO.mensagemProntoEntrega,
+      mensagemAprovacao: (config as any).mensagemAprovacao || MENSAGENS_PADRAO.mensagemAprovacao,
+      mensagemRevisao: (config as any).mensagemRevisao || MENSAGENS_PADRAO.mensagemRevisao,
+      diasAlertaProducao: (config as any).diasAlertaProducao || 3,
     };
 
     return NextResponse.json(configCompleta);
@@ -79,7 +90,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { 
       id, nomeLoja, endereco, telefone, cnpj, logoUrl, 
-      mensagemWhatsApp, mensagemOrcamento, mensagemProntoRetirada, mensagemProntoEntrega 
+      mensagemWhatsApp, mensagemOrcamento, mensagemProntoRetirada, mensagemProntoEntrega,
+      mensagemAprovacao, mensagemRevisao, diasAlertaProducao
     } = body;
 
     if (!id || id === 'temp') {
@@ -93,6 +105,9 @@ export async function PUT(request: NextRequest) {
             cnpj: cnpj || '',
             senha: '2026',
             senhaAdmin: '2026',
+            mensagemAprovacao,
+            mensagemRevisao,
+            diasAlertaProducao: diasAlertaProducao || 3,
           },
         });
         return NextResponse.json(config);
@@ -115,6 +130,9 @@ export async function PUT(request: NextRequest) {
           mensagemOrcamento,
           mensagemProntoRetirada,
           mensagemProntoEntrega,
+          mensagemAprovacao,
+          mensagemRevisao,
+          diasAlertaProducao: diasAlertaProducao ? parseInt(diasAlertaProducao) : undefined,
         },
       });
       return NextResponse.json(config);
@@ -132,6 +150,9 @@ export async function PUT(request: NextRequest) {
         mensagemOrcamento,
         mensagemProntoRetirada,
         mensagemProntoEntrega,
+        mensagemAprovacao,
+        mensagemRevisao,
+        diasAlertaProducao,
       });
     }
   } catch (error) {

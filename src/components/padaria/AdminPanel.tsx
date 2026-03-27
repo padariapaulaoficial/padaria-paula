@@ -84,6 +84,9 @@ interface Configuracao {
   mensagemOrcamento?: string | null;
   mensagemProntoRetirada?: string | null;
   mensagemProntoEntrega?: string | null;
+  mensagemAprovacao?: string | null;
+  mensagemRevisao?: string | null;
+  diasAlertaProducao?: number | null;
 }
 
 const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
@@ -133,6 +136,9 @@ export default function AdminPanel() {
     mensagemOrcamento: '',
     mensagemProntoRetirada: '',
     mensagemProntoEntrega: '',
+    mensagemAprovacao: '',
+    mensagemRevisao: '',
+    diasAlertaProducao: 3,
   });
 
   // Estados de senha do app
@@ -178,6 +184,9 @@ export default function AdminPanel() {
         mensagemOrcamento: data.mensagemOrcamento || '',
         mensagemProntoRetirada: data.mensagemProntoRetirada || '',
         mensagemProntoEntrega: data.mensagemProntoEntrega || '',
+        mensagemAprovacao: data.mensagemAprovacao || '',
+        mensagemRevisao: data.mensagemRevisao || '',
+        diasAlertaProducao: data.diasAlertaProducao || 3,
       });
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -967,17 +976,38 @@ export default function AdminPanel() {
                 <div className="space-y-2">
                   <Label className="text-sm">Mensagem de Orçamento</Label>
                   <Textarea
-                    className="input-padaria min-h-[80px]"
+                    className="input-padaria min-h-[60px]"
                     value={configEditada.mensagemOrcamento || ''}
                     onChange={(e) => setConfigEditada({ ...configEditada, mensagemOrcamento: e.target.value })}
                     placeholder="Olá {nome}! Segue seu orçamento..."
+                  />
+                  <p className="text-[10px] text-muted-foreground">Use {"{nome}"} para inserir o nome do cliente</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem de Aprovação</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemAprovacao || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemAprovacao: e.target.value })}
+                    placeholder="Olá {nome}! Seu orçamento foi aprovado!"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem de Revisão</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemRevisao || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemRevisao: e.target.value })}
+                    placeholder="Olá {nome}! Por favor, revise seu pedido..."
                   />
                 </div>
                 
                 <div className="space-y-2">
                   <Label className="text-sm">Mensagem "Pronto" - Cliente Retira</Label>
                   <Textarea
-                    className="input-padaria min-h-[80px]"
+                    className="input-padaria min-h-[60px]"
                     value={configEditada.mensagemProntoRetirada || ''}
                     onChange={(e) => setConfigEditada({ ...configEditada, mensagemProntoRetirada: e.target.value })}
                     placeholder="Olá {nome}! Seu pedido está PRONTO!"
@@ -987,11 +1017,39 @@ export default function AdminPanel() {
                 <div className="space-y-2">
                   <Label className="text-sm">Mensagem "Pronto" - Tele Entrega</Label>
                   <Textarea
-                    className="input-padaria min-h-[80px]"
+                    className="input-padaria min-h-[60px]"
                     value={configEditada.mensagemProntoEntrega || ''}
                     onChange={(e) => setConfigEditada({ ...configEditada, mensagemProntoEntrega: e.target.value })}
                     placeholder="Olá {nome}! Seu pedido está a caminho!"
                   />
+                </div>
+              </div>
+              
+              {/* Alerta de Produção */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                  <Settings className="w-4 h-4" />
+                  Alerta de Produção
+                </h4>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Dias de antecedência para alerta</Label>
+                  <Select
+                    value={configEditada.diasAlertaProducao?.toString() || '3'}
+                    onValueChange={(value) => setConfigEditada({ ...configEditada, diasAlertaProducao: parseInt(value) })}
+                  >
+                    <SelectTrigger className="input-padaria">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 dias antes</SelectItem>
+                      <SelectItem value="5">5 dias antes</SelectItem>
+                      <SelectItem value="7">7 dias antes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Quantos dias antes da entrega você deseja receber alerta para preparar o pedido
+                  </p>
                 </div>
               </div>
               

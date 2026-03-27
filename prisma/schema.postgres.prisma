@@ -16,10 +16,15 @@ model Configuracao {
   logoUrl               String?
   senha                 String   @default("2026")
   senhaAdmin            String?
+  // Mensagens WhatsApp editáveis
   mensagemWhatsApp      String?  @default("Olá {nome}! Seu pedido está pronto para entrega.")
   mensagemOrcamento     String?  @default("Olá {nome}! Segue seu orçamento.")
   mensagemProntoRetirada String? @default("Olá {nome}! Seu pedido está PRONTO e esperando por você! Pode vir buscar quando quiser.")
   mensagemProntoEntrega  String? @default("Olá {nome}! Seu pedido está PRONTO e já está a caminho!")
+  mensagemAprovacao      String? @default("Olá {nome}! Seu orçamento foi aprovado! Estamos preparando seu pedido.")
+  mensagemRevisao        String? @default("Olá {nome}! Por favor, revise seu pedido e confirme se está tudo correto.")
+  // Configuração de alerta de produção (dias antes)
+  diasAlertaProducao     Int?     @default(3)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -57,27 +62,33 @@ model Produto {
 }
 
 model Pedido {
-  id              String       @id @default(cuid())
-  numero          Int
-  clienteId       String
-  observacoes     String?
-  total           Float
-  totalPedida     Float        @default(0)
-  status          String       @default("PENDENTE")
-  impresso        Boolean      @default(false)
-  tipoEntrega     String       @default("RETIRA")
-  dataEntrega     String
-  horarioEntrega  String?
-  enderecoEntrega String?
-  bairroEntrega   String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  itens           ItemPedido[]
-  cliente         Cliente      @relation(fields: [clienteId], references: [id])
+  id                  String       @id @default(cuid())
+  numero              Int
+  clienteId           String
+  observacoes         String?
+  total               Float
+  totalPedida         Float        @default(0)
+  status              String       @default("PENDENTE")
+  impresso            Boolean      @default(false)
+  tipoEntrega         String       @default("RETIRA")
+  dataEntrega         String
+  horarioEntrega      String?
+  enderecoEntrega     String?
+  bairroEntrega       String?
+  valorEntrada        Float        @default(0)
+  formaPagamentoEntrada String?
+  dataEntrada         DateTime?
+  alertaProducaoEnviado Boolean    @default(false)
+  valorTeleEntrega    Float?         // Valor da taxa de tele-entrega
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  itens               ItemPedido[]
+  cliente             Cliente      @relation(fields: [clienteId], references: [id])
 
   @@index([numero])
   @@index([clienteId])
   @@index([createdAt])
+  @@index([dataEntrega])
 }
 
 model ItemPedido {
@@ -110,6 +121,7 @@ model Orcamento {
   horarioEntrega  String?
   enderecoEntrega String?
   bairroEntrega   String?
+  valorTeleEntrega Float?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   itens           ItemOrcamento[]

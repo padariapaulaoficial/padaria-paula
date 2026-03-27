@@ -133,18 +133,51 @@ export default function OrcamentosLista() {
   // Estados para diálogos separados
   const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
   const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
+  
+  // Estados para edição de entrega
+  const [dialogEntregaOpen, setDialogEntregaOpen] = useState(false);
+  const [editTipoEntrega, setEditTipoEntrega] = useState<'RETIRA' | 'TELE_ENTREGA'>('RETIRA');
+  const [editDataEntrega, setEditDataEntrega] = useState('');
+  const [editHorarioEntrega, setEditHorarioEntrega] = useState('');
+  const [salvandoEntrega, setSalvandoEntrega] = useState(false);
 
-  // Função para alternar tipo de entrega
-  const handleAlternarTipoEntrega = async (orcamento: Orcamento) => {
-    const novoTipo = orcamento.tipoEntrega === 'RETIRA' ? 'TELE_ENTREGA' : 'RETIRA';
+  // Horários comerciais disponíveis
+  const HORARIOS_COMERCIAIS = [
+    '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+    '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+    '19:00', '19:30', '20:00', '20:30', '21:00'
+  ];
+
+  // Abrir modal de edição de entrega
+  const handleAbrirEdicaoEntrega = (orcamento: Orcamento) => {
+    setEditTipoEntrega(orcamento.tipoEntrega as 'RETIRA' | 'TELE_ENTREGA');
+    setEditDataEntrega(orcamento.dataEntrega);
+    setEditHorarioEntrega(orcamento.horarioEntrega || '');
+    setDialogEntregaOpen(true);
+  };
+
+  // Salvar edição de entrega
+  const handleSalvarEdicaoEntrega = async () => {
+    if (!orcamentoSelecionado) return;
+    
+    if (!editDataEntrega) {
+      toast({ title: 'Data obrigatória', variant: 'destructive' });
+      return;
+    }
+    
+    setSalvandoEntrega(true);
     
     try {
       const response = await fetch('/api/orcamentos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: orcamento.id,
-          tipoEntrega: novoTipo,
+          id: orcamentoSelecionado.id,
+          tipoEntrega: editTipoEntrega,
+          dataEntrega: editDataEntrega,
+          horarioEntrega: editHorarioEntrega || null,
         }),
       });
       
@@ -154,14 +187,17 @@ export default function OrcamentosLista() {
       
       setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
       setOrcamentoSelecionado(orcamentoAtualizado);
+      setDialogEntregaOpen(false);
       
       toast({ 
-        title: 'Tipo de entrega alterado!',
-        description: `Agora é ${novoTipo === 'RETIRA' ? 'Retira' : 'Tele Entrega'}.`
+        title: 'Entrega atualizada!',
+        description: 'Dados de entrega salvos com sucesso.'
       });
     } catch (error) {
-      console.error('Erro ao alterar tipo de entrega:', error);
-      toast({ title: 'Erro ao alterar', variant: 'destructive' });
+      console.error('Erro ao salvar entrega:', error);
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    } finally {
+      setSalvandoEntrega(false);
     }
   };
 
@@ -454,11 +490,11 @@ export default function OrcamentosLista() {
     const telefone = orcamento.cliente.telefone.replace(/\D/g, '');
     const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
     
-    // Montar mensagem cordial
+    // Montar mensagem com português correto
     let mensagem = `*Padaria e Confeitaria Paula*\n\n`;
-    mensagem += `Ola, *${orcamento.cliente.nome}*! Tudo bem?\n\n`;
-    mensagem += `Preparamos um orcamento especial para voce:\n`;
-    mensagem += `*Orcamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
+    mensagem += `Olá, *${orcamento.cliente.nome}*! Tudo bem?\n\n`;
+    mensagem += `Preparamos um orçamento especial para você:\n`;
+    mensagem += `*Orçamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
     
     // Itens
     mensagem += `*Itens:*\n`;
@@ -478,7 +514,7 @@ export default function OrcamentosLista() {
     // Entrega
     mensagem += `*Entrega:* ${formatarDataEntrega(orcamento.dataEntrega)}`;
     if (orcamento.horarioEntrega) {
-      mensagem += ` as ${orcamento.horarioEntrega}`;
+      mensagem += ` às ${orcamento.horarioEntrega}`;
     }
     mensagem += `\n`;
     
@@ -499,7 +535,7 @@ export default function OrcamentosLista() {
       mensagem += `\nObs: ${orcamento.observacoes}\n`;
     }
     
-    mensagem += `\nAguardamos sua aprovacao! Se precisar de qualquer alteracao, e so nos chamar. Obrigada pela preferencia!`;
+    mensagem += `\nAguardamos sua aprovação! Se precisar de qualquer alteração, é só nos chamar. Obrigada pela preferência!`;
     
     const mensagemCodificada = encodeURIComponent(mensagem);
     window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
@@ -816,8 +852,8 @@ export default function OrcamentosLista() {
                         variant="ghost"
                         size="sm"
                         className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
-                        onClick={() => handleAlternarTipoEntrega(orcamentoSelecionado)}
-                        title={`Editar modo de entrega`}
+                        onClick={() => handleAbrirEdicaoEntrega(orcamentoSelecionado)}
+                        title={`Editar dados de entrega`}
                       >
                         <Edit2 className="w-3 h-3" />
                       </Button>
@@ -1158,6 +1194,97 @@ export default function OrcamentosLista() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Edição de Entrega */}
+      <Dialog open={dialogEntregaOpen} onOpenChange={setDialogEntregaOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Edit2 className="w-4 h-4" />
+              Editar Dados de Entrega
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Altere o tipo, data e horário de entrega.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-2">
+            {/* Tipo de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1.5 block">Tipo de Entrega</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    editTipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setEditTipoEntrega('RETIRA')}
+                >
+                  <Store className="w-4 h-4" />
+                  <span className="text-xs font-medium">Retira</span>
+                </button>
+                <button
+                  type="button"
+                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    editTipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setEditTipoEntrega('TELE_ENTREGA')}
+                >
+                  <Truck className="w-4 h-4" />
+                  <span className="text-xs font-medium">Entrega</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Data de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Data de Entrega</Label>
+              <Input
+                type="date"
+                className="h-9 text-sm"
+                value={editDataEntrega}
+                onChange={(e) => setEditDataEntrega(e.target.value)}
+              />
+            </div>
+
+            {/* Horário de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Horário de Entrega</Label>
+              <Select value={editHorarioEntrega} onValueChange={setEditHorarioEntrega}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione o horário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {HORARIOS_COMERCIAIS.map((h) => (
+                    <SelectItem key={h} value={h} className="text-sm">{h}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              className="h-9 text-xs"
+              onClick={() => setDialogEntregaOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="btn-padaria h-9 text-xs"
+              onClick={handleSalvarEdicaoEntrega}
+              disabled={salvandoEntrega || !editDataEntrega}
+            >
+              {salvandoEntrega ? (
+                <><RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />Salvando...</>
+              ) : (
+                <><Check className="w-3.5 h-3.5 mr-1" />Salvar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

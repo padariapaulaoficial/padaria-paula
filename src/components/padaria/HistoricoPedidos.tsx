@@ -1045,26 +1045,26 @@ export default function HistoricoPedidos() {
       {/* Dialog de detalhes otimizado para tela única - NOVA ESTRUTURA */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          {/* Header compacto com botão WhatsApp discreto */}
+          {/* Header compacto com botão WhatsApp discreto (deslocado 15mm à esquerda) */}
           <DialogHeader className="p-2 border-b border-border shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {pedidoSelecionado && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full mr-2"
+                    onClick={() => handleConfirmarPedido(pedidoSelecionado)}
+                    title="Confirmar pedido via WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </Button>
+                )}
                 <DialogTitle className="text-base font-bold">
                   Pedido #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
                 </DialogTitle>
                 {pedidoSelecionado && getStatusBadge(pedidoSelecionado.status)}
               </div>
-              {pedidoSelecionado && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full"
-                  onClick={() => handleConfirmarPedido(pedidoSelecionado)}
-                  title="Confirmar pedido via WhatsApp"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </Button>
-              )}
             </div>
           </DialogHeader>
 
@@ -1185,11 +1185,11 @@ export default function HistoricoPedidos() {
           {pedidoSelecionado && (
             <div className="shrink-0 p-2 border-t border-border bg-background">
               <div className="grid grid-cols-2 gap-1">
-                <Button variant="outline" className="h-8 text-[10px]" onClick={() => handleImprimirCliente(pedidoSelecionado)}>
+                <Button className="h-8 text-[10px] bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleImprimirCliente(pedidoSelecionado)}>
                   <FileText className="w-3 h-3 mr-0.5" />Cupom do Cliente
                 </Button>
-                <Button variant="outline" className="h-8 text-[10px]" onClick={() => handleImprimirCozinha(pedidoSelecionado)}>
-                  <Printer className="w-3 h-3 mr-0.5" />Comanda do Cliente
+                <Button className="h-8 text-[10px] bg-orange-500 hover:bg-orange-600 text-white" onClick={() => handleImprimirCozinha(pedidoSelecionado)}>
+                  <Printer className="w-3 h-3 mr-0.5" />Comanda da Cozinha
                 </Button>
               </div>
               {pedidoSelecionado.status === 'PRONTO' && (
