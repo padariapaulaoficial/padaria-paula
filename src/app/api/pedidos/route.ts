@@ -461,7 +461,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Excluir pedido e orçamento correlacionado
+// DELETE - Excluir pedido
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -497,37 +497,7 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
     
-    // Se o pedido foi criado a partir de um orçamento, excluir o orçamento também
-    if (pedido.orcamentoId) {
-      try {
-        // Excluir itens do orçamento primeiro
-        await db.itemOrcamento.deleteMany({
-          where: { orcamentoId: pedido.orcamentoId }
-        });
-        
-        // Excluir orçamento
-        await db.orcamento.delete({
-          where: { id: pedido.orcamentoId }
-        });
-        
-        return NextResponse.json({ 
-          message: 'Pedido e orçamento correlacionado excluídos com sucesso',
-          orcamentoExcluido: true 
-        });
-      } catch (orcamentoError) {
-        console.error('Erro ao excluir orçamento correlacionado:', orcamentoError);
-        // Pedido foi excluído, mas orçamento não - não é um erro crítico
-        return NextResponse.json({ 
-          message: 'Pedido excluído com sucesso (orçamento não encontrado)',
-          orcamentoExcluido: false 
-        });
-      }
-    }
-    
-    return NextResponse.json({ 
-      message: 'Pedido excluído com sucesso',
-      orcamentoExcluido: false 
-    });
+    return NextResponse.json({ message: 'Pedido excluído com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir pedido:', error);
     return NextResponse.json(
