@@ -4,13 +4,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// Mensagens padrão
+// Mensagens padrão com pontuação e acentuação corretas
 const MENSAGENS_PADRAO = {
-  mensagemOrcamento: 'Olá {nome}! Segue seu orçamento.',
-  mensagemProntoRetirada: 'Olá {nome}! Seu pedido #{pedido} está *PRONTO* e esperando por você! Pode vir buscar quando quiser. 🍰 Agradecemos pela preferência! 🙏',
-  mensagemProntoEntrega: 'Olá {nome}! Seu pedido #{pedido} está *PRONTO* e já está a caminho! 🚚 Agradecemos pela preferência! 🙏',
-  mensagemAprovacao: 'Olá {nome}! Seu orçamento foi aprovado! Estamos preparando seu pedido.',
-  mensagemRevisao: 'Olá {nome}! Por favor, revise seu pedido e confirme se está tudo correto.',
+  mensagemOrcamento: 'Olá, {nome}! Tudo bem? Segue seu orçamento.',
+  mensagemProntoRetirada: 'Olá, {nome}! Seu pedido #{pedido} está *PRONTO* e esperando por você! Pode vir buscar quando quiser. 🍰 Agradecemos pela preferência! 🙏',
+  mensagemProntoEntrega: 'Olá, {nome}! Seu pedido #{pedido} está *PRONTO* e já está a caminho! 🚚 Agradecemos pela preferência! 🙏',
+  mensagemAprovacao: 'Olá, {nome}! Seu orçamento foi aprovado! Estamos preparando seu pedido.',
+  mensagemRevisao: 'Olá, {nome}! Por favor, revise seu pedido e confirme se está tudo correto.',
 };
 
 // GET - Buscar configurações

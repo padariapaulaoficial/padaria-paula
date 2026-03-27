@@ -661,7 +661,7 @@ export default function HistoricoPedidos() {
     const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
     
     let mensagem = `*Padaria e Confeitaria Paula*\n\n`;
-    mensagem += `Olá, *${pedido.cliente.nome}*!\n\n`;
+    mensagem += `Olá, *${pedido.cliente.nome}*! Tudo bem?\n\n`;
     
     if (tipoEntrega === 'RETIRA') {
       mensagem += `Seu pedido #${formatarNumeroPedido(pedido.numero)} está *PRONTO* e esperando por você!\n\n`;
@@ -707,7 +707,7 @@ export default function HistoricoPedidos() {
     
     let mensagem = `*Padaria e Confeitaria Paula*\n`;
     mensagem += `━━━━━━━━━━━━━━━━━━\n\n`;
-    mensagem += `Olá, *${pedido.cliente.nome}*! 👋\n\n`;
+    mensagem += `Olá, *${pedido.cliente.nome}*! Tudo bem? 👋\n\n`;
     mensagem += `Podemos confirmar seu pedido?\n\n`;
     mensagem += `📦 *Pedido #${formatarNumeroPedido(pedido.numero)}*\n\n`;
     mensagem += `*Itens:*\n${itensStr}\n`;
@@ -909,7 +909,7 @@ export default function HistoricoPedidos() {
     if (pedidoSelecionado) {
       setNovaDataEntrega(pedidoSelecionado.dataEntrega || '');
       setNovoHorarioEntrega(pedidoSelecionado.horarioEntrega || '');
-      setModoEdicaoData(true);
+      setDialogDataOpen(true);
     }
   };
   
@@ -1102,7 +1102,7 @@ export default function HistoricoPedidos() {
       {/* Dialog de detalhes otimizado para tela única - NOVA ESTRUTURA */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          {/* Header compacto com botão WhatsApp discreto (deslocado 15mm à esquerda) */}
+          {/* Header compacto com botão WhatsApp discreto (deslocado 15mm à esquerda = ml-4) */}
           <DialogHeader className="p-2 border-b border-border shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1110,7 +1110,7 @@ export default function HistoricoPedidos() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full mr-2"
+                    className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 rounded-full ml-4"
                     onClick={() => handleConfirmarPedido(pedidoSelecionado)}
                     title="Confirmar pedido via WhatsApp"
                   >
@@ -1175,7 +1175,7 @@ export default function HistoricoPedidos() {
                     )}
                   </div>
                   {pedidoSelecionado.status !== 'ENTREGUE' && (
-                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setDialogDataOpen(true)} title="Editar data/hora">
+                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={handleIniciarEdicaoData} title="Editar data/hora">
                       <Edit2 className="w-3 h-3 text-muted-foreground" />
                     </Button>
                   )}
@@ -1426,13 +1426,13 @@ export default function HistoricoPedidos() {
             </div>
             
             {/* Lista de produtos compacta */}
-            <div className="space-y-0.5 max-h-28 overflow-y-auto">
+            <div className="space-y-1 max-h-44 overflow-y-auto">
               {produtosFiltrados.map(produto => (
                 <button
                   key={produto.id}
                   type="button"
                   onClick={() => setProdutoSelecionado(produto)}
-                  className={`w-full px-2 py-1 text-left rounded transition-colors ${
+                  className={`w-full px-2 py-1.5 text-left rounded transition-colors ${
                     produtoSelecionado?.id === produto.id 
                       ? 'bg-primary/20 border border-primary' 
                       : 'bg-muted/30 border border-transparent hover:bg-muted/50'

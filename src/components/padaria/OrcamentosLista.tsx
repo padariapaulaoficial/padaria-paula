@@ -1080,13 +1080,13 @@ export default function OrcamentosLista() {
             </div>
             
             {/* Lista de produtos compacta */}
-            <div className="space-y-0.5 max-h-28 overflow-y-auto">
+            <div className="space-y-1 max-h-40 overflow-y-auto">
               {produtosFiltrados.map(produto => (
                 <button
                   key={produto.id}
                   type="button"
                   onClick={() => setProdutoSelecionado(produto)}
-                  className={`w-full px-2 py-1 text-left rounded transition-colors ${
+                  className={`w-full px-2 py-1.5 text-left rounded transition-colors ${
                     produtoSelecionado?.id === produto.id 
                       ? 'bg-primary/20 border border-primary' 
                       : 'bg-muted/30 border border-transparent hover:bg-muted/50'

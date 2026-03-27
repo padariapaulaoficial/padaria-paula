@@ -232,13 +232,13 @@ function formatarDataEntrega(dataStr: string | null): string {
 function formatarDataEntregaCompleta(dataStr: string | null, horario?: string | null): string {
   if (!dataStr) return '';
   
-  const diasSemana = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+  const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   const data = new Date(dataStr + 'T12:00:00');
   const diaSemana = diasSemana[data.getDay()];
   const dataFormatada = data.toLocaleDateString('pt-BR');
   
   if (horario) {
-    return `${diaSemana} ${dataFormatada} as ${horario}`;
+    return `${diaSemana} ${dataFormatada} às ${horario}`;
   }
   return `${diaSemana} ${dataFormatada}`;
 }
@@ -353,7 +353,7 @@ export function gerarCupomCliente(
   
   // Observações gerais do pedido (acima do subtotal)
   if (pedido.observacoes) {
-    linhas.push('OBSERVACOES:');
+    linhas.push('OBSERVAÇÕES:');
     const linhasObs = quebrarLinha(pedido.observacoes.toUpperCase(), LARGURA_PAPEL);
     linhas.push(...linhasObs);
     linhas.push(linhaDivisoria('-'));
@@ -402,7 +402,7 @@ export function gerarCupomCliente(
   }
   
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('Obrigado pela preferencia!'));
+  linhas.push(centralizar('Obrigado pela preferência!'));
   linhas.push(centralizar('Volte sempre!'));
   linhas.push(linhaDivisoria('='));
   linhas.push('');
@@ -421,7 +421,7 @@ export function gerarCupomCozinha(
   const linhas: string[] = [];
   
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('*** PRODUCAO ***'));
+  linhas.push(centralizar('*** PRODUÇÃO ***'));
   linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
   linhas.push(linhaDivisoria('='));
   
@@ -470,7 +470,7 @@ export function gerarCupomCozinha(
   linhas.push(linhaDivisoria('-'));
   
   if (pedido.observacoes) {
-    linhas.push('OBSERVACOES:');
+    linhas.push('OBSERVAÇÕES:');
     linhas.push(truncar(pedido.observacoes.toUpperCase(), LARGURA_PAPEL));
     linhas.push(linhaDivisoria('-'));
   }
@@ -687,7 +687,7 @@ export function gerarCupomOrcamento(
   
   // === CABEÇALHO DE ORÇAMENTO ===
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('*** ORCAMENTO ***'));
+  linhas.push(centralizar('*** ORÇAMENTO ***'));
   linhas.push(centralizar(`Nº ${formatarNumeroPedido(orcamento.numero)}`));
   linhas.push(centralizar(`${dataFormatada} - ${horaFormatada}`));
   linhas.push(linhaDivisoria('='));
@@ -801,13 +801,13 @@ export function gerarCupomOrcamento(
   // Observações
   if (orcamento.observacoes) {
     linhas.push(linhaDivisoria('-'));
-    linhas.push('OBSERVACOES:');
+    linhas.push('OBSERVAÇÕES:');
     linhas.push(truncar(orcamento.observacoes, LARGURA_PAPEL));
   }
   
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('*** ORCAMENTO ***'));
-  linhas.push(centralizar('Aguardando aprovacao'));
+  linhas.push(centralizar('*** ORÇAMENTO ***'));
+  linhas.push(centralizar('Aguardando aprovação'));
   linhas.push(linhaDivisoria('='));
   linhas.push('');
   
