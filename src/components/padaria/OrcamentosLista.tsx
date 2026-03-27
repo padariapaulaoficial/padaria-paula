@@ -29,6 +29,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingFetch } from '@/hooks/useLoadingFetch';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
 import {
@@ -107,6 +108,7 @@ const OPCOES_KG = [
 
 export default function OrcamentosLista() {
   const { toast } = useToast();
+  const { showLoading, hideLoading } = useLoadingFetch();
   
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,6 +182,7 @@ export default function OrcamentosLista() {
     }
     
     setSalvandoEntrega(true);
+    showLoading('Salvando entrega...');
     
     try {
       const response = await fetch('/api/orcamentos', {
@@ -211,6 +214,7 @@ export default function OrcamentosLista() {
       toast({ title: 'Erro ao salvar', variant: 'destructive' });
     } finally {
       setSalvandoEntrega(false);
+      hideLoading();
     }
   };
 
@@ -368,6 +372,7 @@ export default function OrcamentosLista() {
     }
 
     setProcessando(true);
+    showLoading('Salvando alterações...');
     try {
       const response = await fetch('/api/orcamentos', {
         method: 'PUT',
@@ -394,6 +399,7 @@ export default function OrcamentosLista() {
       toast({ title: 'Erro ao salvar', variant: 'destructive' });
     } finally {
       setProcessando(false);
+      hideLoading();
     }
   };
 
@@ -425,6 +431,7 @@ export default function OrcamentosLista() {
 
     const subtotal = quantidade * valorUnit;
     setAdicionandoProduto(true);
+    showLoading('Adicionando produto...');
 
     try {
       const response = await fetch('/api/orcamentos', {
@@ -463,6 +470,7 @@ export default function OrcamentosLista() {
       toast({ title: 'Erro ao adicionar', variant: 'destructive' });
     } finally {
       setAdicionandoProduto(false);
+      hideLoading();
     }
   };
 
@@ -557,6 +565,7 @@ export default function OrcamentosLista() {
   // Aprovar orçamento e converter para pedido
   const handleAprovar = async (orcamento: Orcamento) => {
     setProcessando(true);
+    showLoading('Salvando alterações...');
     try {
       const res = await fetch('/api/orcamentos', {
         method: 'PUT',
@@ -595,12 +604,14 @@ export default function OrcamentosLista() {
       });
     } finally {
       setProcessando(false);
+      hideLoading();
     }
   };
 
   // Rejeitar orçamento
   const handleRejeitar = async (orcamento: Orcamento) => {
     setProcessando(true);
+    showLoading('Salvando alterações...');
     try {
       const res = await fetch('/api/orcamentos', {
         method: 'PUT',
@@ -634,6 +645,7 @@ export default function OrcamentosLista() {
       });
     } finally {
       setProcessando(false);
+      hideLoading();
     }
   };
 

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { GlobalLoading } from "@/components/LoadingProvider";
 
 // Fonte elegante para títulos
 const playfair = Playfair_Display({
@@ -58,6 +59,7 @@ export default function RootLayout({
       >
         {children}
         <Toaster />
+        <GlobalLoading />
       </body>
     </html>
   );

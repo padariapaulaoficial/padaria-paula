@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingFetch } from '@/hooks/useLoadingFetch';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import {
   gerarCupomCliente,
@@ -140,6 +141,7 @@ const HORARIOS_COMERCIAIS = [
 
 export default function HistoricoPedidos() {
   const { toast } = useToast();
+  const { showLoading, hideLoading } = useLoadingFetch();
   
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
@@ -398,6 +400,7 @@ export default function HistoricoPedidos() {
     }
     
     setSalvando(true);
+    showLoading('Salvando alterações...');
     
     try {
       const response = await fetch('/api/pedidos', {
@@ -438,6 +441,7 @@ export default function HistoricoPedidos() {
       });
     } finally {
       setSalvando(false);
+      hideLoading();
     }
   };
 
@@ -612,6 +616,7 @@ export default function HistoricoPedidos() {
     if (!pedidoParaFinalizar) return;
     
     setFinalizando(true);
+    showLoading('Finalizando pedido...');
     
     try {
       const response = await fetch('/api/pedidos', {
@@ -643,6 +648,7 @@ export default function HistoricoPedidos() {
       });
     } finally {
       setFinalizando(false);
+      hideLoading();
     }
   };
 
@@ -784,6 +790,7 @@ export default function HistoricoPedidos() {
     const subtotal = quantidade * valorUnit;
     
     setAdicionandoProduto(true);
+    showLoading('Adicionando produto...');
     
     try {
       const response = await fetch('/api/pedidos', {
@@ -832,6 +839,7 @@ export default function HistoricoPedidos() {
       });
     } finally {
       setAdicionandoProduto(false);
+      hideLoading();
     }
   };
 
@@ -869,6 +877,7 @@ export default function HistoricoPedidos() {
     }
     
     setSalvandoEntrada(true);
+    showLoading('Salvando entrada...');
     
     try {
       const response = await fetch('/api/pedidos', {
@@ -909,6 +918,7 @@ export default function HistoricoPedidos() {
       });
     } finally {
       setSalvandoEntrada(false);
+      hideLoading();
     }
   };
   
@@ -942,6 +952,7 @@ export default function HistoricoPedidos() {
     }
     
     setSalvandoData(true);
+    showLoading('Atualizando data...');
     
     try {
       const response = await fetch('/api/pedidos', {
@@ -979,6 +990,7 @@ export default function HistoricoPedidos() {
       });
     } finally {
       setSalvandoData(false);
+      hideLoading();
     }
   };
 
@@ -1012,6 +1024,7 @@ export default function HistoricoPedidos() {
     }
     
     setSalvandoEntrega(true);
+    showLoading('Salvando entrega...');
     
     try {
       const response = await fetch('/api/pedidos', {
@@ -1044,6 +1057,7 @@ export default function HistoricoPedidos() {
       toast({ title: 'Erro ao salvar', variant: 'destructive' });
     } finally {
       setSalvandoEntrega(false);
+      hideLoading();
     }
   };
 
