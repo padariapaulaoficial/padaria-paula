@@ -1,12 +1,12 @@
 'use client';
 
 // AdminProdutos - Padaria Paula
-// Gestão completa de produtos com CRUD - Interface otimizada com grid e modais
+// Sistema de gestão de produtos com modais e grid otimizado
 
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Package, Plus, Edit, Trash2, Save, RefreshCw, ToggleLeft, ToggleRight,
-  Cake, Search, Eye
+  Package, Plus, Grid3X3, List, Search, Edit, Trash2, ToggleLeft, ToggleRight,
+  Cake, X, Check, RefreshCw, DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -40,58 +39,66 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingFetch } from '@/hooks/useLoadingFetch';
 import { formatarMoeda } from '@/store/usePedidoStore';
 
 // Tamanhos fixos para produtos especiais
 const TAMANHOS_FIXOS = ['P', 'M', 'G', 'GG'];
+
+// Categorias disponíveis
+const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
+
+// Tipos de venda
+const TIPOS_VENDA = [
+  { value: 'KG', label: 'Quilograma (kg)' },
+  { value: 'UNIDADE', label: 'Unidade' },
+];
 
 // Interface do produto
 interface Produto {
   id: string;
   nome: string;
   descricao: string | null;
-  tipoVenda: 'KG' | 'UNIDADE';
+  tipoVenda: string;
   valorUnit: number;
   categoria: string | null;
   ativo: boolean;
-  tipoProduto: 'NORMAL' | 'ESPECIAL';
+  tipoProduto: string;
   tamanhos: string[] | null;
   precosTamanhos: Record<string, number> | null;
   createdAt: string;
   updatedAt: string;
 }
 
-const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
-const TIPOS_VENDA = [
-  { value: 'KG', label: 'Quilograma (kg)' },
-  { value: 'UNIDADE', label: 'Unidade' },
-];
-
 export default function AdminProdutos() {
   const { toast } = useToast();
+  const { showLoading, hideLoading } = useLoadingFetch();
 
   // Estados de produtos
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Estados de modais
+  const [modalCadastroComum, setModalCadastroComum] = useState(false);
+  const [modalCadastroEspecial, setModalCadastroEspecial] = useState(false);
+  const [modalProdutos, setModalProdutos] = useState(false);
+  const [modalEdicao, setModalEdicao] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null);
-  const [dialogProdutoOpen, setDialogProdutoOpen] = useState(false);
+
+  // Estados de exclusão
   const [produtoParaExcluir, setProdutoParaExcluir] = useState<Produto | null>(null);
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
 
-  // Filtros
+  // Estados de visualização
+  const [visaoGrid, setVisaoGrid] = useState(true);
   const [busca, setBusca] = useState('');
-  const [filtroCategoria, setFiltroCategoria] = useState('todas');
-  const [filtroStatus, setFiltroStatus] = useState('todos');
-
-  // Estado para novo produto
-  const [modoCadastro, setModoCadastro] = useState<'COMUM' | 'ESPECIAL' | null>(null);
-  const [dialogNovoOpen, setDialogNovoOpen] = useState(false);
+  const [filtroCategoria, setFiltroCategoria] = useState('TODOS');
+  const [filtroStatus, setFiltroStatus] = useState('TODOS');
 
   // Estado para produto comum
   const [produtoComum, setProdutoComum] = useState({
     nome: '',
-    descricao: '',
-    tipoVenda: 'UNIDADE' as 'KG' | 'UNIDADE',
+    tipoVenda: 'UNIDADE',
     categoria: 'Outros',
     valorUnit: '',
   });
@@ -99,7 +106,6 @@ export default function AdminProdutos() {
   // Estado para produto especial (torta)
   const [produtoEspecial, setProdutoEspecial] = useState({
     nome: '',
-    descricao: '',
     categoria: 'Tortas',
     precos: { P: '', M: '', G: '', GG: '' } as Record<string, string>,
   });
@@ -110,14 +116,10 @@ export default function AdminProdutos() {
     try {
       const res = await fetch('/api/produtos');
       const data = await res.json();
-      setProdutos(data);
+      setProdutos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os produtos.',
-        variant: 'destructive',
-      });
+      setProdutos([]);
     } finally {
       setLoading(false);
     }
@@ -127,36 +129,27 @@ export default function AdminProdutos() {
     carregarProdutos();
   }, []);
 
-  // Filtrar produtos
+  // Produtos filtrados
   const produtosFiltrados = useMemo(() => {
-    return produtos.filter(produto => {
-      const matchBusca = !busca || 
-        produto.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        (produto.descricao && produto.descricao.toLowerCase().includes(busca.toLowerCase()));
-      const matchCategoria = filtroCategoria === 'todas' || produto.categoria === filtroCategoria;
-      const matchStatus = filtroStatus === 'todos' || 
-        (filtroStatus === 'ativo' && produto.ativo) ||
-        (filtroStatus === 'inativo' && !produto.ativo);
+    return produtos.filter(p => {
+      const matchBusca = !busca || p.nome.toLowerCase().includes(busca.toLowerCase());
+      const matchCategoria = filtroCategoria === 'TODOS' || p.categoria === filtroCategoria;
+      const matchStatus = filtroStatus === 'TODOS' || 
+        (filtroStatus === 'ATIVO' && p.ativo) || 
+        (filtroStatus === 'INATIVO' && !p.ativo);
       return matchBusca && matchCategoria && matchStatus;
     });
   }, [produtos, busca, filtroCategoria, filtroStatus]);
 
-  // Agrupar produtos por categoria para melhor visualização
-  const produtosPorCategoria = useMemo(() => {
-    const grupos: Record<string, Produto[]> = {};
-    produtosFiltrados.forEach(produto => {
-      const cat = produto.categoria || 'Outros';
-      if (!grupos[cat]) grupos[cat] = [];
-      grupos[cat].push(produto);
+  // Contagem por categoria
+  const contagemPorCategoria = useMemo(() => {
+    const contagem: Record<string, number> = { TODOS: produtos.length };
+    produtos.forEach(p => {
+      const cat = p.categoria || 'Outros';
+      contagem[cat] = (contagem[cat] || 0) + 1;
     });
-    return grupos;
-  }, [produtosFiltrados]);
-
-  // Abrir diálogo de novo produto
-  const handleAbrirNovoProduto = (tipo: 'COMUM' | 'ESPECIAL') => {
-    setModoCadastro(tipo);
-    setDialogNovoOpen(true);
-  };
+    return contagem;
+  }, [produtos]);
 
   // Criar produto comum
   const handleCriarProdutoComum = async () => {
@@ -169,13 +162,14 @@ export default function AdminProdutos() {
       return;
     }
 
+    showLoading('Cadastrando produto...');
+
     try {
       const res = await fetch('/api/produtos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: produtoComum.nome,
-          descricao: produtoComum.descricao || null,
           tipoVenda: produtoComum.tipoVenda,
           valorUnit: parseFloat(produtoComum.valorUnit),
           categoria: produtoComum.categoria,
@@ -187,18 +181,12 @@ export default function AdminProdutos() {
       const produto = await res.json();
 
       if (!res.ok) {
-        toast({
-          title: 'Erro ao criar',
-          description: produto.error || `Erro ${res.status}`,
-          variant: 'destructive',
-        });
-        return;
+        throw new Error(produto.error || 'Erro ao criar');
       }
 
       setProdutos([produto, ...produtos]);
-      setProdutoComum({ nome: '', descricao: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '' });
-      setDialogNovoOpen(false);
-      setModoCadastro(null);
+      setProdutoComum({ nome: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '' });
+      setModalCadastroComum(false);
 
       toast({
         title: 'Produto criado!',
@@ -211,6 +199,8 @@ export default function AdminProdutos() {
         description: 'Não foi possível criar o produto.',
         variant: 'destructive',
       });
+    } finally {
+      hideLoading();
     }
   };
 
@@ -219,22 +209,23 @@ export default function AdminProdutos() {
     if (!produtoEspecial.nome) {
       toast({
         title: 'Nome obrigatório',
-        description: 'Digite o nome do produto.',
+        description: 'Digite o nome da torta.',
         variant: 'destructive',
       });
       return;
     }
 
-    // Verificar se pelo menos um preço foi preenchido
     const precosPreenchidos = Object.entries(produtoEspecial.precos).filter(([, v]) => v);
     if (precosPreenchidos.length === 0) {
       toast({
         title: 'Preços obrigatórios',
-        description: 'Preencha pelo menos um preço.',
+        description: 'Preencha pelo menos um preço para a torta.',
         variant: 'destructive',
       });
       return;
     }
+
+    showLoading('Cadastrando torta...');
 
     try {
       const tamanhos = precosPreenchidos.map(([tam]) => tam);
@@ -248,7 +239,6 @@ export default function AdminProdutos() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: produtoEspecial.nome,
-          descricao: produtoEspecial.descricao || null,
           tipoVenda: 'UNIDADE',
           valorUnit: parseFloat(precosPreenchidos[0][1]),
           categoria: produtoEspecial.categoria,
@@ -262,35 +252,33 @@ export default function AdminProdutos() {
       const produto = await res.json();
 
       if (!res.ok) {
-        toast({
-          title: 'Erro ao criar',
-          description: produto.error || `Erro ${res.status}`,
-          variant: 'destructive',
-        });
-        return;
+        throw new Error(produto.error || 'Erro ao criar');
       }
 
       setProdutos([produto, ...produtos]);
-      setProdutoEspecial({ nome: '', descricao: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
-      setDialogNovoOpen(false);
-      setModoCadastro(null);
+      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
+      setModalCadastroEspecial(false);
 
       toast({
-        title: 'Produto criado!',
-        description: `${produto.nome} foi adicionado com sucesso.`,
+        title: 'Torta cadastrada!',
+        description: `${produto.nome} foi adicionada com sucesso.`,
       });
     } catch (error) {
       console.error('Erro ao criar produto especial:', error);
       toast({
         title: 'Erro ao criar',
-        description: 'Não foi possível criar o produto.',
+        description: 'Não foi possível criar a torta.',
         variant: 'destructive',
       });
+    } finally {
+      hideLoading();
     }
   };
 
   // Atualizar produto
   const handleAtualizarProduto = async (produto: Produto) => {
+    showLoading('Atualizando produto...');
+
     try {
       const res = await fetch('/api/produtos', {
         method: 'PUT',
@@ -312,17 +300,12 @@ export default function AdminProdutos() {
       const atualizado = await res.json();
 
       if (!res.ok) {
-        toast({
-          title: 'Erro ao atualizar',
-          description: atualizado.error || `Erro ${res.status}`,
-          variant: 'destructive',
-        });
-        return;
+        throw new Error(atualizado.error || 'Erro ao atualizar');
       }
 
       setProdutos(produtos.map(p => p.id === atualizado.id ? atualizado : p));
       setProdutoEditando(null);
-      setDialogProdutoOpen(false);
+      setModalEdicao(false);
 
       toast({
         title: 'Produto atualizado!',
@@ -335,12 +318,16 @@ export default function AdminProdutos() {
         description: 'Não foi possível atualizar o produto.',
         variant: 'destructive',
       });
+    } finally {
+      hideLoading();
     }
   };
 
   // Excluir produto
   const handleExcluirProduto = async () => {
     if (!produtoParaExcluir) return;
+
+    showLoading('Excluindo produto...');
 
     try {
       const res = await fetch(`/api/produtos?id=${produtoParaExcluir.id}`, {
@@ -350,13 +337,7 @@ export default function AdminProdutos() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast({
-          title: 'Não foi possível excluir',
-          description: data.error || 'Erro ao excluir produto.',
-          variant: 'destructive',
-        });
-        setDialogExcluirOpen(false);
-        return;
+        throw new Error(data.error || 'Erro ao excluir');
       }
 
       if (data.message && data.message.includes('desativado')) {
@@ -382,6 +363,8 @@ export default function AdminProdutos() {
         description: 'Não foi possível excluir o produto.',
         variant: 'destructive',
       });
+    } finally {
+      hideLoading();
     }
   };
 
@@ -390,451 +373,368 @@ export default function AdminProdutos() {
     await handleAtualizarProduto({ ...produto, ativo: !produto.ativo });
   };
 
-  // Abrir diálogo de edição
+  // Abrir edição
   const handleEditar = (produto: Produto) => {
     setProdutoEditando({ ...produto });
-    setDialogProdutoOpen(true);
+    setModalEdicao(true);
+    setModalProdutos(false);
   };
 
-  // Abrir diálogo de exclusão
+  // Abrir exclusão
   const handleConfirmarExclusao = (produto: Produto) => {
     setProdutoParaExcluir(produto);
     setDialogExcluirOpen(true);
   };
 
-  // Card de produto compacto para grid
-  const ProdutoCard = ({ produto }: { produto: Produto }) => (
-    <div
-      className={`relative p-3 rounded-lg border transition-all hover:shadow-md ${
-        produto.tipoProduto === 'ESPECIAL'
-          ? 'bg-primary/5 border-primary/30 hover:border-primary/50'
-          : 'bg-card border-border/50 hover:border-border'
-      } ${!produto.ativo ? 'opacity-50' : ''}`}
-    >
-      {/* Badge de tipo no topo */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {produto.tipoProduto === 'ESPECIAL' ? (
-            <Badge className="text-[10px] h-5 bg-primary text-primary-foreground">
-              <Cake className="w-3 h-3 mr-0.5" />
-              Especial
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="text-[10px] h-5">
-              {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
-            </Badge>
-          )}
-          {!produto.ativo && (
-            <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground">
-              Inativo
-            </Badge>
-          )}
-        </div>
-        {/* Botões de ação */}
-        <div className="flex gap-0.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => handleToggleAtivo(produto)}
-            title={produto.ativo ? 'Desativar' : 'Ativar'}
-          >
-            {produto.ativo ? (
-              <ToggleRight className="w-4 h-4 text-green-600" />
-            ) : (
-              <ToggleLeft className="w-4 h-4 text-muted-foreground" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => handleEditar(produto)}
-            title="Editar"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-            onClick={() => handleConfirmarExclusao(produto)}
-            title="Excluir"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Nome do produto */}
-      <h3 className="font-semibold text-sm truncate mb-1" title={produto.nome}>
-        {produto.nome}
-      </h3>
-
-      {/* Preço(s) */}
-      <div className="text-xs font-semibold text-primary mb-1">
-        {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(produto.precosTamanhos)
-              .filter(([tam, preco]) => {
-                return TAMANHOS_FIXOS.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
-              })
-              .sort((a, b) => TAMANHOS_FIXOS.indexOf(a[0]) - TAMANHOS_FIXOS.indexOf(b[0]))
-              .slice(0, 3)
-              .map(([tam, preco]) => (
-                <span key={tam} className="bg-primary/10 px-1.5 py-0.5 rounded text-[10px]">
-                  {tam}: {formatarMoeda(preco)}
-                </span>
-              ))}
-            {Object.keys(produto.precosTamanhos).length > 3 && (
-              <span className="text-muted-foreground text-[10px]">+{Object.keys(produto.precosTamanhos).length - 3}</span>
-            )}
-          </div>
-        ) : (
-          formatarMoeda(produto.valorUnit)
-        )}
-      </div>
-
-      {/* Categoria */}
-      <div className="text-[10px] text-muted-foreground">
-        {produto.categoria || 'Outros'}
-      </div>
-    </div>
-  );
-
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Header com botões de ação */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-primary">Produtos</h2>
-          <p className="text-sm text-muted-foreground">{produtos.length} produtos cadastrados</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => handleAbrirNovoProduto('COMUM')} className="btn-padaria h-9">
-            <Package className="w-4 h-4 mr-1.5" />
-            Produto Comum
-          </Button>
-          <Button onClick={() => handleAbrirNovoProduto('ESPECIAL')} variant="outline" className="h-9 border-primary text-primary hover:bg-primary/10">
-            <Cake className="w-4 h-4 mr-1.5" />
-            Produto Especial
-          </Button>
-        </div>
+    <div className="space-y-4">
+      {/* Header com ações principais */}
+      <Card className="card-padaria">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            {/* Info */}
+            <div className="text-center sm:text-left">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                Produtos
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {produtos.length} produto{produtos.length !== 1 ? 's' : ''} cadastrado{produtos.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            {/* Ações */}
+            <div className="flex gap-2 flex-wrap justify-center">
+              <Button
+                onClick={() => setModalProdutos(true)}
+                variant="outline"
+                className="gap-2"
+              >
+                <Grid3X3 className="w-4 h-4" />
+                Ver Produtos
+              </Button>
+              <Button
+                onClick={() => setModalCadastroComum(true)}
+                variant="outline"
+                className="gap-2 border-primary text-primary hover:bg-primary/10"
+              >
+                <Plus className="w-4 h-4" />
+                Produto Comum
+              </Button>
+              <Button
+                onClick={() => setModalCadastroEspecial(true)}
+                className="gap-2 btn-padaria"
+              >
+                <Cake className="w-4 h-4" />
+                Produto Especial
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Resumo por categoria */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {CATEGORIAS.slice(0, 4).map(cat => (
+          <Card 
+            key={cat} 
+            className="card-padaria cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => { setFiltroCategoria(cat); setModalProdutos(true); }}
+          >
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-primary">{contagemPorCategoria[cat] || 0}</p>
+              <p className="text-xs text-muted-foreground">{cat}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Filtros compactos */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar produtos..."
-            className="pl-9 h-9"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
-        </div>
-        <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-          <SelectTrigger className="w-full sm:w-36 h-9">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas</SelectItem>
-            {CATEGORIAS.map(cat => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-          <SelectTrigger className="w-full sm:w-28 h-9">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos</SelectItem>
-            <SelectItem value="ativo">Ativos</SelectItem>
-            <SelectItem value="inativo">Inativos</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="icon" className="h-9 w-9" onClick={carregarProdutos}>
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      {/* Grid de produtos */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <ScrollArea className="h-[calc(100vh-240px)]">
-          {produtosFiltrados.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Package className="w-12 h-12 mb-3 opacity-30" />
-              <p>Nenhum produto encontrado</p>
-            </div>
-          ) : (
-            <div className="space-y-4 pr-2">
-              {/* Renderizar por categoria */}
-              {Object.entries(produtosPorCategoria).map(([categoria, prods]) => (
-                <div key={categoria}>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
-                    {categoria}
-                    <Badge variant="outline" className="text-[10px]">{prods.length}</Badge>
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-                    {prods.map((produto) => (
-                      <ProdutoCard key={produto.id} produto={produto} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-      )}
-
-      {/* Dialog de Novo Produto */}
-      <Dialog open={dialogNovoOpen} onOpenChange={(open) => {
-        setDialogNovoOpen(open);
-        if (!open) {
-          setModoCadastro(null);
-          setProdutoComum({ nome: '', descricao: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '' });
-          setProdutoEspecial({ nome: '', descricao: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
-        }
-      }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+      {/* Modal de Produtos Cadastrados */}
+      <Dialog open={modalProdutos} onOpenChange={setModalProdutos}>
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
-              {modoCadastro === 'ESPECIAL' ? <Cake className="w-5 h-5 text-primary" /> : <Package className="w-5 h-5" />}
-              {modoCadastro === 'ESPECIAL' ? 'Novo Produto Especial' : 'Novo Produto Comum'}
+              <Grid3X3 className="w-5 h-5" />
+              Produtos Cadastrados
             </DialogTitle>
             <DialogDescription>
-              {modoCadastro === 'ESPECIAL' 
-                ? 'Produtos especiais têm preços por tamanho (P, M, G, GG)'
-                : 'Produtos comuns são vendidos por kg ou unidade'}
+              {produtosFiltrados.length} de {produtos.length} produtos
             </DialogDescription>
           </DialogHeader>
 
-          {modoCadastro === 'COMUM' ? (
-            <div className="space-y-3 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label className="text-xs">Nome *</Label>
-                  <Input
-                    placeholder="Nome do produto"
-                    value={produtoComum.nome}
-                    onChange={(e) => setProdutoComum({ ...produtoComum, nome: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Tipo de Venda</Label>
-                  <Select
-                    value={produtoComum.tipoVenda}
-                    onValueChange={(value) => setProdutoComum({ ...produtoComum, tipoVenda: value as 'KG' | 'UNIDADE' })}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_VENDA.map(tipo => (
-                        <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Categoria</Label>
-                  <Select
-                    value={produtoComum.categoria}
-                    onValueChange={(value) => setProdutoComum({ ...produtoComum, categoria: value })}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Valor *</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0,00"
-                      className="pl-10 h-9"
-                      value={produtoComum.valorUnit}
-                      onChange={(e) => setProdutoComum({ ...produtoComum, valorUnit: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Descrição</Label>
-                  <Input
-                    placeholder="Descrição opcional"
-                    value={produtoComum.descricao}
-                    onChange={(e) => setProdutoComum({ ...produtoComum, descricao: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
-              </div>
+          {/* Filtros */}
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0 py-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto..."
+                className="pl-10"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
             </div>
-          ) : (
-            <div className="space-y-3 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label className="text-xs">Nome *</Label>
-                  <Input
-                    placeholder="Nome do produto"
-                    value={produtoEspecial.nome}
-                    onChange={(e) => setProdutoEspecial({ ...produtoEspecial, nome: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Categoria</Label>
-                  <Select
-                    value={produtoEspecial.categoria}
-                    onValueChange={(value) => setProdutoEspecial({ ...produtoEspecial, categoria: value })}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todas categorias</SelectItem>
+                {CATEGORIAS.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-full sm:w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="ATIVO">Ativos</SelectItem>
+                <SelectItem value="INATIVO">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-1">
+              <Button
+                variant={visaoGrid ? 'default' : 'outline'}
+                size="icon"
+                onClick={() => setVisaoGrid(true)}
+                className={visaoGrid ? 'btn-padaria' : ''}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={!visaoGrid ? 'default' : 'outline'}
+                size="icon"
+                onClick={() => setVisaoGrid(false)}
+                className={!visaoGrid ? 'btn-padaria' : ''}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Lista/Grid de Produtos */}
+          <ScrollArea className="flex-1">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <RefreshCw className="w-6 h-6 animate-spin text-primary" />
               </div>
-              
-              <div>
-                <Label className="text-xs font-semibold">Preços por Tamanho</Label>
-                <div className="grid grid-cols-4 gap-2 mt-1.5">
-                  {TAMANHOS_FIXOS.map(tam => (
-                    <div key={tam}>
-                      <Label className="text-[10px] text-muted-foreground">{tam}</Label>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">R$</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0"
-                          className="pl-6 h-8 text-sm"
-                          value={produtoEspecial.precos[tam]}
-                          onChange={(e) => setProdutoEspecial({
-                            ...produtoEspecial,
-                            precos: { ...produtoEspecial.precos, [tam]: e.target.value }
-                          })}
-                        />
+            ) : produtosFiltrados.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                <Package className="w-12 h-12 mb-2 opacity-50" />
+                <p>Nenhum produto encontrado</p>
+              </div>
+            ) : visaoGrid ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
+                {produtosFiltrados.map((produto) => (
+                  <div
+                    key={produto.id}
+                    className={`relative group rounded-lg border-2 p-3 transition-all hover:shadow-md cursor-pointer ${
+                      produto.tipoProduto === 'ESPECIAL'
+                        ? 'bg-primary/5 border-primary/30 hover:border-primary'
+                        : 'bg-card border-border hover:border-primary/50'
+                    } ${!produto.ativo ? 'opacity-50' : ''}`}
+                  >
+                    {/* Badge de tipo */}
+                    {produto.tipoProduto === 'ESPECIAL' && (
+                      <div className="absolute -top-2 -right-2">
+                        <Badge className="text-[10px] bg-primary text-primary-foreground">
+                          <Cake className="w-3 h-3 mr-1" />
+                          Torta
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Status */}
+                    {!produto.ativo && (
+                      <Badge variant="outline" className="absolute top-1 left-1 text-[10px]">
+                        Inativo
+                      </Badge>
+                    )}
+
+                    {/* Conteúdo */}
+                    <div className="mt-2" onClick={() => handleEditar(produto)}>
+                      <p className="font-semibold text-sm truncate">{produto.nome}</p>
+                      <p className="text-xs text-muted-foreground mb-2">{produto.categoria}</p>
+                      
+                      {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+                        <div className="space-y-0.5">
+                          {Object.entries(produto.precosTamanhos)
+                            .filter(([, preco]) => preco !== undefined && preco !== null && !isNaN(preco))
+                            .slice(0, 3)
+                            .map(([tam, preco]) => (
+                              <div key={tam} className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">{tam}:</span>
+                                <span className="font-medium text-primary">{formatarMoeda(preco)}</span>
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <Badge variant="secondary" className="text-[10px]">
+                            {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
+                          </Badge>
+                          <span className="font-bold text-primary text-sm">{formatarMoeda(produto.valorUnit)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Ações */}
+                    <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handleToggleAtivo(produto); }}
+                        className="h-7 w-7 p-0"
+                        title={produto.ativo ? 'Desativar' : 'Ativar'}
+                      >
+                        {produto.ativo ? (
+                          <ToggleRight className="w-4 h-4 text-primary" />
+                        ) : (
+                          <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handleConfirmarExclusao(produto); }}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1 p-1">
+                {produtosFiltrados.map((produto) => (
+                  <div
+                    key={produto.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer ${
+                      produto.tipoProduto === 'ESPECIAL'
+                        ? 'bg-primary/5 border-primary/30 hover:bg-primary/10'
+                        : 'bg-card border-border hover:bg-muted/50'
+                    } ${!produto.ativo ? 'opacity-50' : ''}`}
+                    onClick={() => handleEditar(produto)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        produto.tipoProduto === 'ESPECIAL' ? 'bg-primary/20' : 'bg-muted'
+                      }`}>
+                        {produto.tipoProduto === 'ESPECIAL' ? (
+                          <Cake className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Package className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{produto.nome}</span>
+                          {!produto.ativo && (
+                            <Badge variant="outline" className="text-[10px]">Inativo</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{produto.categoria}</span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+                          <span className="text-xs text-muted-foreground">
+                            {Object.keys(produto.precosTamanhos).length} tamanhos
+                          </span>
+                        ) : (
+                          <span className="font-bold text-primary">{formatarMoeda(produto.valorUnit)}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleToggleAtivo(produto); }}
+                          className="h-8 w-8 p-0"
+                        >
+                          {produto.ativo ? (
+                            <ToggleRight className="w-4 h-4 text-primary" />
+                          ) : (
+                            <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleConfirmarExclusao(produto); }}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div>
-                <Label className="text-xs">Descrição</Label>
-                <Input
-                  placeholder="Descrição opcional"
-                  value={produtoEspecial.descricao}
-                  onChange={(e) => setProdutoEspecial({ ...produtoEspecial, descricao: e.target.value })}
-                  className="h-9"
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogNovoOpen(false)} className="h-9">
-              Cancelar
-            </Button>
-            <Button 
-              onClick={modoCadastro === 'COMUM' ? handleCriarProdutoComum : handleCriarProdutoEspecial} 
-              className="btn-padaria h-9"
-            >
-              <Plus className="w-4 h-4 mr-1.5" />
-              Cadastrar
-            </Button>
-          </DialogFooter>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de edição */}
-      <Dialog open={dialogProdutoOpen} onOpenChange={setDialogProdutoOpen}>
+      {/* Modal de Cadastro de Produto Comum */}
+      <Dialog open={modalCadastroComum} onOpenChange={setModalCadastroComum}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Edit className="w-5 h-5" />
-              Editar Produto
+              <Package className="w-5 h-5 text-primary" />
+              Novo Produto Comum
             </DialogTitle>
             <DialogDescription>
-              Altere os dados do produto abaixo.
+              Produto vendido por KG ou Unidade com preço fixo
             </DialogDescription>
           </DialogHeader>
-          {produtoEditando && (
-            <div className="space-y-3 py-2">
-              <div>
-                <Label className="text-xs">Nome</Label>
-                <Input
-                  value={produtoEditando.nome}
-                  onChange={(e) => setProdutoEditando({ ...produtoEditando, nome: e.target.value })}
-                  className="h-9"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Descrição</Label>
-                <Input
-                  value={produtoEditando.descricao || ''}
-                  onChange={(e) => setProdutoEditando({ ...produtoEditando, descricao: e.target.value })}
-                  className="h-9"
-                />
-              </div>
-              {produtoEditando.tipoProduto === 'NORMAL' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Tipo de Venda</Label>
-                    <Select
-                      value={produtoEditando.tipoVenda}
-                      onValueChange={(value) => setProdutoEditando({ ...produtoEditando, tipoVenda: value as 'KG' | 'UNIDADE' })}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIPOS_VENDA.map(tipo => (
-                          <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Valor</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="pl-10 h-9"
-                        value={produtoEditando.valorUnit}
-                        onChange={(e) => setProdutoEditando({ ...produtoEditando, valorUnit: parseFloat(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div>
-                <Label className="text-xs">Categoria</Label>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do Produto *</Label>
+              <Input
+                placeholder="Ex: Pão Francês, Bolo de Chocolate..."
+                value={produtoComum.nome}
+                onChange={(e) => setProdutoComum({ ...produtoComum, nome: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo de Venda *</Label>
                 <Select
-                  value={produtoEditando.categoria || 'Outros'}
-                  onValueChange={(value) => setProdutoEditando({ ...produtoEditando, categoria: value })}
+                  value={produtoComum.tipoVenda}
+                  onValueChange={(value) => setProdutoComum({ ...produtoComum, tipoVenda: value })}
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_VENDA.map(tipo => (
+                      <SelectItem key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select
+                  value={produtoComum.categoria}
+                  onValueChange={(value) => setProdutoComum({ ...produtoComum, categoria: value })}
+                >
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -844,26 +744,194 @@ export default function AdminProdutos() {
                   </SelectContent>
                 </Select>
               </div>
-              {produtoEditando.tipoProduto === 'ESPECIAL' && produtoEditando.precosTamanhos && (
-                <div>
-                  <Label className="text-xs font-semibold">Preços por Tamanho</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-1.5">
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Valor *
+              </Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0,00"
+                value={produtoComum.valorUnit}
+                onChange={(e) => setProdutoComum({ ...produtoComum, valorUnit: e.target.value })}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4 border-t">
+              <Button variant="outline" onClick={() => setModalCadastroComum(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCriarProdutoComum} className="btn-padaria">
+                <Check className="w-4 h-4 mr-2" />
+                Cadastrar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Cadastro de Produto Especial */}
+      <Dialog open={modalCadastroEspecial} onOpenChange={setModalCadastroEspecial}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Cake className="w-5 h-5" />
+              Nova Torta (Produto Especial)
+            </DialogTitle>
+            <DialogDescription>
+              Tortas com tamanhos e preços diferenciados
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nome da Torta *</Label>
+                <Input
+                  placeholder="Ex: Torta de Frango"
+                  value={produtoEspecial.nome}
+                  onChange={(e) => setProdutoEspecial({ ...produtoEspecial, nome: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select
+                  value={produtoEspecial.categoria}
+                  onValueChange={(value) => setProdutoEspecial({ ...produtoEspecial, categoria: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Preços por Tamanho</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {TAMANHOS_FIXOS.map(tam => (
+                  <div key={tam} className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Tamanho {tam}</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                        className="pl-10"
+                        value={produtoEspecial.precos[tam]}
+                        onChange={(e) => setProdutoEspecial({
+                          ...produtoEspecial,
+                          precos: { ...produtoEspecial.precos, [tam]: e.target.value }
+                        })}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Preencha pelo menos um tamanho
+              </p>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4 border-t">
+              <Button variant="outline" onClick={() => setModalCadastroEspecial(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCriarProdutoEspecial} className="btn-padaria">
+                <Check className="w-4 h-4 mr-2" />
+                Cadastrar Torta
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição */}
+      <Dialog open={modalEdicao} onOpenChange={setModalEdicao}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Editar Produto
+            </DialogTitle>
+          </DialogHeader>
+
+          {produtoEditando && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input
+                  value={produtoEditando.nome}
+                  onChange={(e) => setProdutoEditando({ ...produtoEditando, nome: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Venda</Label>
+                  <Select
+                    value={produtoEditando.tipoVenda}
+                    onValueChange={(value) => setProdutoEditando({ ...produtoEditando, tipoVenda: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIPOS_VENDA.map(tipo => (
+                        <SelectItem key={tipo.value} value={tipo.value}>
+                          {tipo.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select
+                    value={produtoEditando.categoria || 'Outros'}
+                    onValueChange={(value) => setProdutoEditando({ ...produtoEditando, categoria: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIAS.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {produtoEditando.tipoProduto === 'ESPECIAL' ? (
+                <div className="space-y-3">
+                  <Label className="font-semibold">Preços por Tamanho</Label>
+                  <div className="grid grid-cols-2 gap-3">
                     {TAMANHOS_FIXOS.map(tam => (
-                      <div key={tam}>
-                        <Label className="text-[10px] text-muted-foreground">{tam}</Label>
+                      <div key={tam} className="space-y-1">
+                        <Label className="text-sm text-muted-foreground">{tam}</Label>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">R$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                           <Input
                             type="number"
                             step="0.01"
-                            className="pl-6 h-8 text-sm"
+                            className="pl-10"
                             value={produtoEditando.precosTamanhos?.[tam] || ''}
                             onChange={(e) => setProdutoEditando({
                               ...produtoEditando,
                               precosTamanhos: {
-                                ...produtoEditando.precosTamanhos,
-                                [tam]: parseFloat(e.target.value) || 0,
-                              },
+                                ...(produtoEditando.precosTamanhos || {}),
+                                [tam]: parseFloat(e.target.value) || 0
+                              }
                             })}
                           />
                         </div>
@@ -871,36 +939,53 @@ export default function AdminProdutos() {
                     ))}
                   </div>
                 </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Valor</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={produtoEditando.valorUnit}
+                    onChange={(e) => setProdutoEditando({ ...produtoEditando, valorUnit: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
               )}
+
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                <Label>Produto ativo</Label>
+                <Button
+                  variant={produtoEditando.ativo ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setProdutoEditando({ ...produtoEditando, ativo: !produtoEditando.ativo })}
+                  className={produtoEditando.ativo ? 'btn-padaria' : ''}
+                >
+                  {produtoEditando.ativo ? 'Ativo' : 'Inativo'}
+                </Button>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4 border-t">
+                <Button variant="outline" onClick={() => setModalEdicao(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={() => handleAtualizarProduto(produtoEditando)} className="btn-padaria">
+                  <Check className="w-4 h-4 mr-2" />
+                  Salvar
+                </Button>
+              </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogProdutoOpen(false)} className="h-9">
-              Cancelar
-            </Button>
-            <Button onClick={() => produtoEditando && handleAtualizarProduto(produtoEditando)} className="btn-padaria h-9">
-              <Save className="w-4 h-4 mr-1.5" />
-              Salvar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de exclusão */}
+      {/* Dialog de confirmação de exclusão */}
       <AlertDialog open={dialogExcluirOpen} onOpenChange={setDialogExcluirOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-destructive" />
-              Confirmar Exclusão
-            </AlertDialogTitle>
+            <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir <strong>{produtoParaExcluir?.nome}</strong>?
-              {produtoParaExcluir && (
-                <span className="block mt-2 text-sm">
-                  Se este produto já foi usado em pedidos, ele será desativado em vez de excluído.
-                </span>
-              )}
+              <br />
+              Se o produto já foi usado em pedidos, ele será desativado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
