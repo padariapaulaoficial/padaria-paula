@@ -204,6 +204,10 @@ export default function HistoricoPedidos() {
   const [dialogFinalizarOpen, setDialogFinalizarOpen] = useState(false);
   const [pedidoParaFinalizar, setPedidoParaFinalizar] = useState<Pedido | null>(null);
   const [finalizando, setFinalizando] = useState(false);
+  
+  // Estados para pagamento final
+  const [formaPagamentoFinal, setFormaPagamentoFinal] = useState('');
+  const [valorRecebidoFinal, setValorRecebidoFinal] = useState('');
 
   // Carregar configurações
   useEffect(() => {
@@ -278,15 +282,21 @@ export default function HistoricoPedidos() {
     return true;
   });
 
-  // Formatar data
+  // Formatar data com dia da semana
   const formatarData = (data: string) => {
-    return new Date(data).toLocaleString('pt-BR', {
+    const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const dataObj = new Date(data);
+    const diaSemana = diasSemana[dataObj.getDay()];
+    const dataFormatada = dataObj.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
+    });
+    const horaFormatada = dataObj.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit',
     });
+    return `${diaSemana} - ${dataFormatada} às ${horaFormatada}`;
   };
 
   // Formatar data de entrega
@@ -569,9 +579,11 @@ export default function HistoricoPedidos() {
 
   // Atualizar status
   const handleAtualizarStatus = async (pedido: Pedido, novoStatus: string) => {
-    // Se for ENTREGUE, mostrar confirmação primeiro
+    // Se for ENTREGUE, mostrar confirmação com pagamento
     if (novoStatus === 'ENTREGUE') {
       setPedidoParaFinalizar(pedido);
+      setFormaPagamentoFinal('');
+      setValorRecebidoFinal('');
       setDialogFinalizarOpen(true);
       return;
     }
@@ -1355,7 +1367,7 @@ export default function HistoricoPedidos() {
                 <Button className="h-8 text-[10px] bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleImprimirCliente(pedidoSelecionado)}>
                   <FileText className="w-3 h-3 mr-0.5" />Cupom do Cliente
                 </Button>
-                <Button className="h-8 text-[10px] bg-orange-500 hover:bg-orange-600 text-white" onClick={() => handleImprimirCozinha(pedidoSelecionado)}>
+                <Button className="h-8 text-[10px] btn-padaria" onClick={() => handleImprimirCozinha(pedidoSelecionado)}>
                   <Printer className="w-3 h-3 mr-0.5" />Comanda da Cozinha
                 </Button>
               </div>
@@ -1781,25 +1793,96 @@ export default function HistoricoPedidos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog de Confirmação de Finalização */}
+      {/* Dialog de Confirmação de Finalização com Pagamento */}
       <AlertDialog open={dialogFinalizarOpen} onOpenChange={setDialogFinalizarOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
               <AlertCircle className="w-5 h-5" />
-              Confirmar Finalização
+              Finalizar Pedido #{pedidoParaFinalizar && formatarNumeroPedido(pedidoParaFinalizar.numero)}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-left">
-              Você está prestes a marcar o pedido <strong>#{pedidoParaFinalizar && formatarNumeroPedido(pedidoParaFinalizar.numero)}</strong> como <strong>ENTREGUE</strong>.
-              <br /><br />
-              <span className="text-amber-600 font-medium">⚠️ Atenção:</span> Após a finalização, o pedido não poderá mais ser editado.
-              <br /><br />
-              Deseja continuar?
+            <AlertDialogDescription className="text-left space-y-2">
+              <span className="text-amber-600 font-medium">⚠️ Após finalizar, o pedido não poderá mais ser editado.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           
+          {/* Informações do pedido */}
+          <div className="space-y-3 py-2">
+            {/* Valores */}
+            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Total do pedido:</span>
+                <span className="font-bold text-primary">{pedidoParaFinalizar && formatarMoeda(pedidoParaFinalizar.total)}</span>
+              </div>
+              {pedidoParaFinalizar && (pedidoParaFinalizar as any).valorEntrada > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Entrada já recebida:</span>
+                    <span className="font-medium">{formatarMoeda((pedidoParaFinalizar as any).valorEntrada)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold border-t pt-2">
+                    <span>Restante a receber:</span>
+                    <span className="text-amber-600">{formatarMoeda(pedidoParaFinalizar.total - ((pedidoParaFinalizar as any).valorEntrada || 0))}</span>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {/* Pergunta sobre pagamento */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                {pedidoParaFinalizar && (pedidoParaFinalizar as any).valorEntrada > 0 
+                  ? 'O restante foi pago?' 
+                  : 'O pagamento foi recebido?'}
+              </Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={formaPagamentoFinal ? 'outline' : 'default'}
+                  className={`flex-1 h-9 text-xs ${!formaPagamentoFinal ? 'btn-padaria' : ''}`}
+                  onClick={() => setFormaPagamentoFinal('')}
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Não
+                </Button>
+                <Button
+                  variant={formaPagamentoFinal ? 'default' : 'outline'}
+                  className={`flex-1 h-9 text-xs ${formaPagamentoFinal ? 'btn-padaria' : ''}`}
+                  onClick={() => setFormaPagamentoFinal('DINHEIRO')}
+                >
+                  <Check className="w-3 h-3 mr-1" />
+                  Sim
+                </Button>
+              </div>
+            </div>
+            
+            {/* Se foi pago, mostrar formas de pagamento */}
+            {formaPagamentoFinal && (
+              <div className="space-y-2 animate-fade-in">
+                <Label className="text-sm">Forma de pagamento:</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'DINHEIRO', label: 'Dinheiro', icon: Banknote },
+                    { value: 'PIX', label: 'PIX', icon: Smartphone },
+                    { value: 'CARTAO', label: 'Cartão', icon: CreditCard },
+                  ].map(({ value, label, icon: Icon }) => (
+                    <Button
+                      key={value}
+                      variant={formaPagamentoFinal === value ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-10 flex-col gap-0.5 ${formaPagamentoFinal === value ? 'btn-padaria' : ''}`}
+                      onClick={() => setFormaPagamentoFinal(value)}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-[10px]">{label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={finalizando}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={finalizando} onClick={() => { setFormaPagamentoFinal(''); }}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmarFinalizacao}
               disabled={finalizando}
@@ -1813,7 +1896,7 @@ export default function HistoricoPedidos() {
               ) : (
                 <>
                   <Check className="w-4 h-4 mr-2" />
-                  Sim, Finalizar Pedido
+                  Finalizar Pedido
                 </>
               )}
             </AlertDialogAction>

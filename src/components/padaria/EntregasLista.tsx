@@ -188,11 +188,20 @@ export default function EntregasLista() {
 
   // Abrir no Google Maps
   const handleAbrirMapa = (pedido: Pedido) => {
-    const endereco = pedido.enderecoEntrega 
-      ? `${pedido.enderecoEntrega}${pedido.bairroEntrega ? ', ' + pedido.bairroEntrega : ''}`
-      : pedido.cliente.endereco 
-        ? `${pedido.cliente.endereco}${pedido.cliente.bairro ? ', ' + pedido.cliente.bairro : ''}`
-        : '';
+    // Construir endereço completo
+    let endereco = '';
+    
+    if (pedido.enderecoEntrega) {
+      endereco = pedido.enderecoEntrega;
+      if (pedido.bairroEntrega) {
+        endereco += `, ${pedido.bairroEntrega}`;
+      }
+    } else if (pedido.cliente.endereco) {
+      endereco = pedido.cliente.endereco;
+      if (pedido.cliente.bairro) {
+        endereco += `, ${pedido.cliente.bairro}`;
+      }
+    }
     
     if (!endereco) {
       toast({
@@ -202,6 +211,9 @@ export default function EntregasLista() {
       });
       return;
     }
+    
+    // Adicionar cidade para melhor precisão (Paulista-PE)
+    endereco += ', Paulista - PE';
     
     // Abrir Google Maps com o endereço
     const enderecoCodificado = encodeURIComponent(endereco);
