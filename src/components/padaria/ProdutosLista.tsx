@@ -518,16 +518,46 @@ function ProdutoCard({
   temQuantidade,
   subtotal
 }: ProdutoCardProps) {
-  // Ordenar tamanhos e filtrar apenas os que têm preço válido
+  // Parsear tamanhos e preços corretamente
   const ordemTamanhos = ['P', 'M', 'G', 'GG'];
-  const tamanhosOrdenados = produto.tamanhos
-    ? [...produto.tamanhos]
-        .filter(tam => {
-          const preco = produto.precosTamanhos?.[tam];
-          return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
-        })
-        .sort((a, b) => ordemTamanhos.indexOf(a) - ordemTamanhos.indexOf(b))
-    : [];
+  
+  // Garantir que tamanhos é um array
+  let tamanhosArray: string[] = [];
+  if (produto.tamanhos) {
+    if (Array.isArray(produto.tamanhos)) {
+      tamanhosArray = produto.tamanhos;
+    } else if (typeof produto.tamanhos === 'string') {
+      try {
+        const parsed = JSON.parse(produto.tamanhos);
+        tamanhosArray = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        tamanhosArray = [];
+      }
+    }
+  }
+  
+  // Garantir que precosTamanhos é um objeto
+  let precosTamanhosObj: Record<string, number> = {};
+  if (produto.precosTamanhos) {
+    if (typeof produto.precosTamanhos === 'string') {
+      try {
+        const parsed = JSON.parse(produto.precosTamanhos);
+        precosTamanhosObj = typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch {
+        precosTamanhosObj = {};
+      }
+    } else if (typeof produto.precosTamanhos === 'object') {
+      precosTamanhosObj = produto.precosTamanhos;
+    }
+  }
+  
+  // Ordenar tamanhos e filtrar apenas os que têm preço válido
+  const tamanhosOrdenados = tamanhosArray
+    .filter(tam => {
+      const preco = precosTamanhosObj[tam];
+      return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+    })
+    .sort((a, b) => ordemTamanhos.indexOf(a) - ordemTamanhos.indexOf(b));
 
   return (
     <Card className={`card-padaria hover:shadow-md transition-shadow ${produto.tipoProduto === 'ESPECIAL' ? 'ring-1 ring-primary/30' : ''}`}>
@@ -553,18 +583,14 @@ function ProdutoCard({
         </div>
 
         {/* Preço */}
-        {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-          <div className="mb-2 text-[10px] text-muted-foreground">
-            {tamanhosOrdenados
-              .filter(tam => {
-                const preco = produto.precosTamanhos?.[tam];
-                return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
-              })
-              .map(tam => (
-                <span key={tam} className="mr-1.5">
-                  <strong className="text-primary">{tam}</strong>: {formatarMoeda(produto.precosTamanhos![tam])}
-                </span>
-              ))}
+        {produto.tipoProduto === 'ESPECIAL' && tamanhosOrdenados.length > 0 ? (
+          <div className="mb-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+            {tamanhosOrdenados.map(tam => (
+              <div key={tam} className="flex justify-between">
+                <span className="font-medium text-primary">{tam}</span>
+                <span className="text-muted-foreground">{formatarMoeda(precosTamanhosObj[tam])}</span>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="flex items-center gap-0.5 mb-2">
