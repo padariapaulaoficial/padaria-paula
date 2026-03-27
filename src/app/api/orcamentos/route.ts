@@ -190,11 +190,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Atualizar orçamento (status, itens, adicionar produtos)
+// PUT - Atualizar orçamento (status, itens, adicionar produtos, dados de entrega)
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, converterParaPedido, itens, novosItens, itensParaRemover, tipoEntrega } = body;
+    const { id, status, converterParaPedido, itens, novosItens, itensParaRemover, tipoEntrega, dataEntrega, horarioEntrega, valorTeleEntrega } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -223,11 +223,30 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Atualizar tipo de entrega se fornecido
-    if (tipoEntrega) {
+    // Verificar se há atualização de dados de entrega
+    const dadosEntrega: Record<string, unknown> = {};
+    let recalcularTotal = false;
+    
+    if (tipoEntrega !== undefined) {
+      dadosEntrega.tipoEntrega = tipoEntrega;
+      recalcularTotal = true;
+    }
+    if (dataEntrega !== undefined) {
+      dadosEntrega.dataEntrega = dataEntrega;
+    }
+    if (horarioEntrega !== undefined) {
+      dadosEntrega.horarioEntrega = horarioEntrega || null;
+    }
+    if (valorTeleEntrega !== undefined) {
+      dadosEntrega.valorTeleEntrega = valorTeleEntrega ? parseFloat(valorTeleEntrega) : null;
+      recalcularTotal = true;
+    }
+    
+    // Atualizar dados de entrega se fornecidos
+    if (Object.keys(dadosEntrega).length > 0) {
       await db.orcamento.update({
         where: { id },
-        data: { tipoEntrega },
+        data: dadosEntrega,
       });
     }
     
@@ -334,11 +353,23 @@ export async function PUT(request: NextRequest) {
     }
     
     // Recalcular total do orçamento
-    if (itens || novosItens || itensParaRemover) {
+    if (itens || novosItens || itensParaRemover || recalcularTotal) {
       const itensAtualizados = await db.itemOrcamento.findMany({
         where: { orcamentoId: id },
       });
-      const novoTotal = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      const subtotalItens = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      // Buscar o orçamento atualizado para obter a taxa de tele-entrega
+      const orcamentoAtualizado = await db.orcamento.findUnique({
+        where: { id },
+        select: { valorTeleEntrega: true, tipoEntrega: true },
+      });
+      
+      // Calcular total incluindo taxa de tele-entrega
+      const taxaEntrega = (orcamentoAtualizado?.tipoEntrega === 'TELE_ENTREGA' && orcamentoAtualizado?.valorTeleEntrega) 
+        ? orcamentoAtualizado.valorTeleEntrega 
+        : 0;
+      const novoTotal = subtotalItens + taxaEntrega;
       
       await db.orcamento.update({
         where: { id },

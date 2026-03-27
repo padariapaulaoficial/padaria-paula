@@ -269,7 +269,7 @@ export async function PUT(request: NextRequest) {
       id, status, impresso, itens, novosItens, itensParaRemover,
       valorEntrada, formaPagamentoEntrada, dataEntrada,
       alertaProducaoEnviado,
-      dataEntrega, horarioEntrega, valorTeleEntrega
+      dataEntrega, horarioEntrega, valorTeleEntrega, tipoEntrega
     } = body;
     
     if (!id) {
@@ -289,10 +289,14 @@ export async function PUT(request: NextRequest) {
     if (dataEntrada !== undefined) data.dataEntrada = dataEntrada ? new Date(dataEntrada) : null;
     if (alertaProducaoEnviado !== undefined) data.alertaProducaoEnviado = alertaProducaoEnviado;
     
-    // Campos de entrega (edição de data/horário)
+    // Campos de entrega (edição de data/horário/tipo/valor)
+    if (tipoEntrega !== undefined) data.tipoEntrega = tipoEntrega;
     if (dataEntrega !== undefined) data.dataEntrega = dataEntrega;
-    if (horarioEntrega !== undefined) data.horarioEntrega = horarioEntrega;
-    if (valorTeleEntrega !== undefined) data.valorTeleEntrega = parseFloat(valorTeleEntrega) || 0;
+    if (horarioEntrega !== undefined) data.horarioEntrega = horarioEntrega || null;
+    if (valorTeleEntrega !== undefined) data.valorTeleEntrega = valorTeleEntrega ? parseFloat(valorTeleEntrega) : null;
+    
+    // Flag para indicar se precisa recalcular o total
+    let recalcularTotal = tipoEntrega !== undefined || valorTeleEntrega !== undefined;
     
     // Remover itens com quantidade 0
     if (itensParaRemover && Array.isArray(itensParaRemover) && itensParaRemover.length > 0) {
@@ -418,6 +422,20 @@ export async function PUT(request: NextRequest) {
       
       data.total = novoTotal;
       data.totalPedida = subtotalItens; // totalPedida não inclui taxa
+    }
+    
+    // Recalcular total se alterou tipo de entrega ou valor da taxa
+    if (recalcularTotal && !(itens && Array.isArray(itens))) {
+      const itensAtualizados = await db.itemPedido.findMany({
+        where: { pedidoId: id },
+      });
+      
+      const subtotalItens = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      const taxaEntrega = data.valorTeleEntrega ? parseFloat(data.valorTeleEntrega as string) : 0;
+      const novoTotal = subtotalItens + taxaEntrega;
+      
+      data.total = novoTotal;
+      data.totalPedida = subtotalItens;
     }
     
     const pedido = await db.pedido.update({

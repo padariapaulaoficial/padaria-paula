@@ -71,6 +71,7 @@ interface Orcamento {
   horarioEntrega?: string;
   enderecoEntrega?: string;
   bairroEntrega?: string;
+  valorTeleEntrega?: number | null;
   createdAt: string;
 }
 
@@ -139,6 +140,7 @@ export default function OrcamentosLista() {
   const [editTipoEntrega, setEditTipoEntrega] = useState<'RETIRA' | 'TELE_ENTREGA'>('RETIRA');
   const [editDataEntrega, setEditDataEntrega] = useState('');
   const [editHorarioEntrega, setEditHorarioEntrega] = useState('');
+  const [editValorTeleEntrega, setEditValorTeleEntrega] = useState('');
   const [salvandoEntrega, setSalvandoEntrega] = useState(false);
 
   // Horários comerciais disponíveis
@@ -155,6 +157,7 @@ export default function OrcamentosLista() {
     setEditTipoEntrega(orcamento.tipoEntrega as 'RETIRA' | 'TELE_ENTREGA');
     setEditDataEntrega(orcamento.dataEntrega);
     setEditHorarioEntrega(orcamento.horarioEntrega || '');
+    setEditValorTeleEntrega(orcamento.valorTeleEntrega ? orcamento.valorTeleEntrega.toString() : '');
     setDialogEntregaOpen(true);
   };
 
@@ -165,6 +168,15 @@ export default function OrcamentosLista() {
     if (!editDataEntrega) {
       toast({ title: 'Data obrigatória', variant: 'destructive' });
       return;
+    }
+    
+    // Validar valor da tele-entrega se for tele-entrega
+    if (editTipoEntrega === 'TELE_ENTREGA') {
+      const valorTele = parseFloat(editValorTeleEntrega.replace(',', '.')) || 0;
+      if (valorTele <= 0) {
+        toast({ title: 'Valor da entrega obrigatório', description: 'Informe o valor da taxa de tele-entrega.', variant: 'destructive' });
+        return;
+      }
     }
     
     setSalvandoEntrega(true);
@@ -178,6 +190,7 @@ export default function OrcamentosLista() {
           tipoEntrega: editTipoEntrega,
           dataEntrega: editDataEntrega,
           horarioEntrega: editHorarioEntrega || null,
+          valorTeleEntrega: editTipoEntrega === 'TELE_ENTREGA' ? parseFloat(editValorTeleEntrega.replace(',', '.')) || 0 : null,
         }),
       });
       
@@ -1261,6 +1274,26 @@ export default function OrcamentosLista() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Valor da Tele-Entrega - só mostra se for TELE_ENTREGA */}
+            {editTipoEntrega === 'TELE_ENTREGA' && (
+              <div>
+                <Label className="text-xs font-medium mb-1 block">Valor da Taxa de Entrega</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    className="h-9 text-sm pl-10"
+                    value={editValorTeleEntrega}
+                    onChange={(e) => setEditValorTeleEntrega(e.target.value)}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Este valor será somado ao total do orçamento.</p>
+              </div>
+            )}
           </div>
           
           <DialogFooter className="gap-2">

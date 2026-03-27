@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
@@ -183,6 +183,14 @@ export default function HistoricoPedidos() {
   const [novaDataEntrega, setNovaDataEntrega] = useState('');
   const [novoHorarioEntrega, setNovoHorarioEntrega] = useState('');
   const [salvandoData, setSalvandoData] = useState(false);
+  
+  // Estados para edição completa de entrega
+  const [dialogEntregaOpen, setDialogEntregaOpen] = useState(false);
+  const [editTipoEntrega, setEditTipoEntrega] = useState<'RETIRA' | 'TELE_ENTREGA'>('RETIRA');
+  const [editDataEntrega, setEditDataEntrega] = useState('');
+  const [editHorarioEntrega, setEditHorarioEntrega] = useState('');
+  const [editValorTeleEntrega, setEditValorTeleEntrega] = useState('');
+  const [salvandoEntrega, setSalvandoEntrega] = useState(false);
   
   // Diálogos separados
   const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
@@ -974,6 +982,71 @@ export default function HistoricoPedidos() {
     }
   };
 
+  // Abrir diálogo de edição completa de entrega
+  const handleAbrirEdicaoEntrega = () => {
+    if (pedidoSelecionado) {
+      setEditTipoEntrega((pedidoSelecionado.tipoEntrega || 'RETIRA') as 'RETIRA' | 'TELE_ENTREGA');
+      setEditDataEntrega(pedidoSelecionado.dataEntrega || '');
+      setEditHorarioEntrega(pedidoSelecionado.horarioEntrega || '');
+      setEditValorTeleEntrega((pedidoSelecionado as any).valorTeleEntrega ? String((pedidoSelecionado as any).valorTeleEntrega) : '');
+      setDialogEntregaOpen(true);
+    }
+  };
+
+  // Salvar edição completa de entrega
+  const handleSalvarEdicaoEntrega = async () => {
+    if (!pedidoSelecionado) return;
+    
+    if (!editDataEntrega) {
+      toast({ title: 'Data obrigatória', variant: 'destructive' });
+      return;
+    }
+    
+    // Validar valor da tele-entrega se for tele-entrega
+    if (editTipoEntrega === 'TELE_ENTREGA') {
+      const valorTele = parseFloat(editValorTeleEntrega.replace(',', '.')) || 0;
+      if (valorTele <= 0) {
+        toast({ title: 'Valor da entrega obrigatório', description: 'Informe o valor da taxa de tele-entrega.', variant: 'destructive' });
+        return;
+      }
+    }
+    
+    setSalvandoEntrega(true);
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          tipoEntrega: editTipoEntrega,
+          dataEntrega: editDataEntrega,
+          horarioEntrega: editHorarioEntrega || null,
+          valorTeleEntrega: editTipoEntrega === 'TELE_ENTREGA' ? parseFloat(editValorTeleEntrega.replace(',', '.')) || 0 : null,
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) throw new Error(pedidoAtualizado.error || 'Erro ao atualizar');
+      
+      // Atualizar lista e pedido selecionado
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      setDialogEntregaOpen(false);
+      
+      toast({ 
+        title: 'Entrega atualizada!',
+        description: 'Dados de entrega salvos com sucesso.'
+      });
+    } catch (error) {
+      console.error('Erro ao salvar entrega:', error);
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    } finally {
+      setSalvandoEntrega(false);
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Filtros */}
@@ -1175,8 +1248,8 @@ export default function HistoricoPedidos() {
                     )}
                   </div>
                   {pedidoSelecionado.status !== 'ENTREGUE' && (
-                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={handleIniciarEdicaoData} title="Editar data/hora">
-                      <Edit2 className="w-3 h-3 text-muted-foreground" />
+                    <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[9px]" onClick={handleAbrirEdicaoEntrega} title="Editar entrega">
+                      <Edit2 className="w-2.5 h-2.5 mr-0.5" />Entrega
                     </Button>
                   )}
                 </div>
@@ -1194,6 +1267,13 @@ export default function HistoricoPedidos() {
                   <div className="flex items-start gap-0.5 text-[10px] text-muted-foreground">
                     <MapPin className="w-2.5 h-2.5 mt-0.5 shrink-0" />
                     <span>{pedidoSelecionado.enderecoEntrega}{pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}</span>
+                  </div>
+                )}
+                {/* Mostrar taxa de tele-entrega se houver */}
+                {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && (pedidoSelecionado as any).valorTeleEntrega > 0 && (
+                  <div className="flex items-center gap-0.5 text-[10px] text-primary font-medium">
+                    <Truck className="w-2.5 h-2.5" />
+                    <span>Taxa de entrega: {formatarMoeda((pedidoSelecionado as any).valorTeleEntrega)}</span>
                   </div>
                 )}
               </div>
@@ -1726,6 +1806,117 @@ export default function HistoricoPedidos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Edição Completa de Entrega */}
+      <Dialog open={dialogEntregaOpen} onOpenChange={setDialogEntregaOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Edit2 className="w-4 h-4" />
+              Editar Dados de Entrega
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Altere o tipo, data, horário e valor da entrega.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-2">
+            {/* Tipo de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1.5 block">Tipo de Entrega</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    editTipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setEditTipoEntrega('RETIRA')}
+                >
+                  <Store className="w-4 h-4" />
+                  <span className="text-xs font-medium">Retira</span>
+                </button>
+                <button
+                  type="button"
+                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    editTipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setEditTipoEntrega('TELE_ENTREGA')}
+                >
+                  <Truck className="w-4 h-4" />
+                  <span className="text-xs font-medium">Entrega</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Data de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Data de Entrega</Label>
+              <Input
+                type="date"
+                className="h-9 text-sm"
+                value={editDataEntrega}
+                onChange={(e) => setEditDataEntrega(e.target.value)}
+              />
+            </div>
+
+            {/* Horário de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Horário de Entrega</Label>
+              <Select value={editHorarioEntrega} onValueChange={setEditHorarioEntrega}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione o horário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {HORARIOS_COMERCIAIS.map((h) => (
+                    <SelectItem key={h} value={h} className="text-sm">{h}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Valor da Tele-Entrega - só mostra se for TELE_ENTREGA */}
+            {editTipoEntrega === 'TELE_ENTREGA' && (
+              <div>
+                <Label className="text-xs font-medium mb-1 block">Valor da Taxa de Entrega</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    className="h-9 text-sm pl-10"
+                    value={editValorTeleEntrega}
+                    onChange={(e) => setEditValorTeleEntrega(e.target.value)}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Este valor será somado ao total do pedido.</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              className="h-9 text-xs"
+              onClick={() => setDialogEntregaOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="btn-padaria h-9 text-xs"
+              onClick={handleSalvarEdicaoEntrega}
+              disabled={salvandoEntrega || !editDataEntrega}
+            >
+              {salvandoEntrega ? (
+                <><RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />Salvando...</>
+              ) : (
+                <><Check className="w-3.5 h-3.5 mr-1" />Salvar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
