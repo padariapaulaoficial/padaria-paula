@@ -716,10 +716,10 @@ export default function OrcamentosLista() {
 
           {/* Tabs de status */}
           <Tabs value={statusFiltro} onValueChange={setStatusFiltro} className="mt-3">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="PENDENTE">Pendentes</TabsTrigger>
-              <TabsTrigger value="APROVADO">Aprovados</TabsTrigger>
-              <TabsTrigger value="REJEITADO">Rejeitados</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="PENDENTE" className="text-xs sm:text-sm px-2 py-2">Pendentes</TabsTrigger>
+              <TabsTrigger value="APROVADO" className="text-xs sm:text-sm px-2 py-2">Aprovados</TabsTrigger>
+              <TabsTrigger value="REJEITADO" className="text-xs sm:text-sm px-2 py-2">Rejeitados</TabsTrigger>
             </TabsList>
           </Tabs>
         </CardContent>
