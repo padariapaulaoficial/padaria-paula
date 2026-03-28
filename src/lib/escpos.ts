@@ -483,6 +483,7 @@ export function gerarCupomCozinha(
 
 /**
  * Gera comanda de cozinha - Layout para produção
+ * Layout compacto mantendo linhas pontilhadas
  */
 export function gerarCupomCozinhaGrande(
   pedido: PedidoCompleto,
@@ -491,13 +492,9 @@ export function gerarCupomCozinhaGrande(
   const linhas: string[] = [];
 
   // Cabeçalho
-  linhas.push('');
   linhas.push('========================================');
-  linhas.push('');
   linhas.push(`        PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`);
-  linhas.push('');
   linhas.push('========================================');
-  linhas.push('');
 
   // Tipo de entrega com data e horário
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
@@ -505,16 +502,12 @@ export function gerarCupomCozinhaGrande(
   if (pedido.dataEntrega) {
     linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
-  linhas.push('');
   linhas.push('----------------------------------------');
-  linhas.push('');
 
   // Nome do cliente em destaque
   linhas.push(`CLIENTE: ${pedido.cliente.nome.toUpperCase()}`);
   linhas.push(`TELEFONE: ${formatarTelefone(pedido.cliente.telefone)}`);
-  linhas.push('');
   linhas.push('----------------------------------------');
-  linhas.push('');
   
   // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
   linhas.push('ITENS:');
@@ -554,18 +547,14 @@ export function gerarCupomCozinhaGrande(
     }
   }
   
-  linhas.push('');
   linhas.push('----------------------------------------');
   
   // Observações gerais
   if (pedido.observacoes) {
-    linhas.push('');
     linhas.push(`OBS: ${pedido.observacoes.toUpperCase()}`);
-    linhas.push('');
   }
   
   linhas.push('========================================');
-  linhas.push('');
   
   return linhas.join('\n');
 }
