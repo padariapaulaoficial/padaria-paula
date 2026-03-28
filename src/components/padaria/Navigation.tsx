@@ -38,10 +38,10 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="bg-card border-b border-border sticky top-0 z-50">
+    <nav className="bg-card border-b border-border sticky top-0 z-50 shrink-0">
       {/* Mobile: Menu grande com ícones */}
       <div className="lg:hidden">
-        <div className="flex overflow-x-auto gap-0.5 p-1 scrollbar-hide">
+        <div className="flex overflow-x-auto gap-1 p-1.5 scrollbar-hide hide-scrollbar">
           {navItems.map((item) => {
             const isActive = telaAtual === item.id;
             
@@ -49,7 +49,7 @@ export default function Navigation() {
               <button
                 key={item.id}
                 onClick={() => setTela(item.id)}
-                className={`flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200 relative shrink-0 ${
+                className={`flex flex-col items-center justify-center py-2 px-3 sm:px-4 rounded-xl transition-all duration-200 relative shrink-0 min-w-[60px] sm:min-w-[70px] no-tap-highlight ${
                   isActive 
                     ? 'bg-primary text-primary-foreground shadow-md' 
                     : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95'
@@ -58,7 +58,7 @@ export default function Navigation() {
                 <div className="relative">
                   {item.icon}
                 </div>
-                <span className="text-xs mt-1 font-medium whitespace-nowrap">{item.shortLabel}</span>
+                <span className="text-[10px] sm:text-xs mt-1 font-medium whitespace-nowrap">{item.shortLabel}</span>
               </button>
             );
           })}
@@ -76,7 +76,7 @@ export default function Navigation() {
                 <button
                   key={item.id}
                   onClick={() => setTela(item.id)}
-                  className={`relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                  className={`relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm no-tap-highlight ${
                     isActive 
                       ? 'bg-primary text-primary-foreground' 
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'

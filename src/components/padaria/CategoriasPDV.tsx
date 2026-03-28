@@ -3,7 +3,7 @@
 // CategoriasPDV - Padaria Paula
 // Tela inicial do PDV com cards de categorias clicáveis
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   User, Phone, MapPin, Truck, Store, Calendar,
   Cake, Candy, Cookie, Coffee, Croissant, Refrigerator,
@@ -165,50 +165,50 @@ export default function CategoriasPDV() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-3 sm:space-y-4 animate-fade-in">
       {/* Cliente Selecionado + Dados de Entrega */}
       {cliente && (
         <Card className="card-padaria border-primary/30 bg-primary/5">
-          <CardContent className="p-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="bg-primary/20 rounded-full p-2">
-                  <User className="w-4 h-4 text-primary" />
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="bg-primary/20 rounded-full p-1.5 sm:p-2 shrink-0">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-sm text-primary truncate">{cliente.nome}</h4>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
+                  <h4 className="font-semibold text-xs sm:text-sm text-primary truncate">{cliente.nome}</h4>
+                  <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                    <span className="flex items-center gap-0.5 sm:gap-1">
+                      <Phone className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       {cliente.telefone}
                     </span>
                   </div>
                   {/* Dados de Entrega */}
-                  <div className="mt-1.5 pt-1.5 border-t border-primary/20">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] flex items-center gap-1">
+                  <div className="mt-1 sm:mt-1.5 pt-1 sm:pt-1.5 border-t border-primary/20">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                      <Badge variant="outline" className="text-[9px] sm:text-[10px] flex items-center gap-0.5 sm:gap-1 h-5 sm:h-auto px-1 sm:px-2 py-0.5">
                         {entrega.tipoEntrega === 'RETIRA' ? (
                           <>
-                            <Store className="w-3 h-3" />
+                            <Store className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                             Cliente Retira
                           </>
                         ) : (
                           <>
-                            <Truck className="w-3 h-3" />
+                            <Truck className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                             Tele Entrega
                           </>
                         )}
                       </Badge>
                       {entrega.dataEntrega && (
-                        <Badge variant="secondary" className="text-[10px] flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                        <Badge variant="secondary" className="text-[9px] sm:text-[10px] flex items-center gap-0.5 sm:gap-1 h-5 sm:h-auto px-1 sm:px-2 py-0.5">
+                          <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           {formatarDataEntrega(entrega.dataEntrega)}
                         </Badge>
                       )}
                     </div>
                     {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.enderecoEntrega && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                        <MapPin className="w-3 h-3 shrink-0" />
+                      <div className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                        <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
                         <span className="truncate">
                           {entrega.enderecoEntrega}
                           {entrega.bairroEntrega && ` - ${entrega.bairroEntrega}`}
@@ -221,11 +221,11 @@ export default function CategoriasPDV() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs shrink-0"
+                className="h-7 sm:h-8 px-2 sm:px-2.5 text-[10px] sm:text-xs shrink-0"
                 onClick={() => setTela('novo-pedido')}
               >
-                <Edit2 className="w-3 h-3 mr-1" />
-                Editar
+                <Edit2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 sm:mr-1" />
+                <span className="hidden sm:inline">Editar</span>
               </Button>
             </div>
           </CardContent>
@@ -233,25 +233,27 @@ export default function CategoriasPDV() {
       )}
 
       {/* Título */}
-      <div className="text-center">
-        <h2 className="text-xl font-display font-bold text-primary">Selecione uma Categoria</h2>
-        <p className="text-sm text-muted-foreground">Toque em uma categoria para ver os produtos</p>
+      <div className="text-center px-2">
+        <h2 className="text-base sm:text-lg md:text-xl font-display font-bold text-primary">Selecione uma Categoria</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">Toque em uma categoria para ver os produtos</p>
       </div>
 
       {/* Grid de Categorias */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
         {categorias.map((cat) => (
           <Card
             key={cat.nome}
-            className={`cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg border-2 border-transparent hover:border-primary/30 ${cat.config.bgCor}`}
+            className={`cursor-pointer transition-all duration-200 hover:scale-[1.02] sm:hover:scale-105 hover:shadow-lg border-2 border-transparent hover:border-primary/30 active:scale-95 ${cat.config.bgCor}`}
             onClick={() => handleAbrirCategoria(cat.nome)}
           >
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-              <div className={`${cat.config.cor} mb-2`}>
-                {cat.config.icon}
+            <CardContent className="p-2 sm:p-3 md:p-4 flex flex-col items-center justify-center text-center">
+              <div className={`${cat.config.cor} mb-1 sm:mb-2`}>
+                {React.cloneElement(cat.config.icon as React.ReactElement, { 
+                  className: 'w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8' 
+                })}
               </div>
-              <h3 className={`font-semibold text-sm ${cat.config.cor}`}>{cat.nome}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{cat.quantidade} produtos</p>
+              <h3 className={`font-semibold text-xs sm:text-sm ${cat.config.cor}`}>{cat.nome}</h3>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">{cat.quantidade} produtos</p>
             </CardContent>
           </Card>
         ))}
@@ -260,21 +262,21 @@ export default function CategoriasPDV() {
       {/* Resumo do Carrinho */}
       {itens.length > 0 && (
         <Card className="card-padaria border-primary/30 bg-primary/5">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary rounded-full p-2">
-                  <ShoppingCart className="w-5 h-5 text-white" />
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="bg-primary rounded-full p-1.5 sm:p-2">
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm text-primary">
+                  <p className="font-semibold text-xs sm:text-sm text-primary">
                     {itens.length} {itens.length === 1 ? 'item' : 'itens'} no carrinho
                   </p>
-                  <p className="text-lg font-bold text-primary">{formatarMoeda(total)}</p>
+                  <p className="text-base sm:text-lg font-bold text-primary">{formatarMoeda(total)}</p>
                 </div>
               </div>
               <Button
-                className="btn-padaria"
+                className="btn-padaria text-xs sm:text-sm h-9 sm:h-10 px-3 sm:px-4"
                 onClick={() => setTela('resumo')}
               >
                 Ver Pedido
@@ -286,18 +288,20 @@ export default function CategoriasPDV() {
 
       {/* Modal de Produtos por Categoria */}
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] p-0">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="flex items-center gap-2 text-xl text-primary">
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] max-h-[90vh] p-0">
+          <DialogHeader className="p-3 sm:p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl text-primary">
               {categoriaSelecionada && CONFIG_CATEGORIAS[categoriaSelecionada] && (
                 <span className={CONFIG_CATEGORIAS[categoriaSelecionada].cor}>
-                  {CONFIG_CATEGORIAS[categoriaSelecionada].icon}
+                  {React.cloneElement(CONFIG_CATEGORIAS[categoriaSelecionada].icon as React.ReactElement, { 
+                    className: 'w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8' 
+                  })}
                 </span>
               )}
               {categoriaSelecionada}
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-[calc(90vh-80px)] p-4">
+          <ScrollArea className="h-[calc(90vh-60px)] sm:h-[calc(90vh-80px)] p-3 sm:p-4">
             {categoriaSelecionada && (
               <ProdutosPorCategoria
                 produtos={produtosDaCategoria}
