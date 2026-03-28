@@ -1,7 +1,7 @@
 'use client';
 
 // CatalogoPrincipal - Padaria Paula
-// Catálogo público estilo boutique com carrinho lateral
+// Catálogo estilo boutique com layout premium
 
 import { useState, useEffect, useMemo } from 'react';
 import { useCatalogoStore, ItemCatalogo } from '@/store/useCatalogoStore';
@@ -11,25 +11,12 @@ import {
   Minus,
   Trash2,
   Lock,
-  ArrowLeft,
   ArrowRight,
   Check,
-  Cake,
-  Cookie,
-  Croissant,
-  Store,
-  Sparkles,
-  ShoppingCart,
-  Calendar,
-  Clock,
-  User,
-  Phone,
-  MessageSquare,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,6 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { formatarMoeda } from '@/store/usePedidoStore';
+import Image from 'next/image';
 
 interface Produto {
   id: string;
@@ -57,16 +45,27 @@ interface Produto {
   precosTamanhos: Record<string, number> | null;
 }
 
-// Ícones por categoria
-const categoriaIcones: Record<string, React.ReactNode> = {
-  'Tortas': <Cake className="w-4 h-4" />,
-  'Doces': <Cookie className="w-4 h-4" />,
-  'Docinhos': <Cookie className="w-4 h-4" />,
-  'Salgados': <Croissant className="w-4 h-4" />,
-  'Salgadinhos': <Croissant className="w-4 h-4" />,
-  'Pães': <Store className="w-4 h-4" />,
-  'Bolos': <Cake className="w-4 h-4" />,
-  'default': <Sparkles className="w-4 h-4" />,
+// Cores do tema (extraídas da imagem de referência)
+const THEME = {
+  bgPrimary: 'bg-[#2B1B0E]',        // Marrom chocolate escuro
+  bgCard: 'bg-[#EBBDAD]',           // Rosa/bege claro
+  bgCarrinho: 'bg-[#FCF9EA]',       // Bege/creme
+  textPrimary: 'text-white',        // Texto branco no header
+  textDark: 'text-[#2B1B0E]',       // Texto escuro nos cards
+  accent: '#8B4513',                // Marrom médio
+  accentHover: '#A0522D',           // Marrom mais claro
+};
+
+// Cores para imagens placeholder por categoria
+const categoriaCores: Record<string, string> = {
+  'Tortas': 'from-amber-400 to-orange-500',
+  'Doces': 'from-pink-300 to-rose-400',
+  'Docinhos': 'from-pink-400 to-purple-400',
+  'Salgados': 'from-yellow-400 to-amber-500',
+  'Salgadinhos': 'from-orange-400 to-red-400',
+  'Pães': 'from-amber-300 to-yellow-500',
+  'Bolos': 'from-rose-300 to-pink-400',
+  'default': 'from-amber-200 to-orange-300',
 };
 
 export default function CatalogoPrincipal() {
@@ -147,12 +146,6 @@ export default function CatalogoPrincipal() {
     };
 
     adicionarItem(item);
-
-    toast({
-      title: 'Adicionado!',
-      description: `${produto.nome}${tamanho ? ` (${tamanho})` : ''}`,
-      duration: 1500,
-    });
   };
 
   // Enviar pedido
@@ -204,7 +197,7 @@ export default function CatalogoPrincipal() {
       console.error('Erro:', error);
       toast({
         title: 'Erro ao enviar',
-        description: 'Não foi possível enviar seu pedido. Tente novamente.',
+        description: 'Não foi possível enviar seu pedido.',
         variant: 'destructive',
       });
     } finally {
@@ -212,19 +205,22 @@ export default function CatalogoPrincipal() {
     }
   };
 
-  // Renderizar etapa de confirmação
+  // Tela de confirmação
   if (etapa === 'confirmacao') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-md p-8">
-          <div className="bg-green-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-10 h-10 text-green-600" />
+      <div className="min-h-screen bg-[#2B1B0E] flex items-center justify-center">
+        <div className="text-center max-w-md p-8 bg-[#FCF9EA] rounded-2xl shadow-xl">
+          <div className="bg-green-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+            <Check className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Pedido Enviado!</h2>
-          <p className="text-muted-foreground mb-6">
+          <h2 className="text-2xl font-bold text-[#2B1B0E] mb-2">Pedido Enviado!</h2>
+          <p className="text-[#2B1B0E]/70 mb-6">
             Recebemos seu pedido. Entraremos em contato pelo WhatsApp para confirmar.
           </p>
-          <Button onClick={limparCarrinho}>
+          <Button 
+            onClick={limparCarrinho}
+            className="bg-[#8B4513] hover:bg-[#A0522D] text-white rounded-full px-8"
+          >
             Fazer Novo Pedido
           </Button>
         </div>
@@ -232,79 +228,67 @@ export default function CatalogoPrincipal() {
     );
   }
 
-  // Renderizar etapa de dados
+  // Tela de dados do cliente
   if (etapa === 'dados') {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#2B1B0E]">
         {/* Header */}
-        <header className="bg-primary text-primary-foreground shadow-md">
+        <header className="bg-[#2B1B0E] text-white shadow-md">
           <div className="container mx-auto px-4 py-3 flex items-center gap-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setEtapa('catalogo')}
-              className="text-white hover:bg-white/20"
+              className="text-white hover:bg-white/10"
             >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Voltar
+              <X className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-lg font-bold">Finalizar Pedido</h1>
-            </div>
+            <h1 className="text-lg font-bold">Finalizar Pedido</h1>
           </div>
         </header>
 
         <main className="container mx-auto px-4 py-6 max-w-md">
-          <div className="space-y-4">
+          <div className="bg-[#FCF9EA] rounded-2xl p-6 space-y-4">
             <div>
-              <Label htmlFor="nome" className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Nome *
-              </Label>
+              <Label htmlFor="nome" className="text-[#2B1B0E] font-medium">Nome *</Label>
               <Input
                 id="nome"
                 value={cliente.nome}
                 onChange={(e) => setCliente({ ...cliente, nome: e.target.value })}
                 placeholder="Seu nome completo"
+                className="bg-white border-[#EBBDAD] focus:border-[#8B4513]"
               />
             </div>
 
             <div>
-              <Label htmlFor="telefone" className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Telefone/WhatsApp *
-              </Label>
+              <Label htmlFor="telefone" className="text-[#2B1B0E] font-medium">Telefone/WhatsApp *</Label>
               <Input
                 id="telefone"
                 value={cliente.telefone}
                 onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })}
                 placeholder="(00) 00000-0000"
+                className="bg-white border-[#EBBDAD] focus:border-[#8B4513]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="data" className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Data *
-                </Label>
+                <Label htmlFor="data" className="text-[#2B1B0E] font-medium">Data *</Label>
                 <Input
                   id="data"
                   type="date"
                   value={cliente.dataEntrega}
                   onChange={(e) => setCliente({ ...cliente, dataEntrega: e.target.value })}
+                  className="bg-white border-[#EBBDAD] focus:border-[#8B4513]"
                 />
               </div>
               <div>
-                <Label htmlFor="horario" className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Horário
-                </Label>
+                <Label htmlFor="horario" className="text-[#2B1B0E] font-medium">Horário</Label>
                 <Select
                   value={cliente.horarioEntrega}
                   onValueChange={(v) => setCliente({ ...cliente, horarioEntrega: v })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white border-[#EBBDAD]">
                     <SelectValue placeholder="Horário" />
                   </SelectTrigger>
                   <SelectContent>
@@ -317,34 +301,34 @@ export default function CatalogoPrincipal() {
             </div>
 
             <div>
-              <Label htmlFor="obs" className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Observações
-              </Label>
+              <Label htmlFor="obs" className="text-[#2B1B0E] font-medium">Observações</Label>
               <Textarea
                 id="obs"
                 value={cliente.observacoes}
                 onChange={(e) => setCliente({ ...cliente, observacoes: e.target.value })}
-                placeholder="Alguma observação para seu pedido?"
+                placeholder="Alguma observação?"
                 rows={3}
+                className="bg-white border-[#EBBDAD] focus:border-[#8B4513] resize-none"
               />
             </div>
 
             {/* Resumo */}
-            <Card className="bg-muted/50">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground">Itens</span>
-                  <span>{getTotalItens()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total</span>
-                  <span className="text-xl font-bold text-primary">{formatarMoeda(getTotal())}</span>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="bg-[#EBBDAD] rounded-xl p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[#2B1B0E]/70">Itens</span>
+                <span className="text-[#2B1B0E] font-medium">{getTotalItens()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#2B1B0E] font-bold">Total</span>
+                <span className="text-2xl font-bold text-[#8B4513]">{formatarMoeda(getTotal())}</span>
+              </div>
+            </div>
 
-            <Button className="w-full" size="lg" onClick={handleEnviarPedido} disabled={enviando}>
+            <Button 
+              className="w-full bg-[#8B4513] hover:bg-[#A0522D] text-white rounded-full py-6 text-lg" 
+              onClick={handleEnviarPedido} 
+              disabled={enviando}
+            >
               {enviando ? 'Enviando...' : 'Enviar Pedido'}
             </Button>
           </div>
@@ -353,20 +337,26 @@ export default function CatalogoPrincipal() {
     );
   }
 
-  // Layout principal: Catálogo + Carrinho
+  // Layout principal
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#2B1B0E] flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground shadow-md shrink-0">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold">Paula</h1>
+      <header className="bg-[#2B1B0E] shrink-0">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-[#EBBDAD] flex items-center justify-center">
+              <span className="text-[#2B1B0E] font-bold text-xl">P</span>
+            </div>
+            <h1 className="text-2xl font-bold text-white tracking-wide">Paula</h1>
           </div>
+          
+          {/* Admin Link */}
           <Link href="/admin">
             <Button
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-white/20"
+              className="text-white/60 hover:text-white hover:bg-white/10 rounded-full"
             >
               <Lock className="w-4 h-4 mr-1" />
               Admin
@@ -376,19 +366,21 @@ export default function CatalogoPrincipal() {
       </header>
 
       {/* Categorias */}
-      <div className="bg-card border-b shrink-0">
-        <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="bg-[#2B1B0E] shrink-0 pb-2">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {categorias.map((cat) => (
-              <Button
+              <button
                 key={cat}
-                variant={categoriaAtiva === cat ? 'default' : 'outline'}
-                size="sm"
                 onClick={() => setCategoriaAtiva(cat)}
-                className="whitespace-nowrap rounded-full"
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  categoriaAtiva === cat
+                    ? 'bg-[#EBBDAD] text-[#2B1B0E]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                }`}
               >
                 {cat === 'TODOS' ? 'Todos' : cat}
-              </Button>
+              </button>
             ))}
           </div>
         </div>
@@ -399,12 +391,12 @@ export default function CatalogoPrincipal() {
         {/* Lista de Produtos */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Busca */}
-          <div className="p-3 border-b bg-background shrink-0">
+          <div className="p-3 bg-[#2B1B0E] shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
               <Input
-                placeholder="Buscar produtos..."
-                className="pl-9"
+                placeholder="Buscar..."
+                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#EBBDAD]"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
               />
@@ -412,79 +404,92 @@ export default function CatalogoPrincipal() {
           </div>
 
           {/* Grid de Produtos */}
-          <ScrollArea className="flex-1">
-            <div className="p-3">
+          <ScrollArea className="flex-1 bg-[#2B1B0E]">
+            <div className="p-4">
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Carregando produtos...
+                <div className="text-center py-8 text-white/60">
+                  Carregando...
                 </div>
               ) : produtosFiltrados.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhum produto encontrado
+                <div className="text-center py-8 text-white/60">
+                  Nenhum produto
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {produtosFiltrados.map((produto) => (
-                    <Card key={produto.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {categoriaIcones[produto.categoria || 'default'] || categoriaIcones['default']}
-                          <span className="text-xs text-muted-foreground">{produto.categoria}</span>
+                    <div
+                      key={produto.id}
+                      className="bg-[#EBBDAD] rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+                    >
+                      {/* Imagem do Produto */}
+                      <div className={`aspect-square bg-gradient-to-br ${categoriaCores[produto.categoria || 'default'] || categoriaCores['default']} relative overflow-hidden`}>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-4xl opacity-80">
+                            {produto.categoria === 'Tortas' && '🥧'}
+                            {produto.categoria === 'Doces' && '🍬'}
+                            {produto.categoria === 'Docinhos' && '🍫'}
+                            {produto.categoria === 'Salgados' && '🥟'}
+                            {produto.categoria === 'Salgadinhos' && '🥮'}
+                            {produto.categoria === 'Pães' && '🥖'}
+                            {produto.categoria === 'Bolos' && '🎂'}
+                            {!['Tortas', 'Doces', 'Docinhos', 'Salgados', 'Salgadinhos', 'Pães', 'Bolos'].includes(produto.categoria || '') && '✨'}
+                          </span>
                         </div>
-                        <h3 className="font-semibold text-sm mb-1 line-clamp-2 min-h-[2.5rem]">
+                      </div>
+                      
+                      {/* Info do Produto */}
+                      <div className="p-3">
+                        <h3 className="font-semibold text-[#2B1B0E] text-sm truncate">
                           {produto.nome}
                         </h3>
 
                         {produto.tipoProduto === 'ESPECIAL' && produto.tamanhos ? (
-                          <div className="space-y-1">
+                          <div className="mt-2 space-y-1">
                             {produto.tamanhos.slice(0, 2).map((tamanho) => (
                               <div
                                 key={tamanho}
-                                className="flex items-center justify-between text-xs"
+                                className="flex items-center justify-between"
                               >
-                                <span className="text-muted-foreground">{tamanho}</span>
+                                <span className="text-xs text-[#2B1B0E]/70">{tamanho}</span>
                                 <div className="flex items-center gap-1">
-                                  <span className="font-medium">
+                                  <span className="text-sm font-bold text-[#8B4513]">
                                     {formatarMoeda(produto.precosTamanhos?.[tamanho] || produto.valorUnit)}
                                   </span>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 w-6 p-0"
+                                  <button
                                     onClick={() => handleAdicionar(produto, tamanho)}
+                                    className="w-6 h-6 bg-[#8B4513] hover:bg-[#A0522D] text-white rounded-full flex items-center justify-center transition-colors"
                                   >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
+                                    <Plus className="w-4 h-4" />
+                                  </button>
                                 </div>
                               </div>
                             ))}
                             {produto.tamanhos.length > 2 && (
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-[10px] text-[#2B1B0E]/50">
                                 +{produto.tamanhos.length - 2} tamanhos
                               </p>
                             )}
                           </div>
                         ) : (
-                          <div className="flex items-center justify-between">
+                          <div className="mt-2 flex items-center justify-between">
                             <div>
-                              <span className="text-sm font-bold text-primary">
+                              <span className="text-sm font-bold text-[#8B4513]">
                                 {formatarMoeda(produto.valorUnit)}
                               </span>
-                              <span className="text-[10px] text-muted-foreground ml-0.5">
+                              <span className="text-[10px] text-[#2B1B0E]/60 ml-0.5">
                                 /{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
                               </span>
                             </div>
-                            <Button
-                              size="sm"
+                            <button
                               onClick={() => handleAdicionar(produto)}
-                              className="h-7"
+                              className="w-8 h-8 bg-[#8B4513] hover:bg-[#A0522D] text-white rounded-full flex items-center justify-center transition-colors shadow-md"
                             >
-                              <Plus className="w-4 h-4" />
-                            </Button>
+                              <Plus className="w-5 h-5" />
+                            </button>
                           </div>
                         )}
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -493,65 +498,59 @@ export default function CatalogoPrincipal() {
         </div>
 
         {/* Carrinho Lateral - Desktop */}
-        <div className="hidden lg:block w-80 border-l bg-card shrink-0">
+        <div className="hidden lg:block w-80 bg-[#FCF9EA] shrink-0 border-l border-[#EBBDAD]">
           <div className="h-full flex flex-col">
             {/* Header do Carrinho */}
-            <div className="p-3 border-b">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-primary" />
-                <h2 className="font-semibold">Seu Pedido</h2>
-                {itens.length > 0 && (
-                  <Badge variant="secondary" className="ml-auto">
-                    {getTotalItens()} {getTotalItens() === 1 ? 'item' : 'itens'}
-                  </Badge>
-                )}
-              </div>
+            <div className="p-4 border-b border-[#EBBDAD]">
+              <h2 className="font-bold text-lg text-[#2B1B0E]">Seu Pedido</h2>
+              {itens.length > 0 && (
+                <p className="text-sm text-[#2B1B0E]/60">
+                  {getTotalItens()} {getTotalItens() === 1 ? 'item' : 'itens'}
+                </p>
+              )}
             </div>
 
             {/* Itens do Carrinho */}
             <ScrollArea className="flex-1">
               {itens.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground">
-                  <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">Seu carrinho está vazio</p>
-                  <p className="text-xs mt-1">Adicione produtos ao lado</p>
+                <div className="p-6 text-center">
+                  <div className="w-16 h-16 bg-[#EBBDAD] rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-2xl">🛒</span>
+                  </div>
+                  <p className="text-[#2B1B0E]/60">Seu carrinho está vazio</p>
+                  <p className="text-sm text-[#2B1B0E]/40 mt-1">Adicione produtos</p>
                 </div>
               ) : (
-                <div className="p-2 space-y-2">
+                <div className="p-3 space-y-2">
                   {itens.map((item, index) => (
                     <div
                       key={index}
-                      className="bg-background rounded-lg p-2 border"
+                      className="bg-white rounded-xl p-3 shadow-sm border border-[#EBBDAD]"
                     >
                       <div className="flex items-start justify-between gap-1">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
+                          <p className="font-medium text-[#2B1B0E] truncate text-sm">
                             {item.nome}
                           </p>
                           {item.tamanho && (
-                            <Badge variant="outline" className="text-[10px] h-4 mt-0.5">
+                            <span className="text-[10px] text-[#8B4513] bg-[#EBBDAD] px-1.5 py-0.5 rounded">
                               {item.tamanho}
-                            </Badge>
+                            </span>
                           )}
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-[#2B1B0E]/60 mt-0.5">
                             {formatarMoeda(item.valorUnit)}/{item.tipoVenda === 'KG' ? 'kg' : 'un'}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                        <button
                           onClick={() => removerItem(index)}
+                          className="w-6 h-6 text-[#2B1B0E]/40 hover:text-red-500 flex items-center justify-center"
                         >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#EBBDAD]">
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 w-6 p-0"
+                          <button
                             onClick={() =>
                               atualizarQuantidade(
                                 index,
@@ -560,18 +559,16 @@ export default function CatalogoPrincipal() {
                                   : item.quantidade - 1
                               )
                             }
+                            className="w-6 h-6 bg-[#EBBDAD] hover:bg-[#D4A99A] rounded-full flex items-center justify-center"
                           >
-                            <Minus className="w-3 h-3" />
-                          </Button>
-                          <span className="w-10 text-center text-sm font-medium">
+                            <Minus className="w-3 h-3 text-[#2B1B0E]" />
+                          </button>
+                          <span className="w-10 text-center text-sm font-medium text-[#2B1B0E]">
                             {item.tipoVenda === 'KG'
                               ? item.quantidade.toFixed(1)
                               : item.quantidade}
                           </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 w-6 p-0"
+                          <button
                             onClick={() =>
                               atualizarQuantidade(
                                 index,
@@ -580,11 +577,12 @@ export default function CatalogoPrincipal() {
                                   : item.quantidade + 1
                               )
                             }
+                            className="w-6 h-6 bg-[#EBBDAD] hover:bg-[#D4A99A] rounded-full flex items-center justify-center"
                           >
-                            <Plus className="w-3 h-3" />
-                          </Button>
+                            <Plus className="w-3 h-3 text-[#2B1B0E]" />
+                          </button>
                         </div>
-                        <span className="text-sm font-semibold text-primary">
+                        <span className="font-bold text-[#8B4513]">
                           {formatarMoeda(item.subtotal)}
                         </span>
                       </div>
@@ -596,16 +594,19 @@ export default function CatalogoPrincipal() {
 
             {/* Footer do Carrinho */}
             {itens.length > 0 && (
-              <div className="p-3 border-t bg-background">
+              <div className="p-4 border-t border-[#EBBDAD] bg-white">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="font-medium">Total</span>
-                  <span className="text-xl font-bold text-primary">
+                  <span className="text-[#2B1B0E]/70">Total</span>
+                  <span className="text-2xl font-bold text-[#8B4513]">
                     {formatarMoeda(getTotal())}
                   </span>
                 </div>
-                <Button className="w-full" onClick={() => setEtapa('dados')}>
+                <Button 
+                  className="w-full bg-[#8B4513] hover:bg-[#A0522D] text-white rounded-full py-6" 
+                  onClick={() => setEtapa('dados')}
+                >
                   Finalizar Pedido
-                  <ArrowRight className="w-4 h-4 ml-1" />
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
             )}
@@ -615,20 +616,23 @@ export default function CatalogoPrincipal() {
 
       {/* Carrinho Mobile - Flutuante */}
       {itens.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t shadow-lg p-3 z-50">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#FCF9EA] border-t border-[#EBBDAD] shadow-lg p-3 z-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">
+              <div className="bg-[#8B4513] text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">
                 {getTotalItens()}
               </div>
               <div>
-                <p className="font-medium text-sm">{getTotalItens()} item(ns)</p>
-                <p className="text-xs text-muted-foreground">
-                  Total: {formatarMoeda(getTotal())}
+                <p className="font-medium text-[#2B1B0E]">{getTotalItens()} item(ns)</p>
+                <p className="text-sm text-[#8B4513] font-bold">
+                  {formatarMoeda(getTotal())}
                 </p>
               </div>
             </div>
-            <Button onClick={() => setEtapa('dados')}>
+            <Button 
+              onClick={() => setEtapa('dados')}
+              className="bg-[#8B4513] hover:bg-[#A0522D] text-white rounded-full"
+            >
               Finalizar
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
