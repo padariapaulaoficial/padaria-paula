@@ -1,12 +1,11 @@
 'use client';
 
 // CatalogoPrincipal - Padaria Paula
-// Catálogo público para clientes fazerem pedidos
+// Catálogo público estilo boutique com carrinho lateral
 
 import { useState, useEffect, useMemo } from 'react';
 import { useCatalogoStore, ItemCatalogo } from '@/store/useCatalogoStore';
 import {
-  ShoppingCart,
   Search,
   Plus,
   Minus,
@@ -20,6 +19,12 @@ import {
   Croissant,
   Store,
   Sparkles,
+  ShoppingCart,
+  Calendar,
+  Clock,
+  User,
+  Phone,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,14 +59,14 @@ interface Produto {
 
 // Ícones por categoria
 const categoriaIcones: Record<string, React.ReactNode> = {
-  'Tortas': <Cake className="w-5 h-5" />,
-  'Doces': <Cookie className="w-5 h-5" />,
-  'Docinhos': <Cookie className="w-5 h-5" />,
-  'Salgados': <Croissant className="w-5 h-5" />,
-  'Salgadinhos': <Croissant className="w-5 h-5" />,
-  'Pães': <Store className="w-5 h-5" />,
-  'Bolos': <Cake className="w-5 h-5" />,
-  'default': <Sparkles className="w-5 h-5" />,
+  'Tortas': <Cake className="w-4 h-4" />,
+  'Doces': <Cookie className="w-4 h-4" />,
+  'Docinhos': <Cookie className="w-4 h-4" />,
+  'Salgados': <Croissant className="w-4 h-4" />,
+  'Salgadinhos': <Croissant className="w-4 h-4" />,
+  'Pães': <Store className="w-4 h-4" />,
+  'Bolos': <Cake className="w-4 h-4" />,
+  'default': <Sparkles className="w-4 h-4" />,
 };
 
 export default function CatalogoPrincipal() {
@@ -145,7 +150,8 @@ export default function CatalogoPrincipal() {
 
     toast({
       title: 'Adicionado!',
-      description: `${produto.nome}${tamanho ? ` (${tamanho})` : ''} foi adicionado ao carrinho.`,
+      description: `${produto.nome}${tamanho ? ` (${tamanho})` : ''}`,
+      duration: 1500,
     });
   };
 
@@ -206,51 +212,208 @@ export default function CatalogoPrincipal() {
     }
   };
 
-  // Renderizar etapa atual
-  const renderEtapa = () => {
-    switch (etapa) {
-      case 'catalogo':
-        return (
-          <>
-            {/* Busca e Categorias */}
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b py-3 px-4">
-              <div className="flex gap-2 mb-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar produtos..."
-                    className="pl-9"
-                    value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
-                  />
-                </div>
-                <Link href="/admin">
-                  <Button variant="outline" size="icon" title="Área Administrativa">
-                    <Lock className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
+  // Renderizar etapa de confirmação
+  if (etapa === 'confirmacao') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md p-8">
+          <div className="bg-green-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+            <Check className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Pedido Enviado!</h2>
+          <p className="text-muted-foreground mb-6">
+            Recebemos seu pedido. Entraremos em contato pelo WhatsApp para confirmar.
+          </p>
+          <Button onClick={limparCarrinho}>
+            Fazer Novo Pedido
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
-              {/* Categorias */}
-              <ScrollArea className="w-full">
-                <div className="flex gap-2 pb-1">
-                  {categorias.map((cat) => (
-                    <Button
-                      key={cat}
-                      variant={categoriaAtiva === cat ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setCategoriaAtiva(cat)}
-                      className="whitespace-nowrap"
-                    >
-                      {cat === 'TODOS' ? 'Todos' : cat}
-                    </Button>
-                  ))}
-                </div>
-              </ScrollArea>
+  // Renderizar etapa de dados
+  if (etapa === 'dados') {
+    return (
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="bg-primary text-primary-foreground shadow-md">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEtapa('catalogo')}
+              className="text-white hover:bg-white/20"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-lg font-bold">Finalizar Pedido</h1>
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-6 max-w-md">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="nome" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Nome *
+              </Label>
+              <Input
+                id="nome"
+                value={cliente.nome}
+                onChange={(e) => setCliente({ ...cliente, nome: e.target.value })}
+                placeholder="Seu nome completo"
+              />
             </div>
 
-            {/* Lista de Produtos */}
-            <div className="p-4">
+            <div>
+              <Label htmlFor="telefone" className="flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Telefone/WhatsApp *
+              </Label>
+              <Input
+                id="telefone"
+                value={cliente.telefone}
+                onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="data" className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Data *
+                </Label>
+                <Input
+                  id="data"
+                  type="date"
+                  value={cliente.dataEntrega}
+                  onChange={(e) => setCliente({ ...cliente, dataEntrega: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="horario" className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Horário
+                </Label>
+                <Select
+                  value={cliente.horarioEntrega}
+                  onValueChange={(v) => setCliente({ ...cliente, horarioEntrega: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Horário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'].map((h) => (
+                      <SelectItem key={h} value={h}>{h}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="obs" className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Observações
+              </Label>
+              <Textarea
+                id="obs"
+                value={cliente.observacoes}
+                onChange={(e) => setCliente({ ...cliente, observacoes: e.target.value })}
+                placeholder="Alguma observação para seu pedido?"
+                rows={3}
+              />
+            </div>
+
+            {/* Resumo */}
+            <Card className="bg-muted/50">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">Itens</span>
+                  <span>{getTotalItens()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Total</span>
+                  <span className="text-xl font-bold text-primary">{formatarMoeda(getTotal())}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button className="w-full" size="lg" onClick={handleEnviarPedido} disabled={enviando}>
+              {enviando ? 'Enviando...' : 'Enviar Pedido'}
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Layout principal: Catálogo + Carrinho
+  return (
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="bg-primary text-primary-foreground shadow-md shrink-0">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold">Paula</h1>
+          </div>
+          <Link href="/admin">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20"
+            >
+              <Lock className="w-4 h-4 mr-1" />
+              Admin
+            </Button>
+          </Link>
+        </div>
+      </header>
+
+      {/* Categorias */}
+      <div className="bg-card border-b shrink-0">
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {categorias.map((cat) => (
+              <Button
+                key={cat}
+                variant={categoriaAtiva === cat ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCategoriaAtiva(cat)}
+                className="whitespace-nowrap rounded-full"
+              >
+                {cat === 'TODOS' ? 'Todos' : cat}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Conteúdo Principal */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Lista de Produtos */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Busca */}
+          <div className="p-3 border-b bg-background shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produtos..."
+                className="pl-9"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Grid de Produtos */}
+          <ScrollArea className="flex-1">
+            <div className="p-3">
               {loading ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Carregando produtos...
@@ -260,65 +423,63 @@ export default function CatalogoPrincipal() {
                   Nenhum produto encontrado
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {produtosFiltrados.map((produto) => (
-                    <Card key={produto.id} className="overflow-hidden">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            {categoriaIcones[produto.categoria || 'default'] || categoriaIcones['default']}
-                            <CardTitle className="text-base">{produto.nome}</CardTitle>
-                          </div>
-                          {produto.tipoProduto === 'ESPECIAL' && (
-                            <Badge variant="secondary" className="text-xs">
-                              Especial
-                            </Badge>
-                          )}
+                    <Card key={produto.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          {categoriaIcones[produto.categoria || 'default'] || categoriaIcones['default']}
+                          <span className="text-xs text-muted-foreground">{produto.categoria}</span>
                         </div>
-                        {produto.descricao && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {produto.descricao}
-                          </p>
-                        )}
-                      </CardHeader>
-                      <CardContent>
+                        <h3 className="font-semibold text-sm mb-1 line-clamp-2 min-h-[2.5rem]">
+                          {produto.nome}
+                        </h3>
+
                         {produto.tipoProduto === 'ESPECIAL' && produto.tamanhos ? (
-                          <div className="space-y-2">
-                            {produto.tamanhos.map((tamanho) => (
+                          <div className="space-y-1">
+                            {produto.tamanhos.slice(0, 2).map((tamanho) => (
                               <div
                                 key={tamanho}
-                                className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                                className="flex items-center justify-between text-xs"
                               >
-                                <div>
-                                  <span className="font-medium text-sm">{tamanho}</span>
-                                  <span className="text-sm text-muted-foreground ml-2">
-                                    {formatarMoeda(
-                                      produto.precosTamanhos?.[tamanho] || produto.valorUnit
-                                    )}
+                                <span className="text-muted-foreground">{tamanho}</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium">
+                                    {formatarMoeda(produto.precosTamanhos?.[tamanho] || produto.valorUnit)}
                                   </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => handleAdicionar(produto, tamanho)}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleAdicionar(produto, tamanho)}
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </Button>
                               </div>
                             ))}
+                            {produto.tamanhos.length > 2 && (
+                              <p className="text-[10px] text-muted-foreground">
+                                +{produto.tamanhos.length - 2} tamanhos
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="text-lg font-bold text-primary">
+                              <span className="text-sm font-bold text-primary">
                                 {formatarMoeda(produto.valorUnit)}
                               </span>
-                              <span className="text-xs text-muted-foreground ml-1">
+                              <span className="text-[10px] text-muted-foreground ml-0.5">
                                 /{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
                               </span>
                             </div>
-                            <Button onClick={() => handleAdicionar(produto)}>
-                              <Plus className="w-4 h-4 mr-1" />
-                              Adicionar
+                            <Button
+                              size="sm"
+                              onClick={() => handleAdicionar(produto)}
+                              className="h-7"
+                            >
+                              <Plus className="w-4 h-4" />
                             </Button>
                           </div>
                         )}
@@ -328,79 +489,69 @@ export default function CatalogoPrincipal() {
                 </div>
               )}
             </div>
+          </ScrollArea>
+        </div>
 
-            {/* Carrinho Flutuante */}
-            {itens.length > 0 && (
-              <div className="fixed bottom-0 left-0 right-0 bg-card border-t shadow-lg p-4 z-50">
-                <div className="container mx-auto max-w-7xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">
-                      {getTotalItens()}
-                    </div>
-                    <div>
-                      <p className="font-medium">{itens.length} item(ns)</p>
-                      <p className="text-sm text-muted-foreground">
-                        Total: {formatarMoeda(getTotal())}
-                      </p>
-                    </div>
-                  </div>
-                  <Button onClick={() => setEtapa('carrinho')}>
-                    Ver Carrinho
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
+        {/* Carrinho Lateral - Desktop */}
+        <div className="hidden lg:block w-80 border-l bg-card shrink-0">
+          <div className="h-full flex flex-col">
+            {/* Header do Carrinho */}
+            <div className="p-3 border-b">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-primary" />
+                <h2 className="font-semibold">Seu Pedido</h2>
+                {itens.length > 0 && (
+                  <Badge variant="secondary" className="ml-auto">
+                    {getTotalItens()} {getTotalItens() === 1 ? 'item' : 'itens'}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Itens do Carrinho */}
+            <ScrollArea className="flex-1">
+              {itens.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Seu carrinho está vazio</p>
+                  <p className="text-xs mt-1">Adicione produtos ao lado</p>
                 </div>
-              </div>
-            )}
-          </>
-        );
-
-      case 'carrinho':
-        return (
-          <div className="p-4">
-            <Button
-              variant="ghost"
-              onClick={() => setEtapa('catalogo')}
-              className="mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Continuar comprando
-            </Button>
-
-            <h2 className="text-xl font-bold mb-4">Seu Carrinho</h2>
-
-            {itens.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Seu carrinho está vazio</p>
-                <Button className="mt-4" onClick={() => setEtapa('catalogo')}>
-                  Ver produtos
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {itens.map((item, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium">
+              ) : (
+                <div className="p-2 space-y-2">
+                  {itens.map((item, index) => (
+                    <div
+                      key={index}
+                      className="bg-background rounded-lg p-2 border"
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
                             {item.nome}
-                            {item.tamanho && (
-                              <Badge variant="outline" className="ml-2">
-                                {item.tamanho}
-                              </Badge>
-                            )}
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatarMoeda(item.valorUnit)} /{' '}
-                            {item.tipoVenda === 'KG' ? 'kg' : 'un'}
+                          {item.tamanho && (
+                            <Badge variant="outline" className="text-[10px] h-4 mt-0.5">
+                              {item.tamanho}
+                            </Badge>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatarMoeda(item.valorUnit)}/{item.tipoVenda === 'KG' ? 'kg' : 'un'}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => removerItem(index)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
+                            size="sm"
+                            className="h-6 w-6 p-0"
                             onClick={() =>
                               atualizarQuantidade(
                                 index,
@@ -410,17 +561,17 @@ export default function CatalogoPrincipal() {
                               )
                             }
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3 h-3" />
                           </Button>
-                          <span className="w-12 text-center font-medium">
+                          <span className="w-10 text-center text-sm font-medium">
                             {item.tipoVenda === 'KG'
                               ? item.quantidade.toFixed(1)
                               : item.quantidade}
                           </span>
                           <Button
                             variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
+                            size="sm"
+                            className="h-6 w-6 p-0"
                             onClick={() =>
                               atualizarQuantidade(
                                 index,
@@ -430,35 +581,28 @@ export default function CatalogoPrincipal() {
                               )
                             }
                           >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => removerItem(index)}
-                          >
-                            <Trash2 className="w-4 h-4" />
+                            <Plus className="w-3 h-3" />
                           </Button>
                         </div>
-                      </div>
-                      <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                        <span className="font-bold text-primary">
+                        <span className="text-sm font-semibold text-primary">
                           {formatarMoeda(item.subtotal)}
                         </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
 
-                {/* Total */}
-                <div className="bg-muted rounded-lg p-4 flex justify-between items-center">
+            {/* Footer do Carrinho */}
+            {itens.length > 0 && (
+              <div className="p-3 border-t bg-background">
+                <div className="flex justify-between items-center mb-3">
                   <span className="font-medium">Total</span>
                   <span className="text-xl font-bold text-primary">
                     {formatarMoeda(getTotal())}
                   </span>
                 </div>
-
                 <Button className="w-full" onClick={() => setEtapa('dados')}>
                   Finalizar Pedido
                   <ArrowRight className="w-4 h-4 ml-1" />
@@ -466,178 +610,31 @@ export default function CatalogoPrincipal() {
               </div>
             )}
           </div>
-        );
+        </div>
+      </div>
 
-      case 'dados':
-        return (
-          <div className="p-4 max-w-md mx-auto">
-            <Button
-              variant="ghost"
-              onClick={() => setEtapa('carrinho')}
-              className="mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Voltar ao carrinho
-            </Button>
-
-            <h2 className="text-xl font-bold mb-4">Seus Dados</h2>
-
-            <div className="space-y-4">
+      {/* Carrinho Mobile - Flutuante */}
+      {itens.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t shadow-lg p-3 z-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center font-bold">
+                {getTotalItens()}
+              </div>
               <div>
-                <Label htmlFor="nome">Nome *</Label>
-                <Input
-                  id="nome"
-                  value={cliente.nome}
-                  onChange={(e) =>
-                    setCliente({ ...cliente, nome: e.target.value })
-                  }
-                  placeholder="Seu nome completo"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="telefone">Telefone/WhatsApp *</Label>
-                <Input
-                  id="telefone"
-                  value={cliente.telefone}
-                  onChange={(e) =>
-                    setCliente({ ...cliente, telefone: e.target.value })
-                  }
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="data">Data de Entrega *</Label>
-                  <Input
-                    id="data"
-                    type="date"
-                    value={cliente.dataEntrega}
-                    onChange={(e) =>
-                      setCliente({ ...cliente, dataEntrega: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="horario">Horário</Label>
-                  <Select
-                    value={cliente.horarioEntrega}
-                    onValueChange={(v) =>
-                      setCliente({ ...cliente, horarioEntrega: v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Horário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        '07:00',
-                        '08:00',
-                        '09:00',
-                        '10:00',
-                        '11:00',
-                        '12:00',
-                        '13:00',
-                        '14:00',
-                        '15:00',
-                        '16:00',
-                        '17:00',
-                        '18:00',
-                        '19:00',
-                        '20:00',
-                      ].map((h) => (
-                        <SelectItem key={h} value={h}>
-                          {h}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="obs">Observações</Label>
-                <Textarea
-                  id="obs"
-                  value={cliente.observacoes}
-                  onChange={(e) =>
-                    setCliente({ ...cliente, observacoes: e.target.value })
-                  }
-                  placeholder="Alguma observação para seu pedido?"
-                  rows={3}
-                />
-              </div>
-
-              {/* Resumo */}
-              <div className="bg-muted rounded-lg p-4">
-                <h3 className="font-medium mb-2">Resumo do Pedido</h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  {itens.length} item(ns) - Total:{' '}
-                  <span className="font-bold text-primary">
-                    {formatarMoeda(getTotal())}
-                  </span>
+                <p className="font-medium text-sm">{getTotalItens()} item(ns)</p>
+                <p className="text-xs text-muted-foreground">
+                  Total: {formatarMoeda(getTotal())}
                 </p>
               </div>
-
-              <Button
-                className="w-full"
-                onClick={handleEnviarPedido}
-                disabled={enviando}
-              >
-                {enviando ? 'Enviando...' : 'Enviar Pedido'}
-              </Button>
             </div>
-          </div>
-        );
-
-      case 'confirmacao':
-        return (
-          <div className="p-4 max-w-md mx-auto text-center py-12">
-            <div className="bg-green-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-              <Check className="w-10 h-10 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Pedido Enviado!</h2>
-            <p className="text-muted-foreground mb-6">
-              Recebemos seu pedido. Entraremos em contato pelo WhatsApp para
-              confirmar.
-            </p>
-            <Button
-              onClick={() => {
-                limparCarrinho();
-              }}
-            >
-              Fazer Novo Pedido
+            <Button onClick={() => setEtapa('dados')}>
+              Finalizar
+              <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        );
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-primary text-primary-foreground shadow-md">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Padaria Paula</h1>
-            <p className="text-xs opacity-90">Cardápio Online</p>
-          </div>
-          <Link href="/admin">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="bg-white/20 hover:bg-white/30 text-white border-white/30"
-            >
-              <Lock className="w-4 h-4 mr-1" />
-              Admin
-            </Button>
-          </Link>
         </div>
-      </header>
-
-      {/* Conteúdo */}
-      <main className="pb-20">{renderEtapa()}</main>
+      )}
     </div>
   );
 }
