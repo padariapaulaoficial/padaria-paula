@@ -483,7 +483,7 @@ export function gerarCupomCozinha(
 
 /**
  * Gera comanda de cozinha - Layout para produção
- * Layout compacto mantendo linhas pontilhadas
+ * Layout compacto sem linhas pontilhadas
  */
 export function gerarCupomCozinhaGrande(
   pedido: PedidoCompleto,
@@ -502,12 +502,10 @@ export function gerarCupomCozinhaGrande(
   if (pedido.dataEntrega) {
     linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
-  linhas.push('----------------------------------------');
 
   // Nome do cliente em destaque
   linhas.push(`CLIENTE: ${pedido.cliente.nome.toUpperCase()}`);
   linhas.push(`TELEFONE: ${formatarTelefone(pedido.cliente.telefone)}`);
-  linhas.push('----------------------------------------');
   
   // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, DOCINHOS, SALGADINHOS)
   linhas.push('ITENS:');
@@ -546,8 +544,6 @@ export function gerarCupomCozinhaGrande(
       linhas.push(`       -> ${truncar(item.observacao.toUpperCase(), 32)}`);
     }
   }
-  
-  linhas.push('----------------------------------------');
   
   // Observações gerais
   if (pedido.observacoes) {
