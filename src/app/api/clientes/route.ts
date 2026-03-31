@@ -5,6 +5,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 
+// Função para normalizar telefone (remove formatação)
+function normalizarTelefone(telefone: string): string {
+  return telefone.replace(/\D/g, '');
+}
+
+// Função para normalizar nome para comparação (case insensitive, sem acentos)
+function normalizarNome(nome: string): string {
+  return nome
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/\s+/g, ' ')            // Normaliza espaços
+    .trim();
+}
+
 // GET - Listar todos os clientes ou buscar por telefone
 export async function GET(request: NextRequest) {
   try {
@@ -13,9 +28,10 @@ export async function GET(request: NextRequest) {
     const busca = searchParams.get('busca');
     
     if (telefone) {
-      // Buscar cliente por telefone
-      const cliente = await db.cliente.findUnique({
-        where: { telefone },
+      // Buscar cliente por telefone normalizado
+      const telefoneNormalizado = normalizarTelefone(telefone);
+      const cliente = await db.cliente.findFirst({
+        where: { telefone: telefoneNormalizado },
       });
       return NextResponse.json(cliente);
     }
@@ -26,7 +42,7 @@ export async function GET(request: NextRequest) {
         where: {
           OR: [
             { nome: { contains: busca } },
-            { telefone: { contains: busca } },
+            { telefone: { contains: busca.replace(/\D/g, '') } },
           ],
         },
         orderBy: { createdAt: 'desc' },
@@ -75,22 +91,47 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Normalizar telefone
+    const telefoneNormalizado = normalizarTelefone(telefone);
+    
+    if (telefoneNormalizado.length < 10) {
+      return NextResponse.json(
+        { error: 'Telefone inválido. Inclua o DDD.' },
+        { status: 400 }
+      );
+    }
+    
     // Verificar se telefone já existe
-    const telefoneExistente = await db.cliente.findUnique({
-      where: { telefone },
+    const telefoneExistente = await db.cliente.findFirst({
+      where: { telefone: telefoneNormalizado },
     });
     
     if (telefoneExistente) {
       return NextResponse.json(
-        { error: 'Já existe um cliente com este telefone' },
+        { error: `Já existe um cliente com este telefone: ${telefoneExistente.nome}` },
+        { status: 400 }
+      );
+    }
+    
+    // Verificar se já existe cliente com nome similar (case insensitive)
+    const nomeNormalizado = normalizarNome(nome);
+    const clientesExistentes = await db.cliente.findMany();
+    const clienteComNomeSimilar = clientesExistentes.find(c => 
+      normalizarNome(c.nome) === nomeNormalizado
+    );
+    
+    if (clienteComNomeSimilar) {
+      return NextResponse.json(
+        { error: `Já existe um cliente com nome similar: ${clienteComNomeSimilar.nome} (Telefone: ${clienteComNomeSimilar.telefone})` },
         { status: 400 }
       );
     }
     
     // Verificar se CPF/CNPJ já existe (se informado)
     if (cpfCnpj && cpfCnpj.trim() !== '') {
-      const cpfCnpjExistente = await db.cliente.findUnique({
-        where: { cpfCnpj: cpfCnpj.trim() },
+      const cpfCnpjNormalizado = cpfCnpj.replace(/\D/g, '');
+      const cpfCnpjExistente = await db.cliente.findFirst({
+        where: { cpfCnpj: cpfCnpjNormalizado },
       });
       
       if (cpfCnpjExistente) {
@@ -103,9 +144,9 @@ export async function POST(request: NextRequest) {
     
     const cliente = await db.cliente.create({
       data: {
-        nome,
-        telefone,
-        cpfCnpj: cpfCnpj && cpfCnpj.trim() !== '' ? cpfCnpj.trim() : null,
+        nome: nome.trim(),
+        telefone: telefoneNormalizado,
+        cpfCnpj: cpfCnpj && cpfCnpj.trim() !== '' ? cpfCnpj.replace(/\D/g, '') : null,
         tipoPessoa: tipoPessoa || 'CPF',
         endereco: endereco && endereco.trim() !== '' ? endereco.trim() : null,
         bairro: bairro && bairro.trim() !== '' ? bairro.trim() : null,
@@ -155,26 +196,53 @@ export async function PUT(request: NextRequest) {
       );
     }
     
+    // Normalizar telefone
+    const telefoneNormalizado = normalizarTelefone(telefone);
+    
+    if (telefoneNormalizado.length < 10) {
+      return NextResponse.json(
+        { error: 'Telefone inválido. Inclua o DDD.' },
+        { status: 400 }
+      );
+    }
+    
     // Verificar se telefone já existe em outro cliente
     const telefoneExistente = await db.cliente.findFirst({
       where: {
-        telefone,
+        telefone: telefoneNormalizado,
         NOT: { id },
       },
     });
     
     if (telefoneExistente) {
       return NextResponse.json(
-        { error: 'Já existe outro cliente com este telefone' },
+        { error: `Já existe outro cliente com este telefone: ${telefoneExistente.nome}` },
+        { status: 400 }
+      );
+    }
+    
+    // Verificar se já existe cliente com nome similar (case insensitive)
+    const nomeNormalizado = normalizarNome(nome);
+    const clientesExistentes = await db.cliente.findMany({
+      where: { NOT: { id } }
+    });
+    const clienteComNomeSimilar = clientesExistentes.find(c => 
+      normalizarNome(c.nome) === nomeNormalizado
+    );
+    
+    if (clienteComNomeSimilar) {
+      return NextResponse.json(
+        { error: `Já existe outro cliente com nome similar: ${clienteComNomeSimilar.nome}` },
         { status: 400 }
       );
     }
     
     // Verificar se CPF/CNPJ já existe em outro cliente (se informado)
     if (cpfCnpj && cpfCnpj.trim() !== '') {
+      const cpfCnpjNormalizado = cpfCnpj.replace(/\D/g, '');
       const cpfCnpjExistente = await db.cliente.findFirst({
         where: {
-          cpfCnpj: cpfCnpj.trim(),
+          cpfCnpj: cpfCnpjNormalizado,
           NOT: { id },
         },
       });
@@ -190,9 +258,9 @@ export async function PUT(request: NextRequest) {
     const cliente = await db.cliente.update({
       where: { id },
       data: {
-        nome,
-        telefone,
-        cpfCnpj: cpfCnpj && cpfCnpj.trim() !== '' ? cpfCnpj.trim() : null,
+        nome: nome.trim(),
+        telefone: telefoneNormalizado,
+        cpfCnpj: cpfCnpj && cpfCnpj.trim() !== '' ? cpfCnpj.replace(/\D/g, '') : null,
         tipoPessoa: tipoPessoa || 'CPF',
         endereco: endereco && endereco.trim() !== '' ? endereco.trim() : null,
         bairro: bairro && bairro.trim() !== '' ? bairro.trim() : null,

@@ -66,12 +66,63 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Buscar ou criar cliente pelo telefone
+    // Normalizar nome para comparação (remover acentos, case insensitive)
+    const normalizarNome = (nome: string) => {
+      return nome
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .replace(/\s+/g, ' ')            // Normaliza espaços
+        .trim();
+    };
+    
+    const nomeNormalizado = normalizarNome(nomeCliente);
+    
+    // Buscar cliente por telefone (compatível com diferentes formatos)
+    // ou por nome similar (case insensitive, ignorando acentos)
     let cliente = await db.cliente.findFirst({
       where: { 
         telefone: telefoneLimpo 
       },
     });
+    
+    // Se não encontrou por telefone, tentar buscar por nome similar
+    if (!cliente) {
+      // Buscar todos os clientes e filtrar por nome normalizado
+      const clientesExistentes = await db.cliente.findMany();
+      cliente = clientesExistentes.find(c => {
+        const nomeExistenteNormalizado = normalizarNome(c.nome);
+        return nomeExistenteNormalizado === nomeNormalizado;
+      }) || null;
+      
+      if (cliente) {
+        console.log(`Cliente encontrado por nome similar: ${cliente.nome} (telefone diferente)`);
+        
+        // Se encontrou por nome mas telefone é diferente, atualizar o telefone
+        if (cliente.telefone !== telefoneLimpo) {
+          // Verificar se o novo telefone já existe em outro cliente
+          const telefoneEmUso = await db.cliente.findFirst({
+            where: { 
+              telefone: telefoneLimpo,
+              id: { not: cliente.id }
+            },
+          });
+          
+          if (telefoneEmUso) {
+            // Se o telefone já está em uso por outro cliente, usar o cliente existente do telefone
+            cliente = telefoneEmUso;
+            console.log(`Telefone já cadastrado para outro cliente: ${telefoneEmUso.nome}`);
+          } else {
+            // Atualizar o telefone do cliente encontrado
+            await db.cliente.update({
+              where: { id: cliente.id },
+              data: { telefone: telefoneLimpo },
+            });
+            console.log(`Telefone atualizado para cliente: ${cliente.nome}`);
+          }
+        }
+      }
+    }
     
     if (!cliente) {
       // Criar novo cliente

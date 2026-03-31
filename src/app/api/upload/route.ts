@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
-// POST - Upload de imagem
+// POST - Upload de imagem (retorna base64 para persistir no banco)
+// Na Vercel (serverless), arquivos locais são perdidos após cada deploy
+// Por isso, retornamos base64 para salvar diretamente no banco de dados
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -24,49 +24,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar tamanho (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validar tamanho (máximo 2MB para base64 - evita payloads muito grandes)
+    if (file.size > 2 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'Arquivo muito grande. Máximo 5MB' },
+        { error: 'Arquivo muito grande. Máximo 2MB' },
         { status: 400 }
       );
     }
 
-    // Gerar nome único para o arquivo
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 8);
-    const extension = file.name.split('.').pop() || 'jpg';
-    const fileName = `${tipo}-${timestamp}-${randomStr}.${extension}`;
-
-    // Criar diretório se não existir
-    const uploadDir = path.join(process.cwd(), 'public', 'produtos');
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch {
-      // Diretório já existe
-    }
-
-    // Converter arquivo para buffer e salvar
+    // Converter arquivo para base64
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const base64 = buffer.toString('base64');
     
-    const filePath = path.join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
+    // Criar data URL (compatível com img src)
+    const dataUrl = `data:${file.type};base64,${base64}`;
 
-    // Retornar URL pública
-    const url = `/produtos/${fileName}`;
-
-    console.log(`Upload realizado: ${url}`);
+    console.log(`Upload realizado: ${tipo} (${(file.size / 1024).toFixed(1)}KB)`);
 
     return NextResponse.json({
       success: true,
-      url,
-      fileName,
+      url: dataUrl,           // Data URL para usar diretamente em img src
+      base64: dataUrl,        // Alias para clareza
+      size: file.size,
+      type: file.type,
     });
   } catch (error) {
     console.error('Erro no upload:', error);
     return NextResponse.json(
-      { error: 'Erro ao fazer upload do arquivo' },
+      { error: 'Erro ao processar upload do arquivo' },
       { status: 500 }
     );
   }
