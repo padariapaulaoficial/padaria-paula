@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Plus, Minus, ShoppingCart, Check, Clock, MapPin, Search, 
   MessageCircle, ChevronRight, ChevronLeft, Package, Truck, User,
-  X, AlertCircle, Phone
+  X, AlertCircle, Phone, Calendar
 } from 'lucide-react';
 
 // Tipos
@@ -804,7 +804,7 @@ export default function PaginaCatalogo() {
                       style={{ borderColor: 'rgba(45, 31, 20, 0.3)' }}
                     >
                       <option value="">Escolha o bairro</option>
-                      {bairros.filter(b => b.ativo).map(b => (
+                      {bairros.map(b => (
                         <option key={b.id} value={b.id}>
                           {b.nome} {b.taxaEntrega > 0 ? `(+${formatarMoeda(b.taxaEntrega)})` : '(Grátis)'}
                         </option>
