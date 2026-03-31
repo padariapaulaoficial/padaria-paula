@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Package, Plus, List, Search, Edit, Trash2, ToggleLeft, ToggleRight,
-  Cake, X, Check, RefreshCw, DollarSign
+  Cake, X, Check, RefreshCw, DollarSign, Image as ImageIcon, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +66,7 @@ interface Produto {
   tipoProduto: string;
   tamanhos: string[] | null;
   precosTamanhos: Record<string, number> | null;
+  imagem: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,7 +84,7 @@ export default function AdminProdutos() {
   const [modalCadastroEspecial, setModalCadastroEspecial] = useState(false);
   const [modalProdutos, setModalProdutos] = useState(false);
   const [modalEdicao, setModalEdicao] = useState(false);
-  const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null);
+  const [produtoEditando, setProdutoEditando] = useState<(Produto & { novaImagem?: File | null }) | null>(null);
 
   // Estados de exclusão
   const [produtoParaExcluir, setProdutoParaExcluir] = useState<Produto | null>(null);
@@ -100,6 +101,8 @@ export default function AdminProdutos() {
     tipoVenda: 'UNIDADE',
     categoria: 'Outros',
     valorUnit: '',
+    imagem: null as File | null,
+    imagemPreview: '',
   });
 
   // Estado para produto especial (torta)
@@ -107,6 +110,8 @@ export default function AdminProdutos() {
     nome: '',
     categoria: 'Tortas',
     precos: { P: '', M: '', G: '', GG: '' } as Record<string, string>,
+    imagem: null as File | null,
+    imagemPreview: '',
   });
 
   // Carregar produtos
@@ -127,6 +132,37 @@ export default function AdminProdutos() {
   useEffect(() => {
     carregarProdutos();
   }, []);
+
+  // Função para fazer upload de imagem
+  const uploadImagem = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tipo', 'produto');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro no upload');
+      
+      return data.url;
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      return null;
+    }
+  };
+
+  // Função para converter arquivo em preview
+  const fileToPreview = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Produtos filtrados
   const produtosFiltrados = useMemo(() => {
@@ -164,6 +200,12 @@ export default function AdminProdutos() {
     showLoading('Cadastrando produto...');
 
     try {
+      // Upload da imagem se existir
+      let imagemUrl = null;
+      if (produtoComum.imagem) {
+        imagemUrl = await uploadImagem(produtoComum.imagem);
+      }
+
       const res = await fetch('/api/produtos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,6 +216,7 @@ export default function AdminProdutos() {
           categoria: produtoComum.categoria,
           tipoProduto: 'NORMAL',
           ativo: true,
+          imagem: imagemUrl,
         }),
       });
 
@@ -184,7 +227,7 @@ export default function AdminProdutos() {
       }
 
       setProdutos([produto, ...produtos]);
-      setProdutoComum({ nome: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '' });
+      setProdutoComum({ nome: '', tipoVenda: 'UNIDADE', categoria: 'Outros', valorUnit: '', imagem: null, imagemPreview: '' });
       setModalCadastroComum(false);
 
       toast({
@@ -227,6 +270,12 @@ export default function AdminProdutos() {
     showLoading('Cadastrando torta...');
 
     try {
+      // Upload da imagem se existir
+      let imagemUrl = null;
+      if (produtoEspecial.imagem) {
+        imagemUrl = await uploadImagem(produtoEspecial.imagem);
+      }
+
       const tamanhos = precosPreenchidos.map(([tam]) => tam);
       const precosTamanhos: Record<string, number> = {};
       precosPreenchidos.forEach(([tam, preco]) => {
@@ -245,6 +294,7 @@ export default function AdminProdutos() {
           tamanhos,
           precosTamanhos,
           ativo: true,
+          imagem: imagemUrl,
         }),
       });
 
@@ -255,7 +305,7 @@ export default function AdminProdutos() {
       }
 
       setProdutos([produto, ...produtos]);
-      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
+      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' }, imagem: null, imagemPreview: '' });
       setModalCadastroEspecial(false);
 
       toast({
@@ -275,10 +325,16 @@ export default function AdminProdutos() {
   };
 
   // Atualizar produto
-  const handleAtualizarProduto = async (produto: Produto) => {
+  const handleAtualizarProduto = async (produto: Produto & { novaImagem?: File | null }) => {
     showLoading('Atualizando produto...');
 
     try {
+      // Upload da nova imagem se existir
+      let imagemUrl = produto.imagem;
+      if (produto.novaImagem) {
+        imagemUrl = await uploadImagem(produto.novaImagem);
+      }
+
       const res = await fetch('/api/produtos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -293,6 +349,7 @@ export default function AdminProdutos() {
           tipoProduto: produto.tipoProduto,
           tamanhos: produto.tamanhos,
           precosTamanhos: produto.precosTamanhos,
+          imagem: imagemUrl,
         }),
       });
 
@@ -644,6 +701,48 @@ export default function AdminProdutos() {
               </div>
             </div>
 
+            {/* Upload de Imagem */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" />
+                Imagem do Produto (Catálogo)
+              </Label>
+              <div className="flex gap-3 items-start">
+                {produtoComum.imagemPreview ? (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                    <img src={produtoComum.imagemPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setProdutoComum({ ...produtoComum, imagem: null, imagemPreview: '' })}
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                    <Upload className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const preview = await fileToPreview(file);
+                          setProdutoComum({ ...produtoComum, imagem: file, imagemPreview: preview });
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-muted-foreground flex-1">
+                  Imagem que aparecerá no catálogo online para os clientes. Tamanho recomendado: 500x500px
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
@@ -738,6 +837,48 @@ export default function AdminProdutos() {
               <p className="text-xs text-muted-foreground">
                 Preencha pelo menos um tamanho
               </p>
+            </div>
+
+            {/* Upload de Imagem */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" />
+                Imagem do Produto (Catálogo)
+              </Label>
+              <div className="flex gap-3 items-start">
+                {produtoEspecial.imagemPreview ? (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                    <img src={produtoEspecial.imagemPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setProdutoEspecial({ ...produtoEspecial, imagem: null, imagemPreview: '' })}
+                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                    <Upload className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const preview = await fileToPreview(file);
+                          setProdutoEspecial({ ...produtoEspecial, imagem: file, imagemPreview: preview });
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-muted-foreground flex-1">
+                  Imagem que aparecerá no catálogo online
+                </p>
+              </div>
             </div>
 
             <div className="flex gap-2 justify-end pt-4 border-t">
@@ -848,6 +989,52 @@ export default function AdminProdutos() {
                   />
                 </div>
               )}
+
+              {/* Upload de Imagem */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Imagem do Produto (Catálogo)
+                </Label>
+                <div className="flex gap-3 items-start">
+                  {produtoEditando.imagem ? (
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                      <img 
+                        src={produtoEditando.imagem || produtoEditando.imagem} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover" 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setProdutoEditando({ ...produtoEditando, imagem: null, novaImagem: null })}
+                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                      <Upload className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const preview = await fileToPreview(file);
+                            setProdutoEditando({ ...produtoEditando, imagem: preview, novaImagem: file });
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                  <p className="text-xs text-muted-foreground flex-1">
+                    Imagem que aparecerá no catálogo online para os clientes
+                  </p>
+                </div>
+              </div>
 
               <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                 <Label>Produto ativo</Label>
