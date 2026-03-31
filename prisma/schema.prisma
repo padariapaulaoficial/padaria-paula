@@ -147,3 +147,30 @@ model ItemOrcamento {
   @@index([orcamentoId])
   @@index([produtoId])
 }
+
+// Bairros para tele-entrega
+model Bairro {
+  id          String   @id @default(cuid())
+  nome        String   @unique
+  taxaEntrega Float    @default(0)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([nome])
+}
+
+// Configurações do catálogo público
+model ConfiguracaoCatalogo {
+  id                        String   @id @default(cuid())
+  pedidoMinimo              Float    @default(0)
+  mensagemBoasVindas        String   @default("Bem-vindo ao nosso catálogo!")
+  mensagemDadosCliente      String   @default("Falta pouco! Preciso dos seus dados para finalizar seu pedido.")
+  exibirBusca               Boolean  @default(true)
+  exibirWhatsapp            Boolean  @default(true)
+  horarioAbertura           String?  @default("08:00")
+  horarioFechamento         String?  @default("20:00")
+  diasFuncionamento         String?  @default("1,2,3,4,5,6") // 0=Dom, 1=Seg, etc
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}

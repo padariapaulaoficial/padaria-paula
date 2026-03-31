@@ -11,9 +11,11 @@ export async function POST(request: NextRequest) {
       nomeCliente,
       telefoneCliente,
       enderecoCliente,
+      bairroEntrega,
       tipoEntrega,
       dataEntrega,
       horarioEntrega,
+      taxaEntrega,
       itens,
       observacoes
     } = body;
@@ -39,10 +41,36 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!horarioEntrega) {
+      return NextResponse.json(
+        { error: 'Horário de entrega é obrigatório' },
+        { status: 400 }
+      );
+    }
+    
+    // Validar telefone (mínimo 10 dígitos)
+    const telefoneLimpo = telefoneCliente.replace(/\D/g, '');
+    if (telefoneLimpo.length < 10) {
+      return NextResponse.json(
+        { error: 'Telefone inválido. Inclua o DDD.' },
+        { status: 400 }
+      );
+    }
+
+    // Tele-entrega requer endereço
+    if (tipoEntrega === 'TELE_ENTREGA' && !enderecoCliente) {
+      return NextResponse.json(
+        { error: 'Endereço é obrigatório para tele-entrega' },
+        { status: 400 }
+      );
+    }
     
     // Buscar ou criar cliente pelo telefone
-    let cliente = await db.cliente.findUnique({
-      where: { telefone: telefoneCliente },
+    let cliente = await db.cliente.findFirst({
+      where: { 
+        telefone: telefoneLimpo 
+      },
     });
     
     if (!cliente) {
@@ -50,16 +78,32 @@ export async function POST(request: NextRequest) {
       cliente = await db.cliente.create({
         data: {
           nome: nomeCliente,
-          telefone: telefoneCliente,
+          telefone: telefoneLimpo,
           endereco: enderecoCliente || null,
+          bairro: bairroEntrega || null,
         },
       });
+      console.log(`Novo cliente criado: ${cliente.nome} (${cliente.telefone})`);
     } else {
-      // Atualizar endereço se fornecido e diferente
+      // Atualizar dados se fornecidos e diferentes
+      const dadosAtualizacao: { nome?: string; endereco?: string; bairro?: string } = {};
+      
+      if (nomeCliente && nomeCliente !== cliente.nome) {
+        dadosAtualizacao.nome = nomeCliente;
+      }
+      
       if (enderecoCliente && enderecoCliente !== cliente.endereco) {
+        dadosAtualizacao.endereco = enderecoCliente;
+      }
+      
+      if (bairroEntrega && bairroEntrega !== cliente.bairro) {
+        dadosAtualizacao.bairro = bairroEntrega;
+      }
+      
+      if (Object.keys(dadosAtualizacao).length > 0) {
         await db.cliente.update({
           where: { id: cliente.id },
-          data: { endereco: enderecoCliente },
+          data: dadosAtualizacao,
         });
       }
     }
@@ -75,6 +119,9 @@ export async function POST(request: NextRequest) {
     const totalItens = itens.reduce((sum: number, item: Record<string, unknown>) => {
       return sum + ((item.subtotal as number) || 0);
     }, 0);
+
+    // Total com taxa de entrega
+    const totalComTaxa = totalItens + (taxaEntrega || 0);
     
     // Criar pedido
     const pedido = await db.pedido.create({
@@ -82,13 +129,14 @@ export async function POST(request: NextRequest) {
         numero: novoNumero,
         clienteId: cliente.id,
         observacoes: observacoes || null,
-        total: totalItens,
-        totalPedida: totalItens,
+        total: totalComTaxa,
+        totalPedida: totalComTaxa,
         tipoEntrega: tipoEntrega || 'RETIRA',
         dataEntrega: dataEntrega,
         horarioEntrega: horarioEntrega || null,
         enderecoEntrega: tipoEntrega === 'TELE_ENTREGA' ? enderecoCliente : null,
-        bairroEntrega: null,
+        bairroEntrega: tipoEntrega === 'TELE_ENTREGA' ? bairroEntrega : null,
+        valorTeleEntrega: taxaEntrega || null,
         status: 'PENDENTE',
         itens: {
           create: itens.map((item: Record<string, unknown>) => ({

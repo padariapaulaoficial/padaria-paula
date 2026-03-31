@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import {
   Settings, Package, Store, Plus, Edit, Trash2, Save,
   RefreshCw, ToggleLeft, ToggleRight, Lock, Cake, MessageCircle,
-  BarChart3
+  BarChart3, Globe, MapPin, DollarSign, Clock, Search, X
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -92,6 +92,25 @@ interface Configuracao {
   diasAlertaProducao?: number | null;
 }
 
+interface ConfiguracaoCatalogo {
+  id: string;
+  pedidoMinimo: number;
+  mensagemBoasVindas: string;
+  mensagemDadosCliente: string;
+  exibirBusca: boolean;
+  exibirWhatsapp: boolean;
+  horarioAbertura: string | null;
+  horarioFechamento: string | null;
+  diasFuncionamento: string | null;
+}
+
+interface Bairro {
+  id: string;
+  nome: string;
+  taxaEntrega: number;
+  ativo: boolean;
+}
+
 const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
 const TIPOS_VENDA = [
   { value: 'KG', label: 'Quilograma (kg)' },
@@ -156,6 +175,18 @@ export default function AdminPanel() {
   const [confirmarSenhaAdmin, setConfirmarSenhaAdmin] = useState('');
   const [salvandoSenhaAdmin, setSalvandoSenhaAdmin] = useState(false);
 
+  // Estados do catálogo
+  const [configCatalogo, setConfigCatalogo] = useState<ConfiguracaoCatalogo | null>(null);
+  const [loadingConfigCatalogo, setLoadingConfigCatalogo] = useState(true);
+  const [salvandoConfigCatalogo, setSalvandoConfigCatalogo] = useState(false);
+
+  // Estados de bairros
+  const [bairros, setBairros] = useState<Bairro[]>([]);
+  const [loadingBairros, setLoadingBairros] = useState(true);
+  const [novoBairro, setNovoBairro] = useState({ nome: '', taxaEntrega: '' });
+  const [bairroEditando, setBairroEditando] = useState<Bairro | null>(null);
+  const [salvandoBairro, setSalvandoBairro] = useState(false);
+
   // Carregar produtos
   const carregarProdutos = async () => {
     setLoadingProdutos(true);
@@ -201,7 +232,128 @@ export default function AdminPanel() {
   useEffect(() => {
     carregarProdutos();
     carregarConfig();
+    carregarConfigCatalogo();
+    carregarBairros();
   }, []);
+
+  // Carregar configurações do catálogo
+  const carregarConfigCatalogo = async () => {
+    setLoadingConfigCatalogo(true);
+    try {
+      const res = await fetch('/api/admin/catalogo-config');
+      const data = await res.json();
+      setConfigCatalogo(data);
+    } catch (error) {
+      console.error('Erro ao carregar config do catálogo:', error);
+    } finally {
+      setLoadingConfigCatalogo(false);
+    }
+  };
+
+  // Carregar bairros
+  const carregarBairros = async () => {
+    setLoadingBairros(true);
+    try {
+      const res = await fetch('/api/admin/bairros');
+      const data = await res.json();
+      setBairros(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao carregar bairros:', error);
+      setBairros([]);
+    } finally {
+      setLoadingBairros(false);
+    }
+  };
+
+  // Salvar configurações do catálogo
+  const handleSalvarConfigCatalogo = async () => {
+    if (!configCatalogo) return;
+    setSalvandoConfigCatalogo(true);
+    try {
+      const res = await fetch('/api/admin/catalogo-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configCatalogo),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setConfigCatalogo(data);
+      toast({
+        title: 'Configurações salvas!',
+        description: 'As configurações do catálogo foram atualizadas.',
+      });
+    } catch (error) {
+      console.error('Erro ao salvar config do catálogo:', error);
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível salvar as configurações.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSalvandoConfigCatalogo(false);
+    }
+  };
+
+  // Criar bairro
+  const handleCriarBairro = async () => {
+    if (!novoBairro.nome.trim()) {
+      toast({ title: 'Nome obrigatório', variant: 'destructive' });
+      return;
+    }
+    setSalvandoBairro(true);
+    try {
+      const res = await fetch('/api/admin/bairros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: novoBairro.nome.trim(),
+          taxaEntrega: parseFloat(novoBairro.taxaEntrega) || 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBairros([...bairros, data]);
+      setNovoBairro({ nome: '', taxaEntrega: '' });
+      toast({ title: 'Bairro adicionado!' });
+    } catch (error) {
+      console.error('Erro ao criar bairro:', error);
+      toast({ title: 'Erro ao adicionar bairro', variant: 'destructive' });
+    } finally {
+      setSalvandoBairro(false);
+    }
+  };
+
+  // Atualizar bairro
+  const handleAtualizarBairro = async (bairro: Bairro) => {
+    try {
+      const res = await fetch('/api/admin/bairros', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bairro),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBairros(bairros.map(b => b.id === data.id ? data : b));
+      setBairroEditando(null);
+      toast({ title: 'Bairro atualizado!' });
+    } catch (error) {
+      console.error('Erro ao atualizar bairro:', error);
+      toast({ title: 'Erro ao atualizar bairro', variant: 'destructive' });
+    }
+  };
+
+  // Excluir bairro
+  const handleExcluirBairro = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/bairros?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setBairros(bairros.filter(b => b.id !== id));
+      toast({ title: 'Bairro removido!' });
+    } catch (error) {
+      console.error('Erro ao excluir bairro:', error);
+      toast({ title: 'Erro ao excluir bairro', variant: 'destructive' });
+    }
+  };
 
   // Salvar configuração
   const handleSalvarConfig = async () => {
@@ -605,7 +757,7 @@ export default function AdminPanel() {
   return (
     <div className="space-y-6 animate-fade-in">
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted/50 h-auto">
+        <TabsList className="grid w-full grid-cols-5 bg-muted/50 h-auto">
           <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
             <BarChart3 className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">Dashboard</span>
@@ -615,6 +767,11 @@ export default function AdminPanel() {
             <Package className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">Produtos</span>
             <span className="sm:hidden">Prod.</span>
+          </TabsTrigger>
+          <TabsTrigger value="catalogo" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
+            <Globe className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Catálogo</span>
+            <span className="sm:hidden">Cat.</span>
           </TabsTrigger>
           <TabsTrigger value="configuracoes" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
             <Store className="w-4 h-4 shrink-0" />
@@ -636,6 +793,325 @@ export default function AdminPanel() {
         {/* Tab de Produtos */}
         <TabsContent value="produtos" className="space-y-4">
           <AdminProdutos />
+        </TabsContent>
+
+        {/* Tab de Catálogo */}
+        <TabsContent value="catalogo" className="space-y-4">
+          {/* Configurações do Catálogo */}
+          <Card className="card-padaria">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Configurações do Catálogo Online
+              </CardTitle>
+              <CardDescription>
+                Configure como seu catálogo público funciona para seus clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingConfigCatalogo ? (
+                <div className="flex justify-center py-4">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : configCatalogo && (
+                <>
+                  {/* Pedido Mínimo */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Pedido Mínimo
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="input-padaria"
+                      value={configCatalogo.pedidoMinimo || 0}
+                      onChange={(e) => setConfigCatalogo({
+                        ...configCatalogo,
+                        pedidoMinimo: parseFloat(e.target.value) || 0
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Valor mínimo para fazer pedido. Deixe 0 para sem mínimo.
+                    </p>
+                  </div>
+
+                  {/* Horários */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Abertura
+                      </Label>
+                      <Input
+                        type="time"
+                        className="input-padaria"
+                        value={configCatalogo.horarioAbertura || '08:00'}
+                        onChange={(e) => setConfigCatalogo({
+                          ...configCatalogo,
+                          horarioAbertura: e.target.value
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Fechamento
+                      </Label>
+                      <Input
+                        type="time"
+                        className="input-padaria"
+                        value={configCatalogo.horarioFechamento || '20:00'}
+                        onChange={(e) => setConfigCatalogo({
+                          ...configCatalogo,
+                          horarioFechamento: e.target.value
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mensagens */}
+                  <div className="space-y-2">
+                    <Label>Mensagem para Dados do Cliente</Label>
+                    <Textarea
+                      className="input-padaria min-h-[80px]"
+                      value={configCatalogo.mensagemDadosCliente || ''}
+                      onChange={(e) => setConfigCatalogo({
+                        ...configCatalogo,
+                        mensagemDadosCliente: e.target.value
+                      })}
+                      placeholder="Falta pouco! Preciso dos seus dados para finalizar..."
+                    />
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <Search className="w-4 h-4" />
+                        <span className="text-sm">Exibir busca de produtos</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfigCatalogo({
+                          ...configCatalogo,
+                          exibirBusca: !configCatalogo.exibirBusca
+                        })}
+                      >
+                        {configCatalogo.exibirBusca ? (
+                          <ToggleRight className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="text-sm">Exibir botão do WhatsApp</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfigCatalogo({
+                          ...configCatalogo,
+                          exibirWhatsapp: !configCatalogo.exibirWhatsapp
+                        })}
+                      >
+                        {configCatalogo.exibirWhatsapp ? (
+                          <ToggleRight className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleSalvarConfigCatalogo}
+                    className="btn-padaria"
+                    disabled={salvandoConfigCatalogo}
+                  >
+                    {salvandoConfigCatalogo ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Salvar Configurações
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Bairros de Entrega */}
+          <Card className="card-padaria">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Bairros de Entrega
+              </CardTitle>
+              <CardDescription>
+                Configure os bairros e suas taxas de tele-entrega
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingBairros ? (
+                <div className="flex justify-center py-4">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Adicionar novo bairro */}
+                  <div className="flex gap-2">
+                    <Input
+                      className="input-padaria flex-1"
+                      placeholder="Nome do bairro"
+                      value={novoBairro.nome}
+                      onChange={(e) => setNovoBairro({ ...novoBairro, nome: e.target.value })}
+                    />
+                    <Input
+                      className="input-padaria w-28"
+                      placeholder="Taxa R$"
+                      type="number"
+                      step="0.01"
+                      value={novoBairro.taxaEntrega}
+                      onChange={(e) => setNovoBairro({ ...novoBairro, taxaEntrega: e.target.value })}
+                    />
+                    <Button
+                      onClick={handleCriarBairro}
+                      className="btn-padaria"
+                      disabled={salvandoBairro}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Lista de bairros */}
+                  <div className="space-y-2">
+                    {bairros.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nenhum bairro cadastrado. Adicione bairros para oferecer tele-entrega.
+                      </p>
+                    ) : (
+                      bairros.map((bairro) => (
+                        <div
+                          key={bairro.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          {bairroEditando?.id === bairro.id ? (
+                            <>
+                              <Input
+                                className="input-padaria flex-1 mr-2"
+                                value={bairroEditando.nome}
+                                onChange={(e) => setBairroEditando({
+                                  ...bairroEditando,
+                                  nome: e.target.value
+                                })}
+                              />
+                              <Input
+                                className="input-padaria w-24 mr-2"
+                                type="number"
+                                step="0.01"
+                                value={bairroEditando.taxaEntrega}
+                                onChange={(e) => setBairroEditando({
+                                  ...bairroEditando,
+                                  taxaEntrega: parseFloat(e.target.value) || 0
+                                })}
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleAtualizarBairro(bairroEditando)}
+                                className="btn-padaria"
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setBairroEditando(null)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-muted-foreground" />
+                                <span>{bairro.nome}</span>
+                                {bairro.taxaEntrega > 0 ? (
+                                  <Badge variant="secondary">
+                                    {formatarMoeda(bairro.taxaEntrega)}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-green-600">
+                                    Grátis
+                                  </Badge>
+                                )}
+                                {!bairro.ativo && (
+                                  <Badge variant="destructive">Inativo</Badge>
+                                )}
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setBairroEditando(bairro)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleExcluirBairro(bairro.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Link do Catálogo */}
+          <Card className="card-padaria bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <Globe className="w-10 h-10 mx-auto mb-3 text-amber-600" />
+                <h3 className="font-semibold text-lg mb-2">Seu Catálogo Online</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Compartilhe este link com seus clientes
+                </p>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 flex items-center gap-2">
+                  <code className="text-sm flex-1 truncate text-amber-700 dark:text-amber-400">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/catalogo
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/catalogo`);
+                      toast({ title: 'Link copiado!' });
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Tab de Configurações */}

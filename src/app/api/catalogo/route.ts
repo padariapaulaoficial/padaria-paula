@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
 
-const prisma = new PrismaClient();
-
-// GET - Buscar produtos ativos e configurações para o catálogo público
+// GET - Buscar produtos ativos, configurações e bairros para o catálogo público
 export async function GET() {
   try {
     // Buscar produtos e configurações em paralelo
-    const [produtos, configuracao] = await Promise.all([
-      prisma.produto.findMany({
+    const [produtos, configuracao, bairros, configCatalogo] = await Promise.all([
+      db.produto.findMany({
         where: {
           ativo: true,
         },
@@ -29,13 +27,27 @@ export async function GET() {
           { nome: 'asc' },
         ],
       }),
-      prisma.configuracao.findFirst({
+      db.configuracao.findFirst({
         select: {
           nomeLoja: true,
           telefone: true,
           endereco: true,
         },
       }),
+      db.bairro.findMany({
+        where: {
+          ativo: true,
+        },
+        select: {
+          id: true,
+          nome: true,
+          taxaEntrega: true,
+        },
+        orderBy: {
+          nome: 'asc',
+        },
+      }),
+      db.configuracaoCatalogo.findFirst(),
     ]);
 
     // Parse dos tamanhos e preços
@@ -52,6 +64,16 @@ export async function GET() {
         nomeLoja: 'Padaria Paula',
         telefone: '(11) 99999-9999',
         endereco: '',
+      },
+      bairros: bairros || [],
+      configCatalogo: configCatalogo || {
+        pedidoMinimo: 0,
+        mensagemBoasVindas: 'Bem-vindo ao nosso catálogo!',
+        mensagemDadosCliente: 'Falta pouco! Preciso dos seus dados para finalizar seu pedido.',
+        exibirBusca: true,
+        exibirWhatsapp: true,
+        horarioAbertura: '08:00',
+        horarioFechamento: '20:00',
       },
     });
   } catch (error) {
