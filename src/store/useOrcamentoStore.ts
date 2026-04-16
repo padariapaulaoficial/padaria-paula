@@ -14,7 +14,7 @@ import { create } from 'zustand';
 // 7. BEBIDAS (6)
 // 8. OUTROS (99)
 // ============================================
-const ORDEM_CATEGORIAS: Record<string, number> = {
+export const ORDEM_CATEGORIAS: Record<string, number> = {
   // 1. TORTAS ESPECIAIS
   'TORTA ESPECIAL': 0,
   'TORTAS ESPECIAIS': 0,
@@ -100,24 +100,6 @@ export interface ItemOrcamentoCarrinho {
   tamanho?: string; // Tamanho para produtos especiais (PP, P, M, G)
   categoria?: string | null; // Categoria do produto para ordenação
 }
-
-// Ordem de categorias para exibição
-export const ORDEM_CATEGORIAS: Record<string, number> = {
-  'TORTAS': 1,
-  'TORTA': 1,
-  'SALGADINHOS': 2,
-  'SALGADINHO': 2,
-  'SALGADOS': 3,
-  'SALGADO': 3,
-  'DOCINHOS': 4,
-  'DOCINHO': 4,
-  'DOCES': 5,
-  'DOCE': 5,
-  'BEBIDAS': 6,
-  'BEBIDA': 6,
-  'OUTROS': 99,
-  '': 99,
-};
 
 // Função para obter ordem de categoria
 export function obterOrdemCategoria(categoria: string | null | undefined): number {
