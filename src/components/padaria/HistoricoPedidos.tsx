@@ -1443,7 +1443,7 @@ export default function HistoricoPedidos() {
                   )}
                 </div>
                 <div className="bg-muted/30 rounded-lg p-1.5 space-y-0.5 max-h-24 overflow-y-auto">
-                  {pedidoSelecionado.itens.map((item) => (
+                  {ordenarItensPorCategoria(pedidoSelecionado.itens).map((item) => (
                     <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/20 last:border-0">
                       <div className="flex-1 min-w-0">
                         <span className="text-[10px] font-medium truncate block">
@@ -1602,7 +1602,7 @@ export default function HistoricoPedidos() {
           </AlertDialogHeader>
           
           <div className="max-h-[60vh] overflow-y-auto space-y-3 py-2">
-            {pedidoSelecionado?.itens.map((item) => {
+            {ordenarItensPorCategoria(pedidoSelecionado?.itens || []).map((item) => {
               // Verificar se é Torta Especial (apenas pelo nome do produto)
               const isTortaEspecial = item.produto.nome.toUpperCase().includes('TORTA ESPECIAL');
               const tamanhosDisponiveis = ['PP', 'P', 'M', 'G'];

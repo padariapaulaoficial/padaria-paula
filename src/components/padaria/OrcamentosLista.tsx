@@ -950,7 +950,7 @@ export default function OrcamentosLista() {
                   )}
                 </div>
                 <div className="bg-muted/30 rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
-                  {orcamentoSelecionado.itens.map((item) => (
+                  {ordenarItensPorCategoria(orcamentoSelecionado.itens).map((item) => (
                     <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/30 last:border-0 gap-2">
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <p className="text-xs font-medium truncate">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
@@ -1067,7 +1067,7 @@ export default function OrcamentosLista() {
           </AlertDialogHeader>
           
           <div className="max-h-[60vh] overflow-y-auto space-y-3 py-2">
-            {orcamentoSelecionado?.itens.map((item) => {
+            {ordenarItensPorCategoria(orcamentoSelecionado?.itens || []).map((item) => {
               // Verificar se é Torta Especial (apenas pelo nome do produto)
               const isTortaEspecial = item.produto.nome.toUpperCase().includes('TORTA ESPECIAL');
               const tamanhosDisponiveis = ['PP', 'P', 'M', 'G'];
