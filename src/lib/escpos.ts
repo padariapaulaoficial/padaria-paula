@@ -121,16 +121,51 @@ function obterOrdemItem(categoria?: string | null, tamanho?: string | null): num
   return ORDEM_CATEGORIAS[catUpper] ?? 99;
 }
 
-// Função para ordenar itens por categoria
-export function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string; categoria?: string | null }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
+// Tipo para itens com estrutura aninhada (do banco de dados)
+type ItemAninhado = {
+  produto: { nome: string; tipoVenda: string; categoria?: string | null };
+  quantidade: number;
+  valorUnit: number;
+  subtotal: number;
+  observacao?: string | null;
+  tamanho?: string | null;
+};
+
+// Tipo para itens com estrutura plana (do store)
+type ItemPlano = {
+  nome: string;
+  tipoVenda?: string;
+  categoria?: string | null;
+  quantidade?: number;
+  valorUnit?: number;
+  subtotal?: number;
+  observacao?: string | null;
+  tamanho?: string | null;
+};
+
+// Helper para detectar se o item tem estrutura aninhada
+function temEstruturaAninhada(item: ItemAninhado | ItemPlano): item is ItemAninhado {
+  return 'produto' in item && typeof item.produto === 'object' && item.produto !== null;
+}
+
+// Função genérica para ordenar itens por categoria - funciona com ambos os tipos
+export function ordenarItensPorCategoria<T extends ItemAninhado | ItemPlano>(itens: T[]): T[] {
   return [...itens].sort((a, b) => {
+    // Extrair categoria e nome baseado na estrutura
+    const categoriaA = temEstruturaAninhada(a) ? a.produto.categoria : a.categoria;
+    const categoriaB = temEstruturaAninhada(b) ? b.produto.categoria : b.categoria;
+    const tamanhoA = a.tamanho;
+    const tamanhoB = b.tamanho;
+    const nomeA = temEstruturaAninhada(a) ? a.produto.nome : a.nome;
+    const nomeB = temEstruturaAninhada(b) ? b.produto.nome : b.nome;
+    
     // Obter ordem de cada item
-    const ordemA = obterOrdemItem(a.produto.categoria, a.tamanho);
-    const ordemB = obterOrdemItem(b.produto.categoria, b.tamanho);
+    const ordemA = obterOrdemItem(categoriaA, tamanhoA);
+    const ordemB = obterOrdemItem(categoriaB, tamanhoB);
     
     // Se mesma categoria, ordenar por nome
     if (ordemA === ordemB) {
-      return a.produto.nome.localeCompare(b.produto.nome);
+      return nomeA.localeCompare(nomeB);
     }
     
     return ordemA - ordemB;
