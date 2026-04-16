@@ -3,6 +3,91 @@
 
 import { create } from 'zustand';
 
+// ============================================
+// ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
+// 1. TORTAS ESPECIAIS (0)
+// 2. TORTAS (1)
+// 3. SALGADINHOS (2)
+// 4. SALGADOS (3)
+// 5. DOCINHOS (4)
+// 6. DOCES (5)
+// 7. BEBIDAS (6)
+// 8. OUTROS (99)
+// ============================================
+const ORDEM_CATEGORIAS: Record<string, number> = {
+  // 1. TORTAS ESPECIAIS
+  'TORTA ESPECIAL': 0,
+  'TORTAS ESPECIAIS': 0,
+  
+  // 2. TORTAS
+  'TORTAS': 1,
+  'TORTA': 1,
+  
+  // 3. SALGADINHOS
+  'SALGADINHOS': 2,
+  'SALGADINHO': 2,
+  
+  // 4. SALGADOS
+  'SALGADOS': 3,
+  'SALGADO': 3,
+  
+  // 5. DOCINHOS
+  'DOCINHOS': 4,
+  'DOCINHO': 4,
+  
+  // 6. DOCES
+  'DOCES': 5,
+  'DOCE': 5,
+  
+  // 7. BEBIDAS
+  'BEBIDAS': 6,
+  'BEBIDA': 6,
+  
+  // 8. OUTROS
+  'OUTROS': 99,
+  'OUTRO': 99,
+};
+
+// Função para obter ordem de um item baseado no nome e tamanho
+function obterOrdemItem(nome: string, tamanho?: string): number {
+  const nomeUpper = nome.toUpperCase();
+  
+  // Verificar se é Torta Especial (pelo nome OU se tem tamanho e é torta)
+  if (nomeUpper.includes('TORTA ESPECIAL')) {
+    return 0;
+  }
+  
+  // Se tem tamanho e o nome contém TORTA, tratar como especial
+  if (tamanho && nomeUpper.includes('TORTA')) {
+    return 0;
+  }
+  
+  // Buscar categoria pelo nome
+  let ordem = 99;
+  for (const [cat, ordemCat] of Object.entries(ORDEM_CATEGORIAS)) {
+    if (nomeUpper.includes(cat)) {
+      ordem = Math.min(ordem, ordemCat);
+    }
+  }
+  
+  return ordem;
+}
+
+// Função para ordenar itens por categoria - USADA EM TODAS AS OPERAÇÕES
+function ordenarItens<T extends { nome: string; tamanho?: string }>(itens: T[]): T[] {
+  return [...itens].sort((a, b) => {
+    const ordemA = obterOrdemItem(a.nome, a.tamanho);
+    const ordemB = obterOrdemItem(b.nome, b.tamanho);
+    
+    // Se mesma categoria, ordenar por nome
+    if (ordemA === ordemB) {
+      return a.nome.localeCompare(b.nome);
+    }
+    
+    return ordemA - ordemB;
+  });
+}
+
 // Tipos - apenas KG e UNIDADE
 export interface ItemCarrinho {
   produtoId: string;
@@ -92,8 +177,9 @@ export const usePedidoStore = create<PedidoState>((set, get) => ({
   setObservacoes: (observacoes) => set({ observacoes }),
   totalPedida: 0,
   
+  // ADICIONAR ITEM - ORDENA AUTOMATICAMENTE
   adicionarItem: (item) => {
-    const itens = [...get().itens, item];
+    const itens = ordenarItens([...get().itens, item]);
     const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
     const totalPedida = itens.reduce((sum, i) => sum + i.subtotalPedida, 0);
     set({ 
@@ -103,8 +189,10 @@ export const usePedidoStore = create<PedidoState>((set, get) => ({
     });
   },
   
+  // REMOVER ITEM - REORDENA APÓS REMOÇÃO
   removerItem: (index) => {
-    const itens = get().itens.filter((_, i) => i !== index);
+    const itensFiltrados = get().itens.filter((_, i) => i !== index);
+    const itens = ordenarItens(itensFiltrados);
     const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
     const totalPedida = itens.reduce((sum, i) => sum + i.subtotalPedida, 0);
     set({ 
@@ -114,9 +202,11 @@ export const usePedidoStore = create<PedidoState>((set, get) => ({
     });
   },
   
+  // ATUALIZAR ITEM - REORDENA APÓS ATUALIZAÇÃO
   atualizarItem: (index, itemAtualizado) => {
-    const itens = [...get().itens];
-    itens[index] = { ...itens[index], ...itemAtualizado };
+    const itensAtualizados = [...get().itens];
+    itensAtualizados[index] = { ...itensAtualizados[index], ...itemAtualizado };
+    const itens = ordenarItens(itensAtualizados);
     const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
     const totalPedida = itens.reduce((sum, i) => sum + i.subtotalPedida, 0);
     set({ 
@@ -126,19 +216,20 @@ export const usePedidoStore = create<PedidoState>((set, get) => ({
     });
   },
   
-  // Atualizar peso final para produtos KG
+  // Atualizar peso final para produtos KG - REORDENA
   atualizarPesoFinal: (index, pesoFinal) => {
-    const itens = [...get().itens];
-    const item = itens[index];
+    const itensAtualizados = [...get().itens];
+    const item = itensAtualizados[index];
     
     if (item && item.tipoVenda === 'KG') {
       const novoSubtotal = pesoFinal * item.valorUnit;
-      itens[index] = {
+      itensAtualizados[index] = {
         ...item,
         quantidade: pesoFinal,
         subtotal: Math.round(novoSubtotal * 100) / 100,
       };
       
+      const itens = ordenarItens(itensAtualizados);
       const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
       set({ 
         itens, 
