@@ -247,9 +247,9 @@ export default function HistoricoPedidos() {
 
   // Filtrar produtos pela busca
   const produtosFiltrados = useMemo(() => {
-    if (!buscaProduto) return produtos.slice(0, 20);
+    if (!buscaProduto) return produtos;
     const termo = buscaProduto.toLowerCase();
-    return produtos.filter(p => p.nome.toLowerCase().includes(termo)).slice(0, 20);
+    return produtos.filter(p => p.nome.toLowerCase().includes(termo));
   }, [produtos, buscaProduto]);
 
   // Carregar pedidos
