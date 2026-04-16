@@ -1,0 +1,122 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║              🥖 PADARIA E CONFEITARIA PAULA 🥐                       ║
+║                                                                      ║
+║                     GUIA DE INSTALAÇÃO                               ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                           PASSO 1: INSTALAR NODE.JS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Acesse: https://nodejs.org/
+2. Baixe a versão LTS (recomendada)
+3. Instale clicando "Próximo" em todas as telas
+4. Reinicie o computador após a instalação
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                           PASSO 2: INSTALAR BUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Abra o terminal (CMD ou PowerShell) e execute:
+
+    npm install -g bun
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                           PASSO 3: INICIAR O SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WINDOWS:
+    → Clique duas vezes no arquivo "iniciar-windows.bat"
+
+LINUX/MAC:
+    → Abra o terminal na pasta e execute: ./iniciar-linux.sh
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                           PASSO 4: ACESSAR O SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Abra o navegador e acesse:
+
+    http://localhost:3000
+
+
+╔══════════════════════════════════════════════════════════════════════╗
+║                           CREDENCIAIS                                ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║  📌 PIN dos Funcionários: 2026                                       ║
+║  🔐 Senha do Administrador: admin2026                                ║
+║                                                                      ║
+║  ⚠️ ALTERE ESSAS SENHAS NAS CONFIGURAÇÕES DO SISTEMA!               ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                              FUNCIONALIDADES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FUNCIONÁRIOS:
+  ✓ Cadastrar clientes
+  ✓ Criar pedidos e orçamentos
+  ✓ Visualizar produtos e preços
+  ✓ Imprimir cupons térmicos
+  ✓ Ver histórico de pedidos do cliente
+
+ADMINISTRADOR:
+  ✓ Dashboard com estatísticas de vendas
+  ✓ Gerenciar produtos (cadastrar, editar, excluir)
+  ✓ Ver todos os pedidos e orçamentos
+  ✓ Backup do sistema
+  ✓ Exportar dados para Excel
+  ✓ Configurar dados da loja
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                              IMPRESSÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O sistema imprime cupons em impressoras térmicas 80mm.
+
+Para imprimir:
+  1. Conecte a impressora ao computador
+  2. Configure como impressora padrão do Windows
+  3. O sistema detectará automaticamente
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                              BACKUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O banco de dados fica no arquivo:
+    prisma/padaria.db
+
+Para fazer backup, copie este arquivo para um local seguro.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                            PROBLEMAS COMUNS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"Node.js não encontrado"
+  → Instale o Node.js: https://nodejs.org/
+
+"Bun não encontrado"
+  → Execute: npm install -g bun
+
+"Porta 3000 em uso"
+  → Feche outros programas que usam essa porta
+
+"Erro no banco de dados"
+  → Execute o script de inicialização novamente
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Desenvolvido com carinho para a Padaria e Confeitaria Paula 🥖🥐
