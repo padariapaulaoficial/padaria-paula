@@ -83,7 +83,7 @@ const ORDEM_CATEGORIAS: Record<string, number> = {
 };
 
 // Função para ordenar itens por categoria
-function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
+export function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
   return [...itens].sort((a, b) => {
     // Detectar categoria pelo nome do produto
     const nomeA = a.produto.nome.toUpperCase();

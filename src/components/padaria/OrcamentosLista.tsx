@@ -36,6 +36,7 @@ import {
   gerarCupomOrcamento,
   imprimirViaDialogo,
   formatarNumeroPedido,
+  ordenarItensPorCategoria,
   type OrcamentoCompleto,
   type ConfiguracaoCupom,
 } from '@/lib/escpos';
@@ -550,9 +551,10 @@ export default function OrcamentosLista() {
     mensagem += `Preparamos um orçamento especial para você:\n`;
     mensagem += `*Orçamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
     
-    // Itens
+    // Itens ordenados
     mensagem += `*Itens:*\n`;
-    orcamento.itens.forEach(item => {
+    const itensOrdenados = ordenarItensPorCategoria(orcamento.itens);
+    itensOrdenados.forEach(item => {
       const qtd = item.quantidade % 1 === 0
         ? item.quantidade.toString()
         : item.quantidade.toFixed(2).replace('.', ',');

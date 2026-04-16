@@ -36,7 +36,8 @@ import {
   gerarCupomCliente,
   gerarCupomCozinhaGrande,
   imprimirViaDialogo,
-  formatarNumeroPedido
+  formatarNumeroPedido,
+  ordenarItensPorCategoria
 } from '@/lib/escpos';
 import AlertaProducao from './AlertaProducao';
 
@@ -816,9 +817,10 @@ export default function HistoricoPedidos() {
       : 'a combinar';
     const horarioEntrega = pedido.horarioEntrega || 'a combinar';
     
-    // Lista de itens
+    // Lista de itens ordenados
     let itensStr = '';
-    for (const item of pedido.itens) {
+    const itensOrdenados = ordenarItensPorCategoria(pedido.itens);
+    for (const item of itensOrdenados) {
       const nomeItem = item.tamanho 
         ? `${item.produto.nome} (${item.tamanho})`
         : item.produto.nome;
