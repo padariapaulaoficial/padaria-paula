@@ -61,34 +61,49 @@ export type PedidoCompleto = {
 // Largura do papel 80mm em caracteres (fonte normal)
 const LARGURA_PAPEL = 48;
 
-// Ordem de categorias para impressão:
-// 0 - Tortas Especiais (com tamanho)
-// 1 - Tortas normais
-// 2 - Salgadinhos/Salgados
-// 3 - Docinhos/Doces
-// 4 - Bolos
-// 5 - Pães
-// 6 - Bebidas
-// 99 - Outros
+// ============================================
+// ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
+// 1. TORTAS ESPECIAIS (0)
+// 2. TORTAS (1)
+// 3. SALGADINHOS (2)
+// 4. SALGADOS (3)
+// 5. DOCINHOS (4)
+// 6. DOCES (5)
+// 7. BEBIDAS (6)
+// 8. OUTROS (99)
+// ============================================
 const ORDEM_CATEGORIAS: Record<string, number> = {
-  'TORTA ESPECIAL': 0,  // Tortas especiais primeiro (detectar antes)
+  // 1. TORTAS ESPECIAIS
+  'TORTA ESPECIAL': 0,
+  'TORTAS ESPECIAIS': 0,
+  
+  // 2. TORTAS
   'TORTAS': 1,
   'TORTA': 1,
+  
+  // 3. SALGADINHOS
   'SALGADINHOS': 2,
   'SALGADINHO': 2,
-  'SALGADOS': 2,
-  'SALGADO': 2,
-  'DOCINHOS': 3,
-  'DOCINHO': 3,
-  'DOCES': 3,
-  'DOCE': 3,
-  'BOLOS': 4,
-  'BOLO': 4,
-  'PAES': 5,
-  'PAO': 5,
+  
+  // 4. SALGADOS
+  'SALGADOS': 3,
+  'SALGADO': 3,
+  
+  // 5. DOCINHOS
+  'DOCINHOS': 4,
+  'DOCINHO': 4,
+  
+  // 6. DOCES
+  'DOCES': 5,
+  'DOCE': 5,
+  
+  // 7. BEBIDAS
   'BEBIDAS': 6,
   'BEBIDA': 6,
+  
+  // 8. OUTROS
   'OUTROS': 99,
+  'OUTRO': 99,
 };
 
 // Função para obter a ordem de um item baseado no nome e tamanho
@@ -105,7 +120,7 @@ function obterOrdemItem(nome: string, tamanho?: string | null): number {
     return 0;
   }
   
-  // Buscar categoria pelo nome
+  // Buscar categoria pelo nome - ORDEM EXATA
   let ordem = 99;
   for (const [cat, ordemCat] of Object.entries(ORDEM_CATEGORIAS)) {
     if (nomeUpper.includes(cat)) {

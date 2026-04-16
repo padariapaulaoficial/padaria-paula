@@ -24,30 +24,65 @@ import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda as formatarValor } from '@/store/usePedidoStore';
 
-// Ordem de categorias para exibição
+// ============================================
+// ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
+// 1. TORTAS ESPECIAIS (0)
+// 2. TORTAS (1)
+// 3. SALGADINHOS (2)
+// 4. SALGADOS (3)
+// 5. DOCINHOS (4)
+// 6. DOCES (5)
+// 7. BEBIDAS (6)
+// 8. OUTROS (99)
+// ============================================
 const ORDEM_CATEGORIAS: Record<string, number> = {
+  // 1. TORTAS ESPECIAIS
   'Tortas Especiais': 0,
   'TORTAS ESPECIAIS': 0,
+  'Torta Especial': 0,
+  'TORTA ESPECIAL': 0,
+  
+  // 2. TORTAS
   'Tortas': 1,
   'TORTAS': 1,
   'Torta': 1,
   'TORTA': 1,
+  
+  // 3. SALGADINHOS
   'Salgadinhos': 2,
   'SALGADINHOS': 2,
-  'Salgados': 2,
-  'SALGADOS': 2,
-  'Docinhos': 3,
-  'DOCINHOS': 3,
-  'Doces': 3,
-  'DOCES': 3,
-  'Bolos': 4,
-  'BOLOS': 4,
-  'Pães': 5,
-  'PAES': 5,
+  'Salgadinho': 2,
+  'SALGADINHO': 2,
+  
+  // 4. SALGADOS
+  'Salgados': 3,
+  'SALGADOS': 3,
+  'Salgado': 3,
+  'SALGADO': 3,
+  
+  // 5. DOCINHOS
+  'Docinhos': 4,
+  'DOCINHOS': 4,
+  'Docinho': 4,
+  'DOCINHO': 4,
+  
+  // 6. DOCES
+  'Doces': 5,
+  'DOCES': 5,
+  'Doce': 5,
+  'DOCE': 5,
+  
+  // 7. BEBIDAS
   'Bebidas': 6,
   'BEBIDAS': 6,
+  'Bebida': 6,
+  'BEBIDA': 6,
+  
+  // 8. OUTROS
   'Outros': 99,
   'OUTROS': 99,
+  'Outro': 99,
+  'OUTRO': 99,
 };
 
 // Função para obter ordem de uma categoria
