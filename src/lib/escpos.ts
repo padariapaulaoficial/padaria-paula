@@ -116,11 +116,27 @@ function obterOrdemItem(nome: string, tamanho?: string | null): number {
   return ordem;
 }
 
+// Tipo para itens que podem ter nome em produto ou diretamente
+type ItemOrdenavel = 
+  | { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }
+  | { nome: string; tipoVenda: string; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null; produtoId?: string };
+
+// Função auxiliar para obter o nome do item (compatível com ambos os formatos)
+function obterNomeItem(item: ItemOrdenavel): string {
+  if ('produto' in item && item.produto) {
+    return item.produto.nome;
+  }
+  if ('nome' in item) {
+    return item.nome;
+  }
+  return '';
+}
+
 // Função para ordenar itens por categoria
-export function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
+export function ordenarItensPorCategoria<T extends ItemOrdenavel>(itens: T[]): T[] {
   return [...itens].sort((a, b) => {
-    const nomeA = a.produto.nome.toUpperCase();
-    const nomeB = b.produto.nome.toUpperCase();
+    const nomeA = obterNomeItem(a).toUpperCase();
+    const nomeB = obterNomeItem(b).toUpperCase();
     
     // Obter ordem de cada item
     const ordemA = obterOrdemItem(nomeA, a.tamanho);

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { usePedidoStore, formatarMoeda, formatarQuantidade, calcularSubtotal } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
+import { ordenarItensPorCategoria } from '@/lib/escpos';
 
 interface Props {
   isMobile?: boolean;
@@ -70,7 +71,7 @@ export default function Carrinho({ isMobile = false }: Props) {
         {expandido && (
           <div className="border-t border-border max-h-48 sm:max-h-60 overflow-y-auto">
             <div className="p-2 sm:p-3 space-y-1.5 sm:space-y-2">
-              {itens.map((item, index) => (
+              {ordenarItensPorCategoria(itens).map((item, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between bg-muted/30 rounded-lg p-2 sm:p-2.5"
@@ -179,7 +180,7 @@ export default function Carrinho({ isMobile = false }: Props) {
       <CardContent className="flex-1 p-0">
         <ScrollArea className="h-[calc(100vh-450px)] px-6">
           <div className="space-y-3 py-2">
-            {itens.map((item, index) => (
+            {ordenarItensPorCategoria(itens).map((item, index) => (
               <div
                 key={index}
                 className="bg-muted/30 rounded-lg p-3 border border-border/50"

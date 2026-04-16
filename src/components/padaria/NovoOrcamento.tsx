@@ -26,6 +26,7 @@ import { useOrcamentoStore } from '@/store/useOrcamentoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
+import { ordenarItensPorCategoria } from '@/lib/escpos';
 import {
   Sheet,
   SheetContent,
@@ -1067,7 +1068,7 @@ export default function NovoOrcamento() {
                   <>
                     {/* Itens com scroll */}
                     <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                      {itens.map((item, index) => {
+                      {ordenarItensPorCategoria(itens).map((item, index) => {
                         const precos = obterPrecosTamanhos(item.produtoId);
                         const tamanhosDisponiveis = precos 
                           ? ['PP', 'P', 'M', 'G'].filter(tam => {
@@ -1241,7 +1242,7 @@ export default function NovoOrcamento() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {itens.map((item, index) => {
+                      {ordenarItensPorCategoria(itens).map((item, index) => {
                         const precos = obterPrecosTamanhos(item.produtoId);
                         const tamanhosDisponiveis = precos 
                           ? ['PP', 'P', 'M', 'G'].filter(tam => {

@@ -25,6 +25,7 @@ import {
 import { usePedidoStore, formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { ordenarItensPorCategoria } from '@/lib/escpos';
 
 export default function ResumoPedido() {
   const { cliente, entrega, itens, total, totalPedida, observacoes, setObservacoes, atualizarPesoFinal, atualizarItem, resetPedido } = usePedidoStore();
@@ -386,7 +387,7 @@ export default function ResumoPedido() {
             </h3>
             
             <div className="space-y-2">
-              {itens.map((item, index) => {
+              {ordenarItensPorCategoria(itens).map((item, index) => {
                 const precos = obterPrecosTamanhos(item.produtoId);
                 const tamanhosDisponiveis = precos 
                   ? ['PP', 'P', 'M', 'G'].filter(tam => {
