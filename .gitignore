@@ -54,3 +54,6 @@ server.log
 db/
 *.db
 *.db-journal
+
+# System config files
+.config

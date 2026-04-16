@@ -194,6 +194,18 @@ export default function EntregasLista() {
     window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
   };
 
+  // Abrir mapa com endereço
+  const handleAbrirMapa = (pedido: Pedido) => {
+    if (!pedido.enderecoEntrega) return;
+    
+    const enderecoCompleto = pedido.bairroEntrega 
+      ? `${pedido.enderecoEntrega}, ${pedido.bairroEntrega}`
+      : pedido.enderecoEntrega;
+    
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
@@ -262,28 +274,42 @@ export default function EntregasLista() {
                         </div>
                       )}
 
-                      {/* Endereço de entrega */}
+                      {/* Endereço de entrega com botão de mapa */}
                       {pedido.enderecoEntrega && (
-                        <div className="flex items-start gap-1 text-xs text-muted-foreground mt-1">
-                          <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                          <span>
+                        <div 
+                          className="flex items-start gap-1 text-xs text-muted-foreground mt-1 cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => handleAbrirMapa(pedido)}
+                        >
+                          <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
+                          <span className="flex-1">
                             {pedido.enderecoEntrega}
                             {pedido.bairroEntrega && ` - ${pedido.bairroEntrega}`}
                           </span>
+                          <span className="text-blue-500 text-[10px] font-medium">VER MAPA</span>
                         </div>
                       )}
                     </div>
 
                     {/* Ações */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {pedido.enderecoEntrega && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAbrirMapa(pedido)}
+                          className="h-9 text-blue-600 border-blue-300 hover:bg-blue-50"
+                          title="Ver no mapa"
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleAbrirWhatsApp(pedido)}
                         className="h-9 text-green-600 border-green-300 hover:bg-green-50"
                       >
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        WhatsApp
+                        <MessageCircle className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="outline"
@@ -338,10 +364,21 @@ export default function EntregasLista() {
 
               {/* Endereço de Entrega */}
               <div className="bg-muted/30 rounded-lg p-3">
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Endereço de Entrega
-                </h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-blue-500" />
+                    Endereço de Entrega
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAbrirMapa(pedidoSelecionado)}
+                    className="h-7 text-blue-600 hover:bg-blue-50"
+                  >
+                    <MapPin className="w-3 h-3 mr-1" />
+                    Ver no Mapa
+                  </Button>
+                </div>
                 <p className="text-sm">
                   {pedidoSelecionado.enderecoEntrega}
                   {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}

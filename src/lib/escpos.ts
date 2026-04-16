@@ -31,6 +31,10 @@ export type PedidoCompleto = {
   horarioEntrega?: string | null;
   enderecoEntrega: string | null;
   bairroEntrega: string | null;
+  valorEntrada?: number;
+  formaPagamentoEntrada?: string | null;
+  dataEntrada?: string | Date | null;
+  valorTeleEntrega?: number | null; // Valor da taxa de tele-entrega
   cliente: {
     nome: string;
     telefone: string;
@@ -43,6 +47,7 @@ export type PedidoCompleto = {
     produto: {
       nome: string;
       tipoVenda: string;
+      categoria?: string | null;
     };
     quantidade: number;
     quantidadePedida?: number;
@@ -50,11 +55,87 @@ export type PedidoCompleto = {
     subtotal: number;
     subtotalPedida?: number;
     observacao?: string | null;
+    tamanho?: string | null;
   }[];
 };
 
 // Largura do papel 80mm em caracteres (fonte normal)
 const LARGURA_PAPEL = 48;
+
+// ============================================
+// ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
+// 1. TORTAS ESPECIAIS (0)
+// 2. TORTAS (1)
+// 3. SALGADINHOS (2)
+// 4. SALGADOS (3)
+// 5. DOCINHOS (4)
+// 6. DOCES (5)
+// 7. BEBIDAS (6)
+// 8. OUTROS (99)
+// ============================================
+const ORDEM_CATEGORIAS: Record<string, number> = {
+  // 1. TORTAS ESPECIAIS
+  'TORTA ESPECIAL': 0,
+  'TORTAS ESPECIAIS': 0,
+  
+  // 2. TORTAS
+  'TORTAS': 1,
+  'TORTA': 1,
+  
+  // 3. SALGADINHOS
+  'SALGADINHOS': 2,
+  'SALGADINHO': 2,
+  
+  // 4. SALGADOS
+  'SALGADOS': 3,
+  'SALGADO': 3,
+  
+  // 5. DOCINHOS
+  'DOCINHOS': 4,
+  'DOCINHO': 4,
+  
+  // 6. DOCES
+  'DOCES': 5,
+  'DOCE': 5,
+  
+  // 7. BEBIDAS
+  'BEBIDAS': 6,
+  'BEBIDA': 6,
+  
+  // 8. OUTROS
+  'OUTROS': 99,
+  'OUTRO': 99,
+};
+
+// Função para obter a ordem de um item baseado na categoria real do produto
+function obterOrdemItem(categoria?: string | null, tamanho?: string | null): number {
+  // Tortas especiais (com tamanho) sempre primeiro
+  if (tamanho) {
+    return 0;
+  }
+  
+  // Usar a categoria real do produto
+  const catUpper = categoria?.toUpperCase() || 'OUTROS';
+  
+  // Obter ordem das categorias (default 99 para categorias não mapeadas)
+  return ORDEM_CATEGORIAS[catUpper] ?? 99;
+}
+
+// Função para ordenar itens por categoria
+export function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string; categoria?: string | null }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
+  return [...itens].sort((a, b) => {
+    // Obter ordem de cada item
+    const ordemA = obterOrdemItem(a.produto.categoria, a.tamanho);
+    const ordemB = obterOrdemItem(b.produto.categoria, b.tamanho);
+    
+    // Se mesma categoria, ordenar por nome
+    if (ordemA === ordemB) {
+      return a.produto.nome.localeCompare(b.produto.nome);
+    }
+    
+    return ordemA - ordemB;
+  });
+}
 
 // Formatar número do pedido com zeros
 export function formatarNumeroPedido(numero: number): string {
@@ -72,10 +153,29 @@ function linhaDivisoria(char: string = '-'): string {
   return char.repeat(LARGURA_PAPEL);
 }
 
-// Truncar texto se maior que tamanho
+// Truncar texto se maior que tamanho (NÃO usar para endereços)
 function truncar(texto: string, tamanho: number): string {
   if (texto.length <= tamanho) return texto;
   return texto.substring(0, tamanho - 2) + '..';
+}
+
+// Quebrar texto em múltiplas linhas sem truncar (para endereços)
+function quebrarLinha(texto: string, largura: number = LARGURA_PAPEL): string[] {
+  if (texto.length <= largura) return [texto];
+  const linhas: string[] = [];
+  let restante = texto;
+  while (restante.length > 0) {
+    if (restante.length <= largura) {
+      linhas.push(restante);
+      break;
+    }
+    // Tentar quebrar no último espaço antes da largura
+    let posicaoQuebra = restante.lastIndexOf(' ', largura);
+    if (posicaoQuebra <= 0) posicaoQuebra = largura;
+    linhas.push(restante.substring(0, posicaoQuebra).trim());
+    restante = restante.substring(posicaoQuebra).trim();
+  }
+  return linhas;
 }
 
 // Formatar CPF
@@ -146,6 +246,21 @@ function formatarDataEntrega(dataStr: string | null): string {
   return data.toLocaleDateString('pt-BR');
 }
 
+// Formatar data de entrega com dia da semana para cupom
+function formatarDataEntregaCompleta(dataStr: string | null, horario?: string | null): string {
+  if (!dataStr) return '';
+  
+  const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const data = new Date(dataStr + 'T12:00:00');
+  const diaSemana = diasSemana[data.getDay()];
+  const dataFormatada = data.toLocaleDateString('pt-BR');
+  
+  if (horario) {
+    return `${diaSemana} ${dataFormatada} às ${horario}`;
+  }
+  return `${diaSemana} ${dataFormatada}`;
+}
+
 /**
  * Gera o conteúdo do cupom do CLIENTE (com valores)
  * Mostra peso final ajustado se houver diferença
@@ -180,7 +295,7 @@ export function gerarCupomCliente(
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (pedido.dataEntrega) {
-    linhas.push(`DATA: ${formatarDataEntrega(pedido.dataEntrega)}`);
+    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -188,15 +303,16 @@ export function gerarCupomCliente(
   linhas.push(`CLIENTE: ${truncar(pedido.cliente.nome, LARGURA_PAPEL - 9)}`);
   linhas.push(`Fone: ${formatarTelefone(pedido.cliente.telefone)}`);
   
-  // Endereço do cliente (do cadastro do cliente)
+  // Endereço do cliente (do cadastro do cliente) - SEM TRUNCAR
   if (pedido.cliente.endereco) {
     const enderecoCliente = pedido.cliente.bairro 
       ? `${pedido.cliente.endereco} - ${pedido.cliente.bairro}`
       : pedido.cliente.endereco;
-    linhas.push(truncar(`End: ${enderecoCliente}`, LARGURA_PAPEL));
+    const linhasEndereco = quebrarLinha(`End: ${enderecoCliente}`);
+    linhas.push(...linhasEndereco);
   }
   
-  // Endereço de entrega (do pedido, se diferente ou tele-entrega)
+  // Endereço de entrega (do pedido, se diferente ou tele-entrega) - SEM TRUNCAR
   if (tipoEntrega === 'TELE_ENTREGA' && pedido.enderecoEntrega) {
     const enderecoCompleto = pedido.bairroEntrega 
       ? `${pedido.enderecoEntrega} - ${pedido.bairroEntrega}`
@@ -206,7 +322,8 @@ export function gerarCupomCliente(
       ? `${pedido.cliente.endereco}${pedido.cliente.bairro ? ` - ${pedido.cliente.bairro}` : ''}`
       : '';
     if (enderecoCompleto !== enderecoClienteCompleto) {
-      linhas.push(truncar(`Entregar: ${enderecoCompleto}`, LARGURA_PAPEL));
+      const linhasEntrega = quebrarLinha(`Entregar: ${enderecoCompleto}`);
+      linhas.push(...linhasEntrega);
     }
   }
   
@@ -220,7 +337,9 @@ export function gerarCupomCliente(
   }
   linhas.push(linhaDivisoria('-'));
   
-  // === ITENS DO PEDIDO ===
+  // === ITENS DO PEDIDO (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS) ===
+  // Filtrar itens com quantidade 0
+  const itensValidos = pedido.itens.filter(item => item.quantidade > 0);
   const headerProd = 'PRODUTO'.padEnd(22);
   const headerQtd = 'QTD'.padStart(5).padEnd(7);
   const headerUnit = 'UNIT'.padStart(8);
@@ -228,8 +347,16 @@ export function gerarCupomCliente(
   linhas.push(`${headerProd} ${headerQtd} ${headerUnit} ${headerTotal}`);
   linhas.push(linhaDivisoria('-'));
   
-  for (const item of pedido.itens) {
-    const nome = truncar(item.produto.nome, 22).padEnd(22);
+  const itensOrdenados = ordenarItensPorCategoria(itensValidos);
+  
+  for (const item of itensOrdenados) {
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} ${item.tamanho}`
+      : item.produto.nome;
+    // Truncar nome para 22 caracteres para manter alinhamento
+    const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);
@@ -237,19 +364,64 @@ export function gerarCupomCliente(
     linhas.push(`${nome} ${qtd} ${unit} ${sub}`);
     
     if (item.observacao) {
-      linhas.push(`  >> ${truncar(item.observacao, LARGURA_PAPEL - 4)}`);
+      linhas.push(`  >> ${item.observacao}`);
     }
   }
   
   linhas.push(linhaDivisoria('-'));
+  
+  // Observações gerais do pedido (acima do subtotal)
+  if (pedido.observacoes) {
+    linhas.push('OBSERVAÇÕES:');
+    const linhasObs = quebrarLinha(pedido.observacoes.toUpperCase(), LARGURA_PAPEL);
+    linhas.push(...linhasObs);
+    linhas.push(linhaDivisoria('-'));
+  }
+  
+  // Subtotal dos itens (usando itens filtrados)
+  const subtotalItens = itensValidos.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotalStr = formatarMoeda(subtotalItens);
+  const espacosSubtotal = LARGURA_PAPEL - 10 - subtotalStr.length;
+  linhas.push(`SUBTOTAL:${' '.repeat(Math.max(0, espacosSubtotal))}${subtotalStr}`);
+  
+  // TAXA DE ENTREGA (se houver)
+  if (pedido.tipoEntrega === 'TELE_ENTREGA' && pedido.valorTeleEntrega && pedido.valorTeleEntrega > 0) {
+    const taxaStr = formatarMoeda(pedido.valorTeleEntrega);
+    const labelTaxa = 'TAXA DE ENTREGA:';
+    const espacosTaxa = LARGURA_PAPEL - labelTaxa.length - taxaStr.length;
+    linhas.push(`${labelTaxa}${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
+  }
   
   // TOTAL com R$
   const totalStr = formatarMoeda(pedido.total);
   const espacosTotal = LARGURA_PAPEL - 7 - totalStr.length;
   linhas.push(`TOTAL:${' '.repeat(Math.max(0, espacosTotal))}${totalStr}`);
   
+  // ENTRADA / PAGAMENTO (se houver)
+  if (pedido.valorEntrada && pedido.valorEntrada > 0) {
+    const entradaStr = formatarMoeda(pedido.valorEntrada);
+    const espacosEntrada = LARGURA_PAPEL - 9 - entradaStr.length;
+    linhas.push(`ENTRADA:${' '.repeat(Math.max(0, espacosEntrada))}${entradaStr}`);
+    
+    // Forma de pagamento
+    if (pedido.formaPagamentoEntrada) {
+      const formaPagamento = pedido.formaPagamentoEntrada.toLowerCase();
+      linhas.push(`Forma: ${formaPagamento.charAt(0).toUpperCase() + formaPagamento.slice(1)}`);
+    }
+    
+    // Valor restante
+    const restante = pedido.total - pedido.valorEntrada;
+    if (restante > 0) {
+      const restanteStr = formatarMoeda(restante);
+      const espacosRestante = LARGURA_PAPEL - 9 - restanteStr.length;
+      linhas.push(`RESTANTE:${' '.repeat(Math.max(0, espacosRestante))}${restanteStr}`);
+    } else {
+      linhas.push(centralizar('*** PAGO ***'));
+    }
+  }
+  
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('Obrigado pela preferencia!'));
+  linhas.push(centralizar('Obrigado pela preferência!'));
   linhas.push(centralizar('Volte sempre!'));
   linhas.push(linhaDivisoria('='));
   linhas.push('');
@@ -268,7 +440,7 @@ export function gerarCupomCozinha(
   const linhas: string[] = [];
   
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('*** PRODUCAO ***'));
+  linhas.push(centralizar('*** PRODUÇÃO ***'));
   linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
   linhas.push(linhaDivisoria('='));
   
@@ -276,9 +448,7 @@ export function gerarCupomCozinha(
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (pedido.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(pedido.dataEntrega);
-    const horario = pedido.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -288,27 +458,40 @@ export function gerarCupomCozinha(
   linhas.push(linhaDivisoria('-'));
   
   // Cabeçalho
-  linhas.push('PRODUTO                                      QTD');
+  linhas.push('PRODUTO                               QTD');
   linhas.push(linhaDivisoria('-'));
   
-  // Itens
-  for (const item of pedido.itens) {
-    const nome = truncar(item.produto.nome.toUpperCase(), 36).padEnd(36);
+  // Itens (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS)
+  // Filtrar itens com quantidade 0
+  const itensValidosCozinha = pedido.itens.filter(item => {
+    const qtdProd = item.quantidadePedida || item.quantidade;
+    return qtdProd > 0;
+  });
+  const itensOrdenadosCozinha = ordenarItensPorCategoria(itensValidosCozinha);
+  
+  for (const item of itensOrdenadosCozinha) {
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} ${item.tamanho}`
+      : item.produto.nome;
+    // Truncar nome para 35 caracteres para manter alinhamento (48 total - 12 para QTD - 1 espaço)
+    const nome = truncar(nomeCompleto.toUpperCase(), 35).padEnd(35);
     const qtdProd = item.quantidadePedida || item.quantidade;
     const qtd = formatarQuantidadeProduto(qtdProd, item.produto.tipoVenda).toUpperCase().padStart(12);
     
-    linhas.push(`${nome}${qtd}`);
+    linhas.push(`${nome} ${qtd}`);
     
     if (item.observacao) {
-      linhas.push(`  >> ${truncar(item.observacao.toUpperCase(), LARGURA_PAPEL - 4)}`);
+      linhas.push(`  >> ${item.observacao.toUpperCase()}`);
     }
   }
   
   linhas.push(linhaDivisoria('-'));
   
   if (pedido.observacoes) {
-    linhas.push('OBSERVACOES:');
-    linhas.push(truncar(pedido.observacoes.toUpperCase(), LARGURA_PAPEL));
+    linhas.push('OBSERVAÇÕES:');
+    linhas.push(pedido.observacoes.toUpperCase());
     linhas.push(linhaDivisoria('-'));
   }
   
@@ -319,38 +502,44 @@ export function gerarCupomCozinha(
 }
 
 /**
- * Gera versão com "fonte grande" para comanda de cozinha
- * Formato simples: QTD x PRODUTO
+ * Gera comanda de cozinha - Layout para produção
+ * Layout com linhas pontilhadas para separação visual
  */
 export function gerarCupomCozinhaGrande(
   pedido: PedidoCompleto,
   config: ConfiguracaoCupom
 ): string {
   const linhas: string[] = [];
-  
-  linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
-  linhas.push(linhaDivisoria('='));
-  
+
+  // Cabeçalho
+  linhas.push('========================================');
+  linhas.push(`        PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`);
+  linhas.push('========================================');
+
   // Tipo de entrega com data e horário
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
-  const entregaStr = tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA';
-  const dataEntrega = pedido.dataEntrega ? formatarDataEntrega(pedido.dataEntrega) : '';
-  const horario = pedido.horarioEntrega || '';
-  
-  linhas.push(`ENTREGA: ${entregaStr}`);
-  if (dataEntrega) {
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+  linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
+  if (pedido.dataEntrega) {
+    linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
-  linhas.push(linhaDivisoria('-'));
-  
-  // Cliente e telefone
+  linhas.push('-------------------------------------');
+
+  // Nome do cliente em destaque
   linhas.push(`CLIENTE: ${pedido.cliente.nome.toUpperCase()}`);
-  linhas.push(`FONE: ${formatarTelefone(pedido.cliente.telefone)}`);
-  linhas.push(linhaDivisoria('-'));
+  linhas.push(`TELEFONE: ${formatarTelefone(pedido.cliente.telefone)}`);
+  linhas.push('-------------------------------------');
   
-  // Itens
-  for (const item of pedido.itens) {
+  // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS)
+  linhas.push('ITENS:');
+  
+  // Filtrar itens com quantidade 0
+  const itensValidosGrande = pedido.itens.filter(item => {
+    const qtdProd = item.quantidadePedida || item.quantidade;
+    return qtdProd > 0;
+  });
+  const itensOrdenadosGrande = ordenarItensPorCategoria(itensValidosGrande);
+  
+  for (const item of itensOrdenadosGrande) {
     const qtdProd = item.quantidadePedida || item.quantidade;
     
     let qtdStr: string;
@@ -359,36 +548,50 @@ export function gerarCupomCozinhaGrande(
       const kgStr = kg % 1 === 0 
         ? kg.toString() 
         : kg.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
-      qtdStr = `${kgStr}kg`;
+      qtdStr = `${kgStr} KG`;
     } else {
-      qtdStr = `${Math.round(qtdProd)}x`;
+      qtdStr = `${Math.round(qtdProd)} UN`;
     }
     
-    const produto = item.produto.nome.toUpperCase();
-    linhas.push(`${qtdStr.padEnd(8)}${produto}`);
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} ${item.tamanho}`
+      : item.produto.nome;
+    const produto = nomeCompleto.toUpperCase();
+    
+    // Formato mais destacado para itens
+    linhas.push(`  > ${qtdStr}  ${produto}`);
     
     if (item.observacao) {
-      linhas.push(`   OBS: ${truncar(item.observacao.toUpperCase(), LARGURA_PAPEL - 8)}`);
+      linhas.push(`       -> ${item.observacao.toUpperCase()}`);
     }
   }
   
-  linhas.push(linhaDivisoria('-'));
+  linhas.push('-------------------------------------');
   
+  // Observações gerais
   if (pedido.observacoes) {
-    linhas.push(`OBS: ${truncar(pedido.observacoes.toUpperCase(), LARGURA_PAPEL - 5)}`);
-    linhas.push(linhaDivisoria('-'));
+    linhas.push('');
+    linhas.push(`OBS: ${pedido.observacoes.toUpperCase()}`);
+    linhas.push('');
   }
   
-  linhas.push(linhaDivisoria('='));
-  linhas.push('');
+  linhas.push('========================================');
   
   return linhas.join('\n');
 }
 
 /**
  * Abre diálogo de impressão do navegador
+ * Usa fonte maior para comanda de cozinha
  */
 export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): void {
+  // Verificar se é comanda de cozinha para usar fonte maior
+  const isComandaCozinha = titulo.toLowerCase().includes('cozinha');
+  const fontSize = isComandaCozinha ? '22px' : '12px';
+  const printFontSize = isComandaCozinha ? '20px' : '11px';
+  const lineHeight = isComandaCozinha ? '1.8' : '1.6';
+  
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
     janela.document.write(`
@@ -399,17 +602,17 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
           <style>
             body {
               font-family: 'Courier New', monospace;
-              font-size: 12px;
-              line-height: 1.4;
+              font-size: ${fontSize};
+              line-height: ${lineHeight};
               margin: 0;
-              padding: 5px;
+              padding: 10px;
             }
             pre {
               white-space: pre-wrap;
               margin: 0;
             }
             @media print {
-              body { padding: 0; font-size: 11px; }
+              body { padding: 0; font-size: ${printFontSize}; line-height: ${lineHeight}; }
               @page { margin: 0; size: 80mm auto; }
             }
           </style>
@@ -461,11 +664,13 @@ export type OrcamentoCompleto = {
     produto: {
       nome: string;
       tipoVenda: string;
+      categoria?: string | null;
     };
     quantidade: number;
     valorUnit: number;
     subtotal: number;
     observacao?: string | null;
+    tamanho?: string | null;
   }[];
   observacoes?: string | null;
   total: number;
@@ -474,6 +679,7 @@ export type OrcamentoCompleto = {
   horarioEntrega?: string | null;
   enderecoEntrega?: string | null;
   bairroEntrega?: string | null;
+  valorTeleEntrega?: number | null; // Valor da taxa de tele-entrega
 };
 
 /**
@@ -492,7 +698,7 @@ export function gerarCupomOrcamento(
   
   // === CABEÇALHO DE ORÇAMENTO ===
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('*** ORCAMENTO ***'));
+  linhas.push(centralizar('*** ORÇAMENTO ***'));
   linhas.push(centralizar(`Nº ${formatarNumeroPedido(orcamento.numero)}`));
   linhas.push(centralizar(`${dataFormatada} - ${horaFormatada}`));
   linhas.push(linhaDivisoria('='));
@@ -510,9 +716,7 @@ export function gerarCupomOrcamento(
   const tipoEntrega = orcamento.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
   if (orcamento.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(orcamento.dataEntrega);
-    const horario = orcamento.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+    linhas.push(formatarDataEntregaCompleta(orcamento.dataEntrega, orcamento.horarioEntrega));
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -520,12 +724,28 @@ export function gerarCupomOrcamento(
   linhas.push(`CLIENTE: ${truncar(orcamento.cliente.nome, LARGURA_PAPEL - 9)}`);
   linhas.push(`Fone: ${formatarTelefone(orcamento.cliente.telefone)}`);
   
-  // Endereço de entrega para tele-entrega
+  // Endereço do cliente (do cadastro) - SEMPRE mostrar, SEM TRUNCAR
+  if (orcamento.cliente.endereco) {
+    const enderecoCliente = orcamento.cliente.bairro 
+      ? `${orcamento.cliente.endereco} - ${orcamento.cliente.bairro}`
+      : orcamento.cliente.endereco;
+    const linhasEndereco = quebrarLinha(`End: ${enderecoCliente}`);
+    linhas.push(...linhasEndereco);
+  }
+  
+  // Endereço de entrega para tele-entrega (se diferente do endereço do cliente) - SEM TRUNCAR
   if (tipoEntrega === 'TELE_ENTREGA' && orcamento.enderecoEntrega) {
     const enderecoCompleto = orcamento.bairroEntrega 
       ? `${orcamento.enderecoEntrega} - ${orcamento.bairroEntrega}`
       : orcamento.enderecoEntrega;
-    linhas.push(truncar(`Entregar: ${enderecoCompleto}`, LARGURA_PAPEL));
+    // Só mostra se for diferente do endereço do cliente
+    const enderecoClienteCompleto = orcamento.cliente.endereco 
+      ? `${orcamento.cliente.endereco}${orcamento.cliente.bairro ? ` - ${orcamento.cliente.bairro}` : ''}`
+      : '';
+    if (enderecoCompleto !== enderecoClienteCompleto) {
+      const linhasEntrega = quebrarLinha(`Entregar: ${enderecoCompleto}`);
+      linhas.push(...linhasEntrega);
+    }
   }
   
   // CPF ou CNPJ
@@ -538,7 +758,9 @@ export function gerarCupomOrcamento(
   }
   linhas.push(linhaDivisoria('-'));
   
-  // === ITENS DO ORÇAMENTO ===
+  // === ITENS DO ORÇAMENTO (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS) ===
+  // Filtrar itens com quantidade 0
+  const itensValidosOrcamento = orcamento.itens.filter(item => item.quantidade > 0);
   const headerProd = 'PRODUTO'.padEnd(22);
   const headerQtd = 'QTD'.padStart(5).padEnd(7);
   const headerUnit = 'UNIT'.padStart(8);
@@ -546,8 +768,16 @@ export function gerarCupomOrcamento(
   linhas.push(`${headerProd} ${headerQtd} ${headerUnit} ${headerTotal}`);
   linhas.push(linhaDivisoria('-'));
   
-  for (const item of orcamento.itens) {
-    const nome = truncar(item.produto.nome, 22).padEnd(22);
+  const itensOrdenadosOrcamento = ordenarItensPorCategoria(itensValidosOrcamento);
+  
+  for (const item of itensOrdenadosOrcamento) {
+    // Incluir tamanho no nome se existir (para tortas especiais)
+    // Formato: "TORTA ESPECIAL P" (sem parênteses)
+    const nomeCompleto = item.tamanho 
+      ? `${item.produto.nome} ${item.tamanho}`
+      : item.produto.nome;
+    // Truncar nome para 22 caracteres para manter alinhamento
+    const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);
@@ -555,11 +785,25 @@ export function gerarCupomOrcamento(
     linhas.push(`${nome} ${qtd} ${unit} ${sub}`);
     
     if (item.observacao) {
-      linhas.push(`  >> ${truncar(item.observacao, LARGURA_PAPEL - 4)}`);
+      linhas.push(`  >> ${item.observacao}`);
     }
   }
   
   linhas.push(linhaDivisoria('-'));
+  
+  // Subtotal dos itens (usando itens filtrados)
+  const subtotalItensOrcamento = itensValidosOrcamento.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotalStr = formatarMoeda(subtotalItensOrcamento);
+  const espacosSubtotal = LARGURA_PAPEL - 10 - subtotalStr.length;
+  linhas.push(`SUBTOTAL:${' '.repeat(Math.max(0, espacosSubtotal))}${subtotalStr}`);
+  
+  // TAXA DE ENTREGA (se houver)
+  if (orcamento.tipoEntrega === 'TELE_ENTREGA' && orcamento.valorTeleEntrega && orcamento.valorTeleEntrega > 0) {
+    const taxaStr = formatarMoeda(orcamento.valorTeleEntrega);
+    const labelTaxa = 'TAXA DE ENTREGA:';
+    const espacosTaxa = LARGURA_PAPEL - labelTaxa.length - taxaStr.length;
+    linhas.push(`${labelTaxa}${' '.repeat(Math.max(0, espacosTaxa))}${taxaStr}`);
+  }
   
   // TOTAL com R$
   const totalStr = formatarMoeda(orcamento.total);
@@ -569,13 +813,13 @@ export function gerarCupomOrcamento(
   // Observações
   if (orcamento.observacoes) {
     linhas.push(linhaDivisoria('-'));
-    linhas.push('OBSERVACOES:');
-    linhas.push(truncar(orcamento.observacoes, LARGURA_PAPEL));
+    linhas.push('OBSERVAÇÕES:');
+    linhas.push(orcamento.observacoes);
   }
   
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar('*** ORCAMENTO ***'));
-  linhas.push(centralizar('Aguardando aprovacao'));
+  linhas.push(centralizar('*** ORÇAMENTO ***'));
+  linhas.push(centralizar('Aguardando aprovação'));
   linhas.push(linhaDivisoria('='));
   linhas.push('');
   

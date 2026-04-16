@@ -1,15 +1,15 @@
 'use client';
 
 // AdminPanel - Padaria Paula
-// Painel administrativo para gerenciamento
+// Painel administrativo simplificado para evitar erros
 
 import { useState, useEffect } from 'react';
 import {
   Settings, Package, Store, Plus, Edit, Trash2, Save,
-  RefreshCw, ToggleLeft, ToggleRight, AlertTriangle, Lock, Cake, MessageCircle,
-  BarChart3
+  RefreshCw, ToggleLeft, ToggleRight, Lock, Cake, MessageCircle,
+  BarChart3, Globe, MapPin, DollarSign, Clock, Search, X
 } from 'lucide-react';
-import AdminDashboard from './AdminDashboard';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,8 +30,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -46,19 +44,32 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda } from '@/store/usePedidoStore';
 
-// Tamanhos fixos para produtos especiais
-const TAMANHOS_FIXOS = ['P', 'M', 'G', 'GG'];
+// Carregar Dashboard dinamicamente para evitar erros de SSR
+const AdminDashboard = dynamic(() => import('./AdminDashboard'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-64">
+      <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  ),
+  ssr: false,
+});
+
+// Importar AdminProdutos
+import AdminProdutos from './AdminProdutos';
+
+// Tamanhos fixos para produtos especiais (tortas)
+const TAMANHOS_FIXOS = ['PP', 'P', 'M', 'G'];
 
 // Interface do produto
 interface Produto {
   id: string;
   nome: string;
   descricao: string | null;
-  tipoVenda: 'KG' | 'UNIDADE';
+  tipoVenda: string;
   valorUnit: number;
   categoria: string | null;
   ativo: boolean;
-  tipoProduto: 'NORMAL' | 'ESPECIAL';
+  tipoProduto: string;
   tamanhos: string[] | null;
   precosTamanhos: Record<string, number> | null;
   createdAt: string;
@@ -73,6 +84,31 @@ interface Configuracao {
   cnpj: string;
   logoUrl: string | null;
   mensagemWhatsApp?: string | null;
+  mensagemOrcamento?: string | null;
+  mensagemProntoRetirada?: string | null;
+  mensagemProntoEntrega?: string | null;
+  mensagemAprovacao?: string | null;
+  mensagemRevisao?: string | null;
+  diasAlertaProducao?: number | null;
+}
+
+interface ConfiguracaoCatalogo {
+  id: string;
+  pedidoMinimo: number;
+  mensagemBoasVindas: string;
+  mensagemDadosCliente: string;
+  exibirBusca: boolean;
+  exibirWhatsapp: boolean;
+  horarioAbertura: string | null;
+  horarioFechamento: string | null;
+  diasFuncionamento: string | null;
+}
+
+interface Bairro {
+  id: string;
+  nome: string;
+  taxaEntrega: number;
+  ativo: boolean;
 }
 
 const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
@@ -98,7 +134,7 @@ export default function AdminPanel() {
   // Estado para produto comum
   const [produtoComum, setProdutoComum] = useState({
     nome: '',
-    tipoVenda: 'UNIDADE' as 'KG' | 'UNIDADE',
+    tipoVenda: 'UNIDADE',
     categoria: 'Outros',
     valorUnit: '',
   });
@@ -107,7 +143,7 @@ export default function AdminPanel() {
   const [produtoEspecial, setProdutoEspecial] = useState({
     nome: '',
     categoria: 'Tortas',
-    precos: { P: '', M: '', G: '', GG: '' } as Record<string, string>,
+    precos: { PP: '', P: '', M: '', G: '' } as Record<string, string>,
   });
 
   // Estados de configuração
@@ -119,6 +155,12 @@ export default function AdminPanel() {
     telefone: '',
     cnpj: '',
     mensagemWhatsApp: '',
+    mensagemOrcamento: '',
+    mensagemProntoRetirada: '',
+    mensagemProntoEntrega: '',
+    mensagemAprovacao: '',
+    mensagemRevisao: '',
+    diasAlertaProducao: 3,
   });
 
   // Estados de senha do app
@@ -133,20 +175,28 @@ export default function AdminPanel() {
   const [confirmarSenhaAdmin, setConfirmarSenhaAdmin] = useState('');
   const [salvandoSenhaAdmin, setSalvandoSenhaAdmin] = useState(false);
 
+  // Estados do catálogo
+  const [configCatalogo, setConfigCatalogo] = useState<ConfiguracaoCatalogo | null>(null);
+  const [loadingConfigCatalogo, setLoadingConfigCatalogo] = useState(true);
+  const [salvandoConfigCatalogo, setSalvandoConfigCatalogo] = useState(false);
+
+  // Estados de bairros
+  const [bairros, setBairros] = useState<Bairro[]>([]);
+  const [loadingBairros, setLoadingBairros] = useState(true);
+  const [novoBairro, setNovoBairro] = useState({ nome: '', taxaEntrega: '' });
+  const [bairroEditando, setBairroEditando] = useState<Bairro | null>(null);
+  const [salvandoBairro, setSalvandoBairro] = useState(false);
+
   // Carregar produtos
   const carregarProdutos = async () => {
     setLoadingProdutos(true);
     try {
       const res = await fetch('/api/produtos');
       const data = await res.json();
-      setProdutos(data);
+      setProdutos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os produtos.',
-        variant: 'destructive',
-      });
+      setProdutos([]);
     } finally {
       setLoadingProdutos(false);
     }
@@ -165,6 +215,12 @@ export default function AdminPanel() {
         telefone: data.telefone || '',
         cnpj: data.cnpj || '',
         mensagemWhatsApp: data.mensagemWhatsApp || '',
+        mensagemOrcamento: data.mensagemOrcamento || '',
+        mensagemProntoRetirada: data.mensagemProntoRetirada || '',
+        mensagemProntoEntrega: data.mensagemProntoEntrega || '',
+        mensagemAprovacao: data.mensagemAprovacao || '',
+        mensagemRevisao: data.mensagemRevisao || '',
+        diasAlertaProducao: data.diasAlertaProducao || 3,
       });
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -176,7 +232,128 @@ export default function AdminPanel() {
   useEffect(() => {
     carregarProdutos();
     carregarConfig();
+    carregarConfigCatalogo();
+    carregarBairros();
   }, []);
+
+  // Carregar configurações do catálogo
+  const carregarConfigCatalogo = async () => {
+    setLoadingConfigCatalogo(true);
+    try {
+      const res = await fetch('/api/admin/catalogo-config');
+      const data = await res.json();
+      setConfigCatalogo(data);
+    } catch (error) {
+      console.error('Erro ao carregar config do catálogo:', error);
+    } finally {
+      setLoadingConfigCatalogo(false);
+    }
+  };
+
+  // Carregar bairros
+  const carregarBairros = async () => {
+    setLoadingBairros(true);
+    try {
+      const res = await fetch('/api/admin/bairros');
+      const data = await res.json();
+      setBairros(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao carregar bairros:', error);
+      setBairros([]);
+    } finally {
+      setLoadingBairros(false);
+    }
+  };
+
+  // Salvar configurações do catálogo
+  const handleSalvarConfigCatalogo = async () => {
+    if (!configCatalogo) return;
+    setSalvandoConfigCatalogo(true);
+    try {
+      const res = await fetch('/api/admin/catalogo-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configCatalogo),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setConfigCatalogo(data);
+      toast({
+        title: 'Configurações salvas!',
+        description: 'As configurações do catálogo foram atualizadas.',
+      });
+    } catch (error) {
+      console.error('Erro ao salvar config do catálogo:', error);
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível salvar as configurações.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSalvandoConfigCatalogo(false);
+    }
+  };
+
+  // Criar bairro
+  const handleCriarBairro = async () => {
+    if (!novoBairro.nome.trim()) {
+      toast({ title: 'Nome obrigatório', variant: 'destructive' });
+      return;
+    }
+    setSalvandoBairro(true);
+    try {
+      const res = await fetch('/api/admin/bairros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: novoBairro.nome.trim(),
+          taxaEntrega: parseFloat(novoBairro.taxaEntrega) || 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBairros([...bairros, data]);
+      setNovoBairro({ nome: '', taxaEntrega: '' });
+      toast({ title: 'Bairro adicionado!' });
+    } catch (error) {
+      console.error('Erro ao criar bairro:', error);
+      toast({ title: 'Erro ao adicionar bairro', variant: 'destructive' });
+    } finally {
+      setSalvandoBairro(false);
+    }
+  };
+
+  // Atualizar bairro
+  const handleAtualizarBairro = async (bairro: Bairro) => {
+    try {
+      const res = await fetch('/api/admin/bairros', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bairro),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBairros(bairros.map(b => b.id === data.id ? data : b));
+      setBairroEditando(null);
+      toast({ title: 'Bairro atualizado!' });
+    } catch (error) {
+      console.error('Erro ao atualizar bairro:', error);
+      toast({ title: 'Erro ao atualizar bairro', variant: 'destructive' });
+    }
+  };
+
+  // Excluir bairro
+  const handleExcluirBairro = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/bairros?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setBairros(bairros.filter(b => b.id !== id));
+      toast({ title: 'Bairro removido!' });
+    } catch (error) {
+      console.error('Erro ao excluir bairro:', error);
+      toast({ title: 'Erro ao excluir bairro', variant: 'destructive' });
+    }
+  };
 
   // Salvar configuração
   const handleSalvarConfig = async () => {
@@ -283,7 +460,6 @@ export default function AdminPanel() {
       return;
     }
 
-    // Verificar se pelo menos um preço foi preenchido
     const precosPreenchidos = Object.entries(produtoEspecial.precos).filter(([, v]) => v);
     if (precosPreenchidos.length === 0) {
       toast({
@@ -307,7 +483,7 @@ export default function AdminPanel() {
         body: JSON.stringify({
           nome: produtoEspecial.nome,
           tipoVenda: 'UNIDADE',
-          valorUnit: parseFloat(precosPreenchidos[0][1]), // Primeiro preço como base
+          valorUnit: parseFloat(precosPreenchidos[0][1]),
           categoria: produtoEspecial.categoria,
           tipoProduto: 'ESPECIAL',
           tamanhos,
@@ -328,7 +504,7 @@ export default function AdminPanel() {
       }
 
       setProdutos([produto, ...produtos]);
-      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { P: '', M: '', G: '', GG: '' } });
+      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { PP: '', P: '', M: '', G: '' } });
       setModoCadastro(null);
 
       toast({
@@ -469,15 +645,6 @@ export default function AdminPanel() {
       return;
     }
 
-    if (senhaAtual.length !== 4 || novaSenha.length !== 4 || confirmarSenha.length !== 4) {
-      toast({
-        title: 'Senha inválida',
-        description: 'A senha deve ter exatamente 4 dígitos.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (novaSenha !== confirmarSenha) {
       toast({
         title: 'Senhas não conferem',
@@ -538,15 +705,6 @@ export default function AdminPanel() {
       return;
     }
 
-    if (senhaAdminAtual.length !== 4 || novaSenhaAdmin.length !== 4 || confirmarSenhaAdmin.length !== 4) {
-      toast({
-        title: 'Senha inválida',
-        description: 'A senha deve ter exatamente 4 dígitos.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (novaSenhaAdmin !== confirmarSenhaAdmin) {
       toast({
         title: 'Senhas não conferem',
@@ -599,22 +757,31 @@ export default function AdminPanel() {
   return (
     <div className="space-y-6 animate-fade-in">
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted/50">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Dashboard
+        <TabsList className="grid w-full grid-cols-5 bg-muted/50 h-auto">
+          <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
+            <BarChart3 className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Dashboard</span>
+            <span className="sm:hidden">Dash</span>
           </TabsTrigger>
-          <TabsTrigger value="produtos" className="flex items-center gap-2">
-            <Package className="w-4 h-4" />
-            Produtos
+          <TabsTrigger value="produtos" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
+            <Package className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Produtos</span>
+            <span className="sm:hidden">Prod.</span>
           </TabsTrigger>
-          <TabsTrigger value="configuracoes" className="flex items-center gap-2">
-            <Store className="w-4 h-4" />
-            Configurações
+          <TabsTrigger value="catalogo" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
+            <Globe className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Catálogo</span>
+            <span className="sm:hidden">Cat.</span>
           </TabsTrigger>
-          <TabsTrigger value="seguranca" className="flex items-center gap-2">
-            <Lock className="w-4 h-4" />
-            Segurança
+          <TabsTrigger value="configuracoes" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
+            <Store className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Configurações</span>
+            <span className="sm:hidden">Config.</span>
+          </TabsTrigger>
+          <TabsTrigger value="seguranca" className="flex items-center gap-1 sm:gap-2 px-1 sm:px-2 py-2 text-xs sm:text-sm">
+            <Lock className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Segurança</span>
+            <span className="sm:hidden">Seg.</span>
           </TabsTrigger>
         </TabsList>
 
@@ -625,300 +792,324 @@ export default function AdminPanel() {
 
         {/* Tab de Produtos */}
         <TabsContent value="produtos" className="space-y-4">
-          {/* Seletor de tipo de produto */}
-          {!modoCadastro && (
-            <Card className="card-padaria">
-              <CardHeader>
-                <CardTitle className="text-lg">Novo Produto</CardTitle>
-                <CardDescription>Selecione o tipo de produto que deseja cadastrar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    onClick={() => setModoCadastro('COMUM')}
-                    className="h-24 flex-col gap-2 btn-padaria"
-                  >
-                    <Package className="w-8 h-8" />
-                    <span className="font-semibold">Produto Comum</span>
-                    <span className="text-xs opacity-80">KG ou Unidade</span>
-                  </Button>
-                  <Button
-                    onClick={() => setModoCadastro('ESPECIAL')}
-                    variant="outline"
-                    className="h-24 flex-col gap-2 border-primary hover:bg-primary/10"
-                  >
-                    <Cake className="w-8 h-8 text-primary" />
-                    <span className="font-semibold text-primary">Produto Especial</span>
-                    <span className="text-xs opacity-70">Torta com tamanhos</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <AdminProdutos />
+        </TabsContent>
 
-          {/* Formulário de Produto Comum */}
-          {modoCadastro === 'COMUM' && (
-            <Card className="card-padaria border-primary/30">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Package className="w-5 h-5 text-primary" />
-                  Novo Produto Comum
-                </CardTitle>
-                <CardDescription>Produto vendido por KG ou Unidade</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Tab de Catálogo */}
+        <TabsContent value="catalogo" className="space-y-4">
+          {/* Configurações do Catálogo */}
+          <Card className="card-padaria">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Configurações do Catálogo Online
+              </CardTitle>
+              <CardDescription>
+                Configure como seu catálogo público funciona para seus clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingConfigCatalogo ? (
+                <div className="flex justify-center py-4">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : configCatalogo && (
+                <>
+                  {/* Pedido Mínimo */}
                   <div className="space-y-2">
-                    <Label>Nome *</Label>
-                    <Input
-                      placeholder="Nome do produto"
-                      className="input-padaria"
-                      value={produtoComum.nome}
-                      onChange={(e) => setProdutoComum({ ...produtoComum, nome: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tipo de Venda *</Label>
-                    <Select
-                      value={produtoComum.tipoVenda}
-                      onValueChange={(value) => setProdutoComum({ ...produtoComum, tipoVenda: value as 'KG' | 'UNIDADE' })}
-                    >
-                      <SelectTrigger className="input-padaria">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIPOS_VENDA.map(tipo => (
-                          <SelectItem key={tipo.value} value={tipo.value}>
-                            {tipo.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select
-                      value={produtoComum.categoria}
-                      onValueChange={(value) => setProdutoComum({ ...produtoComum, categoria: value })}
-                    >
-                      <SelectTrigger className="input-padaria">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Valor *</Label>
+                    <Label className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Pedido Mínimo
+                    </Label>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="0.00"
                       className="input-padaria"
-                      value={produtoComum.valorUnit}
-                      onChange={(e) => setProdutoComum({ ...produtoComum, valorUnit: e.target.value })}
+                      value={configCatalogo.pedidoMinimo || 0}
+                      onChange={(e) => setConfigCatalogo({
+                        ...configCatalogo,
+                        pedidoMinimo: parseFloat(e.target.value) || 0
+                      })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Valor mínimo para fazer pedido. Deixe 0 para sem mínimo.
+                    </p>
+                  </div>
+
+                  {/* Horários */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Abertura
+                      </Label>
+                      <Input
+                        type="time"
+                        className="input-padaria"
+                        value={configCatalogo.horarioAbertura || '08:00'}
+                        onChange={(e) => setConfigCatalogo({
+                          ...configCatalogo,
+                          horarioAbertura: e.target.value
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Fechamento
+                      </Label>
+                      <Input
+                        type="time"
+                        className="input-padaria"
+                        value={configCatalogo.horarioFechamento || '20:00'}
+                        onChange={(e) => setConfigCatalogo({
+                          ...configCatalogo,
+                          horarioFechamento: e.target.value
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mensagens */}
+                  <div className="space-y-2">
+                    <Label>Mensagem para Dados do Cliente</Label>
+                    <Textarea
+                      className="input-padaria min-h-[80px]"
+                      value={configCatalogo.mensagemDadosCliente || ''}
+                      onChange={(e) => setConfigCatalogo({
+                        ...configCatalogo,
+                        mensagemDadosCliente: e.target.value
+                      })}
+                      placeholder="Falta pouco! Preciso dos seus dados para finalizar..."
                     />
                   </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setModoCadastro(null)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleCriarProdutoComum} className="btn-padaria">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Cadastrar Produto
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Formulário de Produto Especial (Torta) */}
-          {modoCadastro === 'ESPECIAL' && (
-            <Card className="card-padaria border-primary/50 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-primary">
-                  <Cake className="w-5 h-5" />
-                  Nova Torta (Produto Especial)
-                </CardTitle>
-                <CardDescription>Torta com tamanhos P, M, G, GG e preços individuais</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome da Torta *</Label>
-                    <Input
-                      placeholder="Ex: Torta de Frango"
-                      className="input-padaria"
-                      value={produtoEspecial.nome}
-                      onChange={(e) => setProdutoEspecial({ ...produtoEspecial, nome: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select
-                      value={produtoEspecial.categoria}
-                      onValueChange={(value) => setProdutoEspecial({ ...produtoEspecial, categoria: value })}
-                    >
-                      <SelectTrigger className="input-padaria">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Preços por tamanho */}
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Preços por Tamanho</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {TAMANHOS_FIXOS.map(tam => (
-                      <div key={tam} className="space-y-1">
-                        <Label className="text-muted-foreground">Tamanho {tam}</Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            className="input-padaria pl-10"
-                            value={produtoEspecial.precos[tam]}
-                            onChange={(e) => setProdutoEspecial({
-                              ...produtoEspecial,
-                              precos: { ...produtoEspecial.precos, [tam]: e.target.value }
-                            })}
-                          />
-                        </div>
+                  {/* Toggles */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <Search className="w-4 h-4" />
+                        <span className="text-sm">Exibir busca de produtos</span>
                       </div>
-                    ))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfigCatalogo({
+                          ...configCatalogo,
+                          exibirBusca: !configCatalogo.exibirBusca
+                        })}
+                      >
+                        {configCatalogo.exibirBusca ? (
+                          <ToggleRight className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="text-sm">Exibir botão do WhatsApp</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfigCatalogo({
+                          ...configCatalogo,
+                          exibirWhatsapp: !configCatalogo.exibirWhatsapp
+                        })}
+                      >
+                        {configCatalogo.exibirWhatsapp ? (
+                          <ToggleRight className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    * Preencha pelo menos um tamanho. Deixe em branco os tamanhos não disponíveis.
-                  </p>
-                </div>
 
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setModoCadastro(null)}>
-                    Cancelar
+                  <Button
+                    onClick={handleSalvarConfigCatalogo}
+                    className="btn-padaria"
+                    disabled={salvandoConfigCatalogo}
+                  >
+                    {salvandoConfigCatalogo ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Salvar Configurações
+                      </>
+                    )}
                   </Button>
-                  <Button onClick={handleCriarProdutoEspecial} className="btn-padaria">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Cadastrar Torta
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Lista de produtos */}
+          {/* Bairros de Entrega */}
           <Card className="card-padaria">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Produtos Cadastrados</CardTitle>
-              <Button variant="outline" size="sm" onClick={carregarProdutos}>
-                <RefreshCw className="w-4 h-4" />
-              </Button>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Bairros de Entrega
+              </CardTitle>
+              <CardDescription>
+                Configure os bairros e suas taxas de tele-entrega
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {loadingProdutos ? (
-                <div className="flex items-center justify-center py-8">
+            <CardContent className="space-y-4">
+              {loadingBairros ? (
+                <div className="flex justify-center py-4">
                   <RefreshCw className="w-6 h-6 animate-spin" />
                 </div>
               ) : (
-                <ScrollArea className="h-[calc(100vh-500px)]">
-                  <div className="space-y-2">
-                    {produtos.map((produto) => (
-                      <div
-                        key={produto.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
-                          produto.tipoProduto === 'ESPECIAL'
-                            ? 'bg-primary/5 border-primary/30'
-                            : 'bg-card border-border/50'
-                        } ${!produto.ativo ? 'opacity-60' : ''}`}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium">{produto.nome}</span>
-                            {produto.tipoProduto === 'ESPECIAL' ? (
-                              <Badge className="text-xs bg-primary text-primary-foreground">
-                                <Cake className="w-3 h-3 mr-1" />
-                                Torta
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                {produto.tipoVenda === 'KG' ? 'Kg' : 'Un'}
-                              </Badge>
-                            )}
-                            {!produto.ativo && (
-                              <Badge variant="outline" className="text-xs text-muted-foreground">
-                                Inativo
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                            {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-                              <span className="font-semibold text-primary">
-                                {Object.entries(produto.precosTamanhos)
-                                  .filter(([tam, preco]) => preco !== undefined && preco !== null && !isNaN(preco))
-                                  .sort((a, b) => TAMANHOS_FIXOS.indexOf(a[0]) - TAMANHOS_FIXOS.indexOf(b[0]))
-                                  .map(([tam, preco]) => `${tam}: ${formatarMoeda(preco)}`)
-                                  .join(' | ')}
-                              </span>
-                            ) : (
-                              <span className="font-semibold text-primary">
-                                {formatarMoeda(produto.valorUnit)}
-                              </span>
-                            )}
-                            <span>{produto.categoria}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleAtivo(produto)}
-                            className={produto.ativo ? 'text-primary' : 'text-muted-foreground'}
-                            title={produto.ativo ? 'Desativar' : 'Ativar'}
-                          >
-                            {produto.ativo ? (
-                              <ToggleRight className="w-5 h-5" />
-                            ) : (
-                              <ToggleLeft className="w-5 h-5" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditar(produto)}
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleConfirmarExclusao(produto)}
-                            className="text-muted-foreground hover:text-destructive"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                <>
+                  {/* Adicionar novo bairro */}
+                  <div className="flex gap-2">
+                    <Input
+                      className="input-padaria flex-1"
+                      placeholder="Nome do bairro"
+                      value={novoBairro.nome}
+                      onChange={(e) => setNovoBairro({ ...novoBairro, nome: e.target.value })}
+                    />
+                    <Input
+                      className="input-padaria w-28"
+                      placeholder="Taxa R$"
+                      type="number"
+                      step="0.01"
+                      value={novoBairro.taxaEntrega}
+                      onChange={(e) => setNovoBairro({ ...novoBairro, taxaEntrega: e.target.value })}
+                    />
+                    <Button
+                      onClick={handleCriarBairro}
+                      className="btn-padaria"
+                      disabled={salvandoBairro}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
                   </div>
-                </ScrollArea>
+
+                  {/* Lista de bairros */}
+                  <div className="space-y-2">
+                    {bairros.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nenhum bairro cadastrado. Adicione bairros para oferecer tele-entrega.
+                      </p>
+                    ) : (
+                      bairros.map((bairro) => (
+                        <div
+                          key={bairro.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          {bairroEditando?.id === bairro.id ? (
+                            <>
+                              <Input
+                                className="input-padaria flex-1 mr-2"
+                                value={bairroEditando.nome}
+                                onChange={(e) => setBairroEditando({
+                                  ...bairroEditando,
+                                  nome: e.target.value
+                                })}
+                              />
+                              <Input
+                                className="input-padaria w-24 mr-2"
+                                type="number"
+                                step="0.01"
+                                value={bairroEditando.taxaEntrega}
+                                onChange={(e) => setBairroEditando({
+                                  ...bairroEditando,
+                                  taxaEntrega: parseFloat(e.target.value) || 0
+                                })}
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleAtualizarBairro(bairroEditando)}
+                                className="btn-padaria"
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setBairroEditando(null)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-muted-foreground" />
+                                <span>{bairro.nome}</span>
+                                {bairro.taxaEntrega > 0 ? (
+                                  <Badge variant="secondary">
+                                    {formatarMoeda(bairro.taxaEntrega)}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-green-600">
+                                    Grátis
+                                  </Badge>
+                                )}
+                                {!bairro.ativo && (
+                                  <Badge variant="destructive">Inativo</Badge>
+                                )}
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setBairroEditando(bairro)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleExcluirBairro(bairro.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Link do Catálogo */}
+          <Card className="card-padaria bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <Globe className="w-10 h-10 mx-auto mb-3 text-amber-600" />
+                <h3 className="font-semibold text-lg mb-2">Seu Catálogo Online</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Compartilhe este link com seus clientes
+                </p>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 flex items-center gap-2">
+                  <code className="text-sm flex-1 truncate text-amber-700 dark:text-amber-400">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/catalogo
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/catalogo`);
+                      toast({ title: 'Link copiado!' });
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -968,22 +1159,94 @@ export default function AdminPanel() {
                   onChange={(e) => setConfigEditada({ ...configEditada, cnpj: e.target.value })}
                 />
               </div>
-              {/* Mensagem WhatsApp */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-green-600" />
-                  Mensagem Padrão WhatsApp
-                </Label>
-                <Textarea
-                  className="input-padaria min-h-[100px]"
-                  value={configEditada.mensagemWhatsApp || ''}
-                  onChange={(e) => setConfigEditada({ ...configEditada, mensagemWhatsApp: e.target.value })}
-                  placeholder="Olá {nome}! Seu pedido está pronto..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use <strong>{'{nome}'}</strong> para inserir o nome do cliente na mensagem
-                </p>
+              
+              {/* Mensagens WhatsApp */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                  <MessageCircle className="w-4 h-4" />
+                  Mensagens do WhatsApp
+                </h4>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem de Orçamento</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemOrcamento || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemOrcamento: e.target.value })}
+                    placeholder="Olá {nome}! Segue seu orçamento..."
+                  />
+                  <p className="text-[10px] text-muted-foreground">Use {"{nome}"} para inserir o nome do cliente</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem de Aprovação</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemAprovacao || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemAprovacao: e.target.value })}
+                    placeholder="Olá {nome}! Seu orçamento foi aprovado!"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem de Revisão</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemRevisao || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemRevisao: e.target.value })}
+                    placeholder="Olá {nome}! Por favor, revise seu pedido..."
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem "Pronto" - Cliente Retira</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemProntoRetirada || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemProntoRetirada: e.target.value })}
+                    placeholder="Olá {nome}! Seu pedido está PRONTO!"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Mensagem "Pronto" - Tele Entrega</Label>
+                  <Textarea
+                    className="input-padaria min-h-[60px]"
+                    value={configEditada.mensagemProntoEntrega || ''}
+                    onChange={(e) => setConfigEditada({ ...configEditada, mensagemProntoEntrega: e.target.value })}
+                    placeholder="Olá {nome}! Seu pedido está a caminho!"
+                  />
+                </div>
               </div>
+              
+              {/* Alerta de Produção */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                  <Settings className="w-4 h-4" />
+                  Alerta de Produção
+                </h4>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Dias de antecedência para alerta</Label>
+                  <Select
+                    value={configEditada.diasAlertaProducao?.toString() || '3'}
+                    onValueChange={(value) => setConfigEditada({ ...configEditada, diasAlertaProducao: parseInt(value) })}
+                  >
+                    <SelectTrigger className="input-padaria">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 dias antes</SelectItem>
+                      <SelectItem value="5">5 dias antes</SelectItem>
+                      <SelectItem value="7">7 dias antes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Quantos dias antes da entrega você deseja receber alerta para preparar o pedido
+                  </p>
+                </div>
+              </div>
+              
               <Button onClick={handleSalvarConfig} className="btn-padaria">
                 <Save className="w-4 h-4 mr-2" />
                 Salvar Configurações
@@ -1055,7 +1318,7 @@ export default function AdminPanel() {
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Alterar Senha do App
+                    Alterar Senha
                   </>
                 )}
               </Button>
@@ -1066,11 +1329,11 @@ export default function AdminPanel() {
           <Card className="card-padaria max-w-md">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="w-5 h-5" />
+                <Lock className="w-5 h-5" />
                 Alterar Senha Administrativa
               </CardTitle>
               <CardDescription>
-                Senha para acessar a área administrativa (se não configurada, usa a senha do app)
+                Senha para acessar a área administrativa
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1087,7 +1350,7 @@ export default function AdminPanel() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Nova Senha Admin</Label>
+                <Label>Nova Senha</Label>
                 <Input
                   type="password"
                   inputMode="numeric"
@@ -1137,136 +1400,35 @@ export default function AdminPanel() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Produto</DialogTitle>
-            <DialogDescription>
-              Altere os dados do produto
-            </DialogDescription>
           </DialogHeader>
-
           {produtoEditando && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input
-                  className="input-padaria"
                   value={produtoEditando.nome}
                   onChange={(e) => setProdutoEditando({ ...produtoEditando, nome: e.target.value })}
                 />
               </div>
-
-              {produtoEditando.tipoProduto === 'NORMAL' ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tipo de Venda</Label>
-                      <Select
-                        value={produtoEditando.tipoVenda}
-                        onValueChange={(value) => setProdutoEditando({ ...produtoEditando, tipoVenda: value as 'KG' | 'UNIDADE' })}
-                      >
-                        <SelectTrigger className="input-padaria">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPOS_VENDA.map(tipo => (
-                            <SelectItem key={tipo.value} value={tipo.value}>
-                              {tipo.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Valor</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="input-padaria"
-                        value={produtoEditando.valorUnit}
-                        onChange={(e) => setProdutoEditando({ ...produtoEditando, valorUnit: parseFloat(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select
-                      value={produtoEditando.categoria || 'Outros'}
-                      onValueChange={(value) => setProdutoEditando({ ...produtoEditando, categoria: value })}
-                    >
-                      <SelectTrigger className="input-padaria">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
-                    <Select
-                      value={produtoEditando.categoria || 'Tortas'}
-                      onValueChange={(value) => setProdutoEditando({ ...produtoEditando, categoria: value })}
-                    >
-                      <SelectTrigger className="input-padaria">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-3">
-                    <Label>Preços por Tamanho</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {TAMANHOS_FIXOS.map(tam => (
-                        <div key={tam} className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Tamanho {tam}</Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              className="input-padaria pl-10"
-                              value={produtoEditando.precosTamanhos?.[tam] || ''}
-                              onChange={(e) => {
-                                const novosPrecos = {
-                                  ...(produtoEditando.precosTamanhos || {}),
-                                  [tam]: parseFloat(e.target.value) || 0
-                                };
-                                setProdutoEditando({ ...produtoEditando, precosTamanhos: novosPrecos });
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="space-y-2">
+                <Label>Valor</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={produtoEditando.valorUnit}
+                  onChange={(e) => setProdutoEditando({ ...produtoEditando, valorUnit: parseFloat(e.target.value) })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setDialogProdutoOpen(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button onClick={() => handleAtualizarProduto(produtoEditando)} className="btn-padaria flex-1">
+                  Salvar
+                </Button>
+              </div>
             </div>
           )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogProdutoOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => produtoEditando && handleAtualizarProduto(produtoEditando)}
-              className="btn-padaria"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1274,22 +1436,14 @@ export default function AdminPanel() {
       <AlertDialog open={dialogExcluirOpen} onOpenChange={setDialogExcluirOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-              Confirmar Exclusão
-            </AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o produto <strong>{produtoParaExcluir?.nome}</strong>?
-              <br />
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o produto "{produtoParaExcluir?.nome}"?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleExcluirProduto}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleExcluirProduto} className="bg-destructive text-destructive-foreground">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

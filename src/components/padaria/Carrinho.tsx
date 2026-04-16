@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { usePedidoStore, formatarMoeda, formatarQuantidade, calcularSubtotal } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
+import { ordenarItensPorCategoria } from '@/lib/escpos';
 
 interface Props {
   isMobile?: boolean;
@@ -41,56 +42,56 @@ export default function Carrinho({ isMobile = false }: Props) {
   // Versão Mobile - Barra fixa inferior compacta
   if (isMobile) {
     return (
-      <div className="bg-card border-t border-border">
+      <div className="bg-card border-t border-border safe-area-bottom">
         {/* Header expansível */}
         <button
           onClick={() => setExpandido(!expandido)}
-          className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+          className="w-full flex items-center justify-between p-2 sm:p-3 hover:bg-muted/50 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-primary" />
-            <span className="font-semibold">Carrinho</span>
-            <Badge variant="secondary" className="ml-1">
+            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <span className="font-semibold text-sm sm:text-base">Carrinho</span>
+            <Badge variant="secondary" className="ml-1 text-[10px] sm:text-xs h-5 sm:h-6">
               {itens.length}
             </Badge>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-lg text-primary">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="font-bold text-base sm:text-lg text-primary">
               {formatarMoeda(total)}
             </span>
             {expandido ? (
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
             ) : (
-              <ChevronUp className="w-5 h-5 text-muted-foreground" />
+              <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
             )}
           </div>
         </button>
 
         {/* Lista expandida */}
         {expandido && (
-          <div className="border-t border-border max-h-60 overflow-y-auto">
-            <div className="p-3 space-y-2">
-              {itens.map((item, index) => (
+          <div className="border-t border-border max-h-48 sm:max-h-60 overflow-y-auto">
+            <div className="p-2 sm:p-3 space-y-1.5 sm:space-y-2">
+              {ordenarItensPorCategoria(itens).map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between bg-muted/30 rounded-lg p-2"
+                  className="flex items-center justify-between bg-muted/30 rounded-lg p-2 sm:p-2.5"
                 >
                   <div className="flex-1 min-w-0 mr-2">
-                    <p className="font-medium text-sm truncate">{item.nome}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-medium text-xs sm:text-sm truncate">{item.nome}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
                       {formatarMoeda(item.subtotal)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 w-7 p-0"
+                      className="h-6 w-6 sm:h-7 sm:w-7 p-0"
                       onClick={() => handleAtualizarQuantidade(index, item.quantidade - (item.tipoVenda === 'UNIDADE' ? 1 : 0.5))}
                     >
-                      <Minus className="w-3 h-3" />
+                      <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                     </Button>
-                    <span className="w-10 text-center text-sm font-medium">
+                    <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-medium">
                       {item.tipoVenda === 'UNIDADE' 
                         ? item.quantidade 
                         : item.quantidade.toFixed(3).replace(/\.?0+$/, '')}
@@ -98,18 +99,18 @@ export default function Carrinho({ isMobile = false }: Props) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 w-7 p-0"
+                      className="h-6 w-6 sm:h-7 sm:w-7 p-0"
                       onClick={() => handleAtualizarQuantidade(index, item.quantidade + (item.tipoVenda === 'UNIDADE' ? 1 : 0.5))}
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive ml-1"
+                      className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-muted-foreground hover:text-destructive ml-0.5 sm:ml-1"
                       onClick={() => removerItem(index)}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                     </Button>
                   </div>
                 </div>
@@ -119,10 +120,10 @@ export default function Carrinho({ isMobile = false }: Props) {
         )}
 
         {/* Botões de ação */}
-        <div className="p-3 border-t border-border bg-muted/30">
+        <div className="p-2 sm:p-3 border-t border-border bg-muted/30">
           <Button
             onClick={() => setTela('resumo')}
-            className="w-full btn-padaria"
+            className="w-full btn-padaria h-10 sm:h-12"
             size="lg"
             disabled={itens.length === 0}
           >
@@ -179,7 +180,7 @@ export default function Carrinho({ isMobile = false }: Props) {
       <CardContent className="flex-1 p-0">
         <ScrollArea className="h-[calc(100vh-450px)] px-6">
           <div className="space-y-3 py-2">
-            {itens.map((item, index) => (
+            {ordenarItensPorCategoria(itens).map((item, index) => (
               <div
                 key={index}
                 className="bg-muted/30 rounded-lg p-3 border border-border/50"

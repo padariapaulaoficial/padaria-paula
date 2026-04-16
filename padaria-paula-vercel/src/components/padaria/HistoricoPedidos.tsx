@@ -1,10 +1,15 @@
 'use client';
 
 // HistoricoPedidos - Padaria Paula
-// Lista de pedidos com edição de itens e reimpressão
+// Lista de pedidos com edição de itens e reimpressão - Layout Otimizado
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, FileText, Edit2, Scale, Check, X, MapPin, Truck, Store, Lock, Loader2, Clock } from 'lucide-react';
+import { 
+  Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, 
+  FileText, Edit2, Check, X, MapPin, Truck, Store, Lock, Loader2, 
+  Clock, Plus, Minus, Package, User, Phone, CreditCard, DollarSign,
+  MessageCircle, ChevronDown, ChevronUp
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import {
@@ -31,9 +38,18 @@ import {
 } from '@/lib/escpos';
 
 
+interface Produto {
+  id: string;
+  nome: string;
+  tipoVenda: string;
+  valorUnit: number;
+  ativo: boolean;
+}
+
 interface ItemPedido {
   id: string;
   produto: {
+    id: string;
     nome: string;
     tipoVenda: string;
   };
@@ -49,6 +65,7 @@ interface Pedido {
   id: string;
   numero: number;
   cliente: {
+    id?: string;
     nome: string;
     telefone: string;
     cpfCnpj?: string;
@@ -80,6 +97,9 @@ interface Configuracao {
   cnpj: string;
   logoUrl?: string | null;
   senha?: string;
+  mensagemOrcamento?: string;
+  mensagemProntoRetira?: string;
+  mensagemProntoEntrega?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -102,10 +122,21 @@ export default function HistoricoPedidos() {
   const [modoEdicao, setModoEdicao] = useState(false);
   const [salvando, setSalvando] = useState(false);
   
+  // Adicionar produtos
+  const [dialogAdicionarOpen, setDialogAdicionarOpen] = useState(false);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtoSelecionado, setProdutoSelecionado] = useState<string>('');
+  const [quantidadeAdicionar, setQuantidadeAdicionar] = useState('');
+  const [adicionando, setAdicionando] = useState(false);
+  
   // PIN para exclusão - layout igual ao login principal
   const [pinParaExcluir, setPinParaExcluir] = useState(['', '', '', '']);
   const [verificandoPin, setVerificandoPin] = useState(false);
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Prevenção de duplo clique
+  const [atualizandoStatus, setAtualizandoStatus] = useState<string | null>(null);
+  const [imprimindo, setImprimindo] = useState<string | null>(null);
 
   // Carregar configurações
   useEffect(() => {
@@ -142,6 +173,17 @@ export default function HistoricoPedidos() {
   useEffect(() => {
     carregarPedidos();
   }, [dataFiltro]);
+
+  // Carregar produtos ao abrir dialog de adicionar
+  const carregarProdutos = async () => {
+    try {
+      const res = await fetch('/api/produtos');
+      const data = await res.json();
+      setProdutos(data.filter((p: Produto) => p.ativo));
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+    }
+  };
 
   // Filtrar pedidos por busca
   const pedidosFiltrados = pedidos.filter(pedido => {
@@ -193,31 +235,39 @@ export default function HistoricoPedidos() {
   };
 
   // Imprimir cupom do cliente
-  const handleImprimirCliente = (pedido: Pedido) => {
-    if (!config) return;
+  const handleImprimirCliente = async (pedido: Pedido) => {
+    if (!config || imprimindo) return;
+    setImprimindo(`cliente-${pedido.id}`);
     
-    const cupom = gerarCupomCliente(pedido as Parameters<typeof gerarCupomCliente>[0], config);
-    
-    imprimirViaDialogo(cupom, `Cupom Cliente #${formatarNumeroPedido(pedido.numero)}`);
-    
-    toast({
-      title: 'Impressão iniciada!',
-      description: `Cupom do cliente enviado para impressão.`,
-    });
+    try {
+      const cupom = gerarCupomCliente(pedido as Parameters<typeof gerarCupomCliente>[0], config);
+      imprimirViaDialogo(cupom, `Cupom Cliente #${formatarNumeroPedido(pedido.numero)}`);
+      
+      toast({
+        title: 'Impressão iniciada!',
+        description: `Cupom do cliente enviado para impressão.`,
+      });
+    } finally {
+      setTimeout(() => setImprimindo(null), 1000);
+    }
   };
 
   // Imprimir comanda da cozinha
-  const handleImprimirCozinha = (pedido: Pedido) => {
-    if (!config) return;
+  const handleImprimirCozinha = async (pedido: Pedido) => {
+    if (!config || imprimindo) return;
+    setImprimindo(`cozinha-${pedido.id}`);
     
-    const cupom = gerarCupomCozinhaGrande(pedido as Parameters<typeof gerarCupomCozinhaGrande>[0], config);
-    
-    imprimirViaDialogo(cupom, `Comanda Cozinha #${formatarNumeroPedido(pedido.numero)}`);
-    
-    toast({
-      title: 'Impressão iniciada!',
-      description: `Comanda da cozinha enviada para impressão.`,
-    });
+    try {
+      const cupom = gerarCupomCozinhaGrande(pedido as Parameters<typeof gerarCupomCozinhaGrande>[0], config);
+      imprimirViaDialogo(cupom, `Comanda Cozinha #${formatarNumeroPedido(pedido.numero)}`);
+      
+      toast({
+        title: 'Impressão iniciada!',
+        description: `Comanda da cozinha enviada para impressão.`,
+      });
+    } finally {
+      setTimeout(() => setImprimindo(null), 1000);
+    }
   };
 
   // Handler para edição de peso - valor livre
@@ -430,6 +480,9 @@ export default function HistoricoPedidos() {
 
   // Atualizar status
   const handleAtualizarStatus = async (pedido: Pedido, novoStatus: string) => {
+    if (atualizandoStatus) return;
+    setAtualizandoStatus(pedido.id);
+    
     try {
       const response = await fetch('/api/pedidos', {
         method: 'PUT',
@@ -456,6 +509,8 @@ export default function HistoricoPedidos() {
         description: 'Não foi possível atualizar o status.',
         variant: 'destructive',
       });
+    } finally {
+      setAtualizandoStatus(null);
     }
   };
 
@@ -472,6 +527,149 @@ export default function HistoricoPedidos() {
       }
       return sum + item.subtotal;
     }, 0);
+  };
+
+  // Abrir dialog para adicionar produto
+  const handleAbrirAdicionar = () => {
+    carregarProdutos();
+    setProdutoSelecionado('');
+    setQuantidadeAdicionar('');
+    setDialogAdicionarOpen(true);
+  };
+
+  // Adicionar produto ao pedido existente
+  const handleAdicionarProduto = async () => {
+    if (!pedidoSelecionado || !produtoSelecionado || !quantidadeAdicionar) {
+      toast({
+        title: 'Dados incompletos',
+        description: 'Selecione um produto e informe a quantidade.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setAdicionando(true);
+    
+    try {
+      const produto = produtos.find(p => p.id === produtoSelecionado);
+      if (!produto) return;
+      
+      const quantidade = parseFloat(quantidadeAdicionar.replace(',', '.'));
+      if (isNaN(quantidade) || quantidade <= 0) {
+        toast({
+          title: 'Quantidade inválida',
+          description: 'Informe uma quantidade válida.',
+          variant: 'destructive',
+        });
+        setAdicionando(false);
+        return;
+      }
+      
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          adicionarItem: {
+            produtoId: produtoSelecionado,
+            quantidade,
+            valorUnit: produto.valorUnit,
+          },
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(pedidoAtualizado.error || 'Erro ao adicionar produto');
+      }
+      
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      setDialogAdicionarOpen(false);
+      
+      toast({
+        title: 'Produto adicionado!',
+        description: `${produto.nome} foi adicionado ao pedido.`,
+      });
+      
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível adicionar o produto.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAdicionando(false);
+    }
+  };
+
+  // Remover item do pedido
+  const handleRemoverItem = async (itemId: string) => {
+    if (!pedidoSelecionado) return;
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          removerItem: itemId,
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(pedidoAtualizado.error || 'Erro ao remover item');
+      }
+      
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      
+      toast({
+        title: 'Item removido!',
+        description: 'O item foi removido do pedido.',
+      });
+      
+    } catch (error) {
+      console.error('Erro ao remover item:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível remover o item.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Abrir Google Maps com endereço
+  const abrirMapa = (endereco: string, bairro?: string) => {
+    const enderecoCompleto = bairro ? `${endereco}, ${bairro}` : endereco;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;
+    window.open(url, '_blank');
+  };
+
+  // Enviar WhatsApp
+  const enviarWhatsApp = (pedido: Pedido) => {
+    if (!pedido.cliente.telefone) return;
+    
+    let mensagem = '';
+    if (config?.mensagemProntoEntrega && pedido.tipoEntrega === 'TELE_ENTREGA') {
+      mensagem = config.mensagemProntoEntrega
+        .replace('{nome}', pedido.cliente.nome)
+        .replace('{pedido}', formatarNumeroPedido(pedido.numero));
+    } else if (config?.mensagemProntoRetira) {
+      mensagem = config.mensagemProntoRetira
+        .replace('{nome}', pedido.cliente.nome)
+        .replace('{pedido}', formatarNumeroPedido(pedido.numero));
+    } else {
+      mensagem = `Olá ${pedido.cliente.nome}! Seu pedido #${formatarNumeroPedido(pedido.numero)} está pronto.`;
+    }
+    
+    const telefone = pedido.cliente.telefone.replace(/\D/g, '');
+    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
   };
 
   return (
@@ -501,8 +699,8 @@ export default function HistoricoPedidos() {
               value={dataFiltro}
               onChange={(e) => setDataFiltro(e.target.value)}
             />
-            <Button variant="outline" size="sm" onClick={carregarPedidos} className="h-10">
-              <RefreshCw className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={carregarPedidos} className="h-10" disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </CardContent>
@@ -563,6 +761,17 @@ export default function HistoricoPedidos() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          {pedido.tipoEntrega === 'TELE_ENTREGA' && pedido.enderecoEntrega && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => abrirMapa(pedido.enderecoEntrega!, pedido.bairroEntrega)}
+                              className="h-8 w-8 p-0 text-blue-500 hover:text-blue-600"
+                              title="Ver no mapa"
+                            >
+                              <MapPin className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -583,213 +792,415 @@ export default function HistoricoPedidos() {
         </ScrollArea>
       )}
 
-      {/* Dialog de detalhes com preview do cupom */}
+      {/* Dialog de detalhes OTIMIZADO */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Pedido #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
-            </DialogTitle>
-            <DialogDescription>
-              {pedidoSelecionado && formatarData(pedidoSelecionado.createdAt)} - {pedidoSelecionado?.cliente?.nome}
-            </DialogDescription>
+        <DialogContent className="max-w-3xl max-h-[95vh] overflow-hidden flex flex-col p-0 gap-0">
+          {/* Header Compacto */}
+          <DialogHeader className="p-4 border-b bg-gradient-to-r from-primary/10 to-transparent">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Pedido #{pedidoSelecionado && formatarNumeroPedido(pedidoSelecionado.numero)}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  {pedidoSelecionado && formatarData(pedidoSelecionado.createdAt)}
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {pedidoSelecionado && getStatusBadge(pedidoSelecionado.status)}
+              </div>
+            </div>
           </DialogHeader>
 
           {pedidoSelecionado && (
-            <div className="flex-1 overflow-hidden">
-              <div className="h-full flex flex-col">
-                {/* Status e ações */}
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                  {getStatusBadge(pedidoSelecionado.status)}
-                  <div className="flex gap-1 ml-auto">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PRODUCAO')}
-                      disabled={pedidoSelecionado.status === 'PRODUCAO'}
-                    >
-                      Em Produção
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PRONTO')}
-                      disabled={pedidoSelecionado.status === 'PRONTO'}
-                    >
-                      Pronto
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAtualizarStatus(pedidoSelecionado, 'ENTREGUE')}
-                      disabled={pedidoSelecionado.status === 'ENTREGUE'}
-                    >
-                      Entregue
-                    </Button>
-                  </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-4">
+                {/* BOTÕES DE AÇÃO RÁPIDA - STATUS */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={pedidoSelecionado.status === 'PENDENTE' ? 'default' : 'outline'}
+                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PENDENTE')}
+                    disabled={pedidoSelecionado.status === 'PENDENTE' || atualizandoStatus !== null}
+                    className="flex-1 min-w-[100px]"
+                  >
+                    {atualizandoStatus === pedidoSelecionado.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : null}
+                    Pendente
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={pedidoSelecionado.status === 'PRODUCAO' ? 'default' : 'outline'}
+                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PRODUCAO')}
+                    disabled={pedidoSelecionado.status === 'PRODUCAO' || atualizandoStatus !== null}
+                    className="flex-1 min-w-[100px] bg-blue-500 hover:bg-blue-600"
+                  >
+                    Em Produção
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={pedidoSelecionado.status === 'PRONTO' ? 'default' : 'outline'}
+                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'PRONTO')}
+                    disabled={pedidoSelecionado.status === 'PRONTO' || atualizandoStatus !== null}
+                    className="flex-1 min-w-[100px] bg-green-500 hover:bg-green-600"
+                  >
+                    Pronto
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={pedidoSelecionado.status === 'ENTREGUE' ? 'default' : 'outline'}
+                    onClick={() => handleAtualizarStatus(pedidoSelecionado, 'ENTREGUE')}
+                    disabled={pedidoSelecionado.status === 'ENTREGUE' || atualizandoStatus !== null}
+                    className="flex-1 min-w-[100px]"
+                  >
+                    Entregue
+                  </Button>
                 </div>
 
-                {/* Dados do cliente e entrega */}
-                <div className="bg-muted/30 rounded-lg p-3 mb-4">
-                  <h4 className="font-semibold text-sm mb-2">Cliente</h4>
-                  <p className="text-sm"><strong>Nome:</strong> {pedidoSelecionado.cliente.nome}</p>
-                  <p className="text-sm"><strong>Telefone:</strong> {pedidoSelecionado.cliente.telefone}</p>
-                  {pedidoSelecionado.cliente.cpfCnpj && (
-                    <p className="text-sm"><strong>{pedidoSelecionado.cliente.tipoPessoa || 'CPF'}:</strong> {pedidoSelecionado.cliente.cpfCnpj}</p>
-                  )}
-                  
-                  {/* Dados de Entrega */}
-                  {pedidoSelecionado.tipoEntrega && (
-                    <div className="mt-2 pt-2 border-t border-border/50">
-                      <div className="flex items-center gap-2 text-sm">
-                        {pedidoSelecionado.tipoEntrega === 'RETIRA' ? (
-                          <>
-                            <Store className="w-4 h-4 text-primary" />
-                            <span className="font-medium">Cliente Retira</span>
-                          </>
-                        ) : (
-                          <>
-                            <Truck className="w-4 h-4 text-primary" />
-                            <span className="font-medium">Tele Entrega</span>
-                          </>
+                {/* GRID COM CLIENTE E ENTREGA */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* CARD CLIENTE */}
+                  <Card className="border-l-4 border-l-primary">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-2 text-primary">
+                        <User className="w-4 h-4" />
+                        <span className="font-semibold text-sm">Cliente</span>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium">{pedidoSelecionado.cliente.nome}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="w-3 h-3" />
+                          <span>{pedidoSelecionado.cliente.telefone}</span>
+                        </div>
+                        {pedidoSelecionado.cliente.cpfCnpj && (
+                          <p className="text-sm text-muted-foreground">
+                            {pedidoSelecionado.cliente.tipoPessoa || 'CPF'}: {pedidoSelecionado.cliente.cpfCnpj}
+                          </p>
+                        )}
+                        {pedidoSelecionado.cliente.endereco && (
+                          <p className="text-sm text-muted-foreground">
+                            {pedidoSelecionado.cliente.endereco}
+                            {pedidoSelecionado.cliente.bairro && ` - ${pedidoSelecionado.cliente.bairro}`}
+                          </p>
                         )}
                       </div>
-                      {pedidoSelecionado.dataEntrega && (
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                          <div className="flex items-center gap-1">
+                    </CardContent>
+                  </Card>
+
+                  {/* CARD ENTREGA */}
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-2 text-blue-500">
+                        {pedidoSelecionado.tipoEntrega === 'RETIRA' ? (
+                          <Store className="w-4 h-4" />
+                        ) : (
+                          <Truck className="w-4 h-4" />
+                        )}
+                        <span className="font-semibold text-sm">Entrega</span>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {pedidoSelecionado.tipoEntrega === 'RETIRA' ? 'Cliente Retira' : 'Tele Entrega'}
+                        </p>
+                        {pedidoSelecionado.dataEntrega && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="w-3 h-3" />
                             <span>{formatarDataEntrega(pedidoSelecionado.dataEntrega)}</span>
+                            {pedidoSelecionado.horarioEntrega && (
+                              <>
+                                <Clock className="w-3 h-3 ml-2" />
+                                <span>{pedidoSelecionado.horarioEntrega}</span>
+                              </>
+                            )}
                           </div>
-                          {pedidoSelecionado.horarioEntrega && (
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              <span>{pedidoSelecionado.horarioEntrega}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && pedidoSelecionado.enderecoEntrega && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="w-3 h-3" />
-                          {pedidoSelecionado.enderecoEntrega}
-                          {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Itens com edição */}
-                <div className="flex-1 overflow-y-auto">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-sm">Itens</h4>
-                    {!modoEdicao && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setModoEdicao(true)}
-                      >
-                        <Edit2 className="w-3 h-3 mr-1" />
-                        Editar
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {pedidoSelecionado.itens.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center py-2 border-b border-border/50">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.produto.nome}</p>
-                          
-                          {/* Modo edição para qualquer tipo de produto */}
-                          {modoEdicao ? (
-                            <div className="flex items-center gap-2 mt-1">
-                              <Input
-                                type="number"
-                                step={item.produto.tipoVenda === 'KG' ? '0.001' : '1'}
-                                min="0"
-                                className="w-28 h-8 text-sm"
-                                value={itensEditados[item.id] !== undefined 
-                                  ? itensEditados[item.id]
-                                  : item.quantidade.toString()
-                                }
-                                onChange={(e) => handleEditarPesoLivre(item.id, e.target.value)}
-                                placeholder={item.produto.tipoVenda === 'KG' ? '0.000' : '0'}
-                              />
-                              <span className="text-sm text-muted-foreground">
-                                {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">
-                              {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                            </p>
-                          )}
-                        </div>
-                        <p className="font-semibold text-sm">
-                          {formatarMoeda(
-                            itensEditados[item.id] !== undefined 
-                              ? parseFloat(itensEditados[item.id].replace(',', '.')) * item.valorUnit 
-                              : item.subtotal
-                          )}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Botões de edição */}
-                  {modoEdicao && (
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCancelarEdicao}
-                        className="flex-1"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSalvarEdicao}
-                        className="flex-1 btn-padaria"
-                        disabled={salvando}
-                      >
-                        {salvando ? (
-                          <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                        ) : (
-                          <Check className="w-4 h-4 mr-1" />
                         )}
-                        Salvar
-                      </Button>
+                        {pedidoSelecionado.tipoEntrega === 'TELE_ENTREGA' && pedidoSelecionado.enderecoEntrega && (
+                          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <MapPin className="w-3 h-3 mt-0.5" />
+                            <span className="flex-1">
+                              {pedidoSelecionado.enderecoEntrega}
+                              {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 shrink-0"
+                              onClick={() => abrirMapa(pedidoSelecionado.enderecoEntrega!, pedidoSelecionado.bairroEntrega)}
+                              title="Ver no mapa"
+                            >
+                              <MapPin className="w-3 h-3 text-blue-500" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* CARD ITENS */}
+                <Card>
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Package className="w-4 h-4" />
+                        <span className="font-semibold text-sm">Itens do Pedido</span>
+                        <Badge variant="secondary" className="text-xs">{pedidoSelecionado.itens.length}</Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        {!modoEdicao && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleAbrirAdicionar}
+                              className="h-8"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Adicionar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setModoEdicao(true)}
+                              className="h-8"
+                            >
+                              <Edit2 className="w-4 h-4 mr-1" />
+                              Editar
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
+
+                    <div className="space-y-2">
+                      {pedidoSelecionado.itens.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          className={`flex justify-between items-center py-2 px-3 rounded-lg ${
+                            modoEdicao ? 'bg-muted/50' : index % 2 === 0 ? 'bg-muted/30' : ''
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium">{item.produto.nome}</p>
+                            
+                            {/* Modo edição */}
+                            {modoEdicao ? (
+                              <div className="flex items-center gap-2 mt-1">
+                                <Input
+                                  type="number"
+                                  step={item.produto.tipoVenda === 'KG' ? '0.001' : '1'}
+                                  min="0"
+                                  className="w-24 h-8 text-sm"
+                                  value={itensEditados[item.id] !== undefined 
+                                    ? itensEditados[item.id]
+                                    : item.quantidade.toString()
+                                  }
+                                  onChange={(e) => handleEditarPesoLivre(item.id, e.target.value)}
+                                  placeholder={item.produto.tipoVenda === 'KG' ? '0.000' : '0'}
+                                />
+                                <span className="text-sm text-muted-foreground">
+                                  {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                                </span>
+                                <span className="text-sm text-muted-foreground ml-2">
+                                  × {formatarMoeda(item.valorUnit)}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-primary">
+                              {formatarMoeda(
+                                itensEditados[item.id] !== undefined 
+                                  ? parseFloat(itensEditados[item.id].replace(',', '.')) * item.valorUnit 
+                                  : item.subtotal
+                              )}
+                            </p>
+                            {modoEdicao && pedidoSelecionado.itens.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => handleRemoverItem(item.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Botões de edição */}
+                    {modoEdicao && (
+                      <div className="flex gap-2 mt-4 pt-3 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelarEdicao}
+                          className="flex-1"
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSalvarEdicao}
+                          className="flex-1 btn-padaria"
+                          disabled={salvando}
+                        >
+                          {salvando ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Check className="w-4 h-4 mr-1" />
+                          )}
+                          Salvar
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* TOTAL E OBSERVAÇÕES */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* TOTAL */}
+                  <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold">Total do Pedido</span>
+                        <span className="text-2xl font-bold text-primary">
+                          {formatarMoeda(
+                            modoEdicao ? calcularTotalEditado() : pedidoSelecionado.total
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* OBSERVAÇÕES */}
+                  {pedidoSelecionado.observacoes && (
+                    <Card>
+                      <CardContent className="p-3">
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Obs:</strong> {pedidoSelecionado.observacoes}
+                        </p>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
 
-                {/* Total */}
-                <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border mt-2">
-                  <span>Total:</span>
-                  <span className="text-primary">
-                    {formatarMoeda(
-                      modoEdicao ? calcularTotalEditado() : pedidoSelecionado.total
+                {/* AÇÕES DE IMPRESSÃO E WHATSAPP */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <Button 
+                    onClick={() => handleImprimirCliente(pedidoSelecionado)} 
+                    className="btn-padaria h-12 text-base"
+                    disabled={imprimindo !== null}
+                  >
+                    {imprimindo === `cliente-${pedidoSelecionado.id}` ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <Printer className="w-5 h-5 mr-2" />
                     )}
-                  </span>
+                    Cupom Cliente
+                  </Button>
+                  <Button 
+                    onClick={() => handleImprimirCozinha(pedidoSelecionado)} 
+                    variant="outline" 
+                    className="h-12 text-base"
+                    disabled={imprimindo !== null}
+                  >
+                    {imprimindo === `cozinha-${pedidoSelecionado.id}` ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <Printer className="w-5 h-5 mr-2" />
+                    )}
+                    Comanda Cozinha
+                  </Button>
                 </div>
 
-                {/* Botões de impressão */}
-                <div className="pt-3 mt-3 border-t border-border space-y-2">
-                  <Button onClick={() => handleImprimirCliente(pedidoSelecionado)} className="w-full btn-padaria">
-                    <Printer className="w-4 h-4 mr-2" />
-                    Imprimir Cupom Cliente
-                  </Button>
-                  <Button onClick={() => handleImprimirCozinha(pedidoSelecionado)} variant="outline" className="w-full">
-                    <Printer className="w-4 h-4 mr-2" />
-                    Imprimir Comanda Cozinha
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 bg-green-500 hover:bg-green-600 text-white border-0"
+                  onClick={() => enviarWhatsApp(pedidoSelecionado)}
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Enviar WhatsApp
+                </Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para adicionar produto */}
+      <Dialog open={dialogAdicionarOpen} onOpenChange={setDialogAdicionarOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-primary" />
+              Adicionar Produto ao Pedido
+            </DialogTitle>
+            <DialogDescription>
+              Se o produto já existir, a quantidade será somada.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Produto</label>
+              <Select value={produtoSelecionado} onValueChange={setProdutoSelecionado}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um produto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {produtos.map((produto) => (
+                    <SelectItem key={produto.id} value={produto.id}>
+                      {produto.nome} - {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Quantidade</label>
+              <Input
+                type="number"
+                step="0.001"
+                min="0.001"
+                placeholder="Ex: 0.500 ou 1"
+                value={quantidadeAdicionar}
+                onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                className="text-lg h-12"
+              />
+              {produtoSelecionado && (
+                <p className="text-xs text-muted-foreground">
+                  {produtos.find(p => p.id === produtoSelecionado)?.tipoVenda === 'KG' 
+                    ? 'Informe o peso em kg (ex: 0.500 para 500g)' 
+                    : 'Informe a quantidade de unidades'}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setDialogAdicionarOpen(false)} className="flex-1">
+              Cancelar
+            </Button>
+            <Button onClick={handleAdicionarProduto} className="flex-1 btn-padaria" disabled={adicionando}>
+              {adicionando ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4 mr-1" />
+              )}
+              Adicionar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -806,7 +1217,7 @@ export default function HistoricoPedidos() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           
-          {/* Campo de PIN - layout igual ao login principal */}
+          {/* Campo de PIN */}
           <div className="py-4">
             <div className="flex justify-center gap-3 mb-6">
               {[0, 1, 2, 3].map((index) => (

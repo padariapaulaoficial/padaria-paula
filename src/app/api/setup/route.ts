@@ -71,6 +71,12 @@ export async function GET() {
         "horarioEntrega" TEXT,
         "enderecoEntrega" TEXT,
         "bairroEntrega" TEXT,
+        "statusPagamento" TEXT NOT NULL DEFAULT 'PENDENTE',
+        "valorEntrada" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "formaPagamentoEntrada" TEXT,
+        "dataEntrada" TIMESTAMP(3),
+        "alertaProducaoEnviado" BOOLEAN NOT NULL DEFAULT false,
+        "valorTeleEntrega" DOUBLE PRECISION,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
@@ -106,6 +112,7 @@ export async function GET() {
         "horarioEntrega" TEXT,
         "enderecoEntrega" TEXT,
         "bairroEntrega" TEXT,
+        "valorTeleEntrega" DOUBLE PRECISION,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
@@ -129,6 +136,7 @@ export async function GET() {
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Pedido_numero_idx" ON "Pedido"("numero");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Pedido_clienteId_idx" ON "Pedido"("clienteId");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Pedido_createdAt_idx" ON "Pedido"("createdAt");`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Pedido_dataEntrega_idx" ON "Pedido"("dataEntrega");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ItemPedido_pedidoId_idx" ON "ItemPedido"("pedidoId");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ItemPedido_produtoId_idx" ON "ItemPedido"("produtoId");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Orcamento_numero_idx" ON "Orcamento"("numero");`);

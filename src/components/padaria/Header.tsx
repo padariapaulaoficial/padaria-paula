@@ -40,18 +40,18 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-primary text-primary-foreground shadow-md">
-      <div className="container mx-auto px-3 py-3 sm:py-4 flex items-center justify-between">
-        <div className="w-10"></div> {/* Espaçador */}
+    <header className="bg-primary text-primary-foreground shadow-md shrink-0">
+      <div className="container mx-auto px-2 sm:px-3 py-2 sm:py-3 md:py-4 flex items-center justify-between">
+        <div className="w-8 sm:w-10"></div> {/* Espaçador */}
         <h1 
-          className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-center flex-1"
+          className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-center flex-1 line-clamp-1"
           style={{ fontFamily: 'Playfair Display, serif' }}
         >
           {config?.nomeLoja || 'Padaria e Confeitaria Paula'}
         </h1>
         
         {/* Botão de logout discreto */}
-        <div className="w-10 flex justify-end">
+        <div className="w-8 sm:w-10 flex justify-end">
           {autenticado && (
             <TooltipProvider>
               <Tooltip>

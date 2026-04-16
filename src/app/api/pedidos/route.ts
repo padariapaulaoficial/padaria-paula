@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const data = searchParams.get('data');
     const status = searchParams.get('status');
     const limite = searchParams.get('limite');
+    const alertaProducao = searchParams.get('alertaProducao');
     
     // Buscar pedido específico por ID
     if (id) {
@@ -35,6 +36,38 @@ export async function GET(request: NextRequest) {
       }
       
       return NextResponse.json(pedido);
+    }
+    
+    // Buscar pedidos que precisam de alerta de produção (3 dias antes)
+    if (alertaProducao === 'true') {
+      const hoje = new Date();
+      const dataAlertaInicio = new Date(hoje);
+      dataAlertaInicio.setDate(hoje.getDate() + 3); // 3 dias à frente
+      dataAlertaInicio.setHours(0, 0, 0, 0);
+      
+      const dataAlertaFim = new Date(dataAlertaInicio);
+      dataAlertaFim.setHours(23, 59, 59, 999);
+      
+      const dataEntregaStr = dataAlertaInicio.toISOString().split('T')[0];
+      
+      const pedidosAlerta = await db.pedido.findMany({
+        where: {
+          dataEntrega: dataEntregaStr,
+          status: { notIn: ['ENTREGUE', 'CANCELADO'] },
+          alertaProducaoEnviado: false,
+        },
+        include: {
+          cliente: true,
+          itens: {
+            include: {
+              produto: true,
+            },
+          },
+        },
+        orderBy: { horarioEntrega: 'asc' },
+      });
+      
+      return NextResponse.json(pedidosAlerta);
     }
     
     // Filtros para listagem
@@ -97,7 +130,8 @@ export async function POST(request: NextRequest) {
       dataEntrega,
       horarioEntrega,
       enderecoEntrega,
-      bairroEntrega
+      bairroEntrega,
+      valorTeleEntrega
     } = body;
     
     // Validações
@@ -158,19 +192,26 @@ export async function POST(request: NextRequest) {
     });
     const novoNumero = (ultimoPedido?.numero || 0) + 1;
     
+    // Calcular total incluindo taxa de tele-entrega
+    const taxaEntrega = (tipoEntrega === 'TELE_ENTREGA' && valorTeleEntrega) 
+      ? parseFloat(valorTeleEntrega) || 0 
+      : 0;
+    const totalFinal = parseFloat(total) + taxaEntrega;
+    
     // Criar pedido com itens
     const pedido = await db.pedido.create({
       data: {
         numero: novoNumero,
         clienteId,
         observacoes: observacoes || null,
-        total: parseFloat(total) || 0,
+        total: totalFinal,
         totalPedida: parseFloat(totalPedida) || parseFloat(total) || 0,
         tipoEntrega: tipoEntrega || 'RETIRA',
         dataEntrega,
         horarioEntrega,
         enderecoEntrega: tipoEntrega === 'TELE_ENTREGA' ? enderecoEntrega : null,
         bairroEntrega: tipoEntrega === 'TELE_ENTREGA' ? bairroEntrega : null,
+        valorTeleEntrega: taxaEntrega > 0 ? taxaEntrega : null,
         status: 'PENDENTE',
         itens: {
           create: itens.map((item: Record<string, unknown>) => ({
@@ -224,7 +265,13 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, impresso, itens } = body;
+    const { 
+      id, status, impresso, itens, novosItens, itensParaRemover,
+      valorEntrada, formaPagamentoEntrada, dataEntrada,
+      alertaProducaoEnviado,
+      dataEntrega, horarioEntrega, valorTeleEntrega, tipoEntrega,
+      statusPagamento
+    } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -237,27 +284,182 @@ export async function PUT(request: NextRequest) {
     if (status) data.status = status;
     if (impresso !== undefined) data.impresso = impresso;
     
+    // Campos de pagamento
+    if (statusPagamento !== undefined) data.statusPagamento = statusPagamento;
+    if (valorEntrada !== undefined) data.valorEntrada = parseFloat(valorEntrada) || 0;
+    if (formaPagamentoEntrada !== undefined) data.formaPagamentoEntrada = formaPagamentoEntrada;
+    if (dataEntrada !== undefined) data.dataEntrada = dataEntrada ? new Date(dataEntrada) : null;
+    if (alertaProducaoEnviado !== undefined) data.alertaProducaoEnviado = alertaProducaoEnviado;
+    
+    // Campos de entrega (edição de data/horário/tipo/valor)
+    if (tipoEntrega !== undefined) data.tipoEntrega = tipoEntrega;
+    if (dataEntrega !== undefined) data.dataEntrega = dataEntrega;
+    if (horarioEntrega !== undefined) data.horarioEntrega = horarioEntrega || null;
+    if (valorTeleEntrega !== undefined) data.valorTeleEntrega = valorTeleEntrega ? parseFloat(valorTeleEntrega) : null;
+    
+    // Flag para indicar se precisa recalcular o total
+    let recalcularTotal = tipoEntrega !== undefined || valorTeleEntrega !== undefined;
+    
+    // Remover itens com quantidade 0
+    if (itensParaRemover && Array.isArray(itensParaRemover) && itensParaRemover.length > 0) {
+      await db.itemPedido.deleteMany({
+        where: {
+          id: { in: itensParaRemover },
+          pedidoId: id,
+        },
+      });
+    }
+    
     // Se houver itens para atualizar
     if (itens && Array.isArray(itens)) {
-      // Atualizar cada item
+      // Atualizar cada item existente
       for (const item of itens) {
         if (item.id) {
+          const updateData: Record<string, unknown> = {
+            quantidade: item.quantidade,
+            quantidadePedida: item.quantidade, // Sincronizar com a quantidade pedida para produção
+            subtotal: item.subtotal,
+            subtotalPedida: item.subtotal, // Sincronizar subtotal pedida também
+          };
+          // Permitir edição de tamanho e observação
+          if (item.tamanho !== undefined) {
+            updateData.tamanho = item.tamanho || null;
+          }
+          if (item.observacao !== undefined) {
+            updateData.observacao = item.observacao || null;
+          }
+          // Se o tamanho mudou, recalcular valor unitário e subtotal
+          if (item.tamanho && item.produtoId) {
+            const produto = await db.produto.findUnique({
+              where: { id: item.produtoId },
+              select: { precosTamanhos: true, valorUnit: true },
+            });
+            if (produto) {
+              const precos = produto.precosTamanhos ? JSON.parse(produto.precosTamanhos as string) : {};
+              const novoValorUnit = precos[item.tamanho] || produto.valorUnit;
+              updateData.valorUnit = novoValorUnit;
+              updateData.subtotal = item.quantidade * novoValorUnit;
+              updateData.subtotalPedida = item.quantidade * novoValorUnit;
+            }
+          }
           await db.itemPedido.update({
             where: { id: item.id },
-            data: {
-              quantidade: item.quantidade,
-              subtotal: item.subtotal,
-            },
+            data: updateData,
           });
         }
       }
-      
-      // Recalcular total do pedido
+    }
+    
+    // Se houver novos itens para adicionar
+    if (novosItens && Array.isArray(novosItens) && novosItens.length > 0) {
+      for (const item of novosItens) {
+        if (item.produtoId) {
+          // Verificar se o produto é ESPECIAL (torta) ou KG (peso)
+          const produto = await db.produto.findUnique({
+            where: { id: item.produtoId },
+            select: { tipoProduto: true, tipoVenda: true },
+          });
+          
+          // Produtos que NÃO somam (sempre criam item separado):
+          // - ESPECIAL (tortas)
+          // - KG (produtos vendidos por peso)
+          // Apenas UNIDADE normais podem ser somados
+          const naoSoma = produto?.tipoProduto === 'ESPECIAL' || produto?.tipoVenda === 'KG';
+          
+          if (naoSoma) {
+            // Criar novo item sempre (não somar)
+            await db.itemPedido.create({
+              data: {
+                pedidoId: id,
+                produtoId: item.produtoId,
+                quantidadePedida: item.quantidade || 0,
+                quantidade: item.quantidade || 0,
+                valorUnit: item.valorUnit || 0,
+                subtotalPedida: item.subtotal || 0,
+                subtotal: item.subtotal || 0,
+                observacao: item.observacao || null,
+                tamanho: item.tamanho || null,
+              },
+            });
+          } else {
+            // Para produtos UNIDADE normais, verificar se já existe item com mesmo produto E tamanho
+            const itemExistente = await db.itemPedido.findFirst({
+              where: {
+                pedidoId: id,
+                produtoId: item.produtoId,
+                tamanho: item.tamanho || null,
+              },
+            });
+            
+            if (itemExistente) {
+              // Se existe, somar as quantidades
+              const novaQuantidade = itemExistente.quantidade + (item.quantidade || 0);
+              const novaQuantidadePedida = itemExistente.quantidadePedida + (item.quantidade || 0);
+              const novoSubtotal = novaQuantidade * itemExistente.valorUnit;
+              const novoSubtotalPedida = novaQuantidadePedida * itemExistente.valorUnit;
+              
+              await db.itemPedido.update({
+                where: { id: itemExistente.id },
+                data: {
+                  quantidade: novaQuantidade,
+                  quantidadePedida: novaQuantidadePedida,
+                  subtotal: novoSubtotal,
+                  subtotalPedida: novoSubtotalPedida,
+                },
+              });
+            } else {
+              // Se não existe, criar novo item
+              await db.itemPedido.create({
+                data: {
+                  pedidoId: id,
+                  produtoId: item.produtoId,
+                  quantidadePedida: item.quantidade || 0,
+                  quantidade: item.quantidade || 0,
+                  valorUnit: item.valorUnit || 0,
+                  subtotalPedida: item.subtotal || 0,
+                  subtotal: item.subtotal || 0,
+                  observacao: item.observacao || null,
+                  tamanho: item.tamanho || null,
+                },
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // Recalcular total do pedido se houve alterações em itens
+    if ((itens && Array.isArray(itens)) || (novosItens && Array.isArray(novosItens) && novosItens.length > 0) || (itensParaRemover && Array.isArray(itensParaRemover) && itensParaRemover.length > 0)) {
       const itensAtualizados = await db.itemPedido.findMany({
         where: { pedidoId: id },
       });
-      const novoTotal = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      // Buscar o pedido atual para obter a taxa de tele-entrega
+      const pedidoAtual = await db.pedido.findUnique({
+        where: { id },
+        select: { valorTeleEntrega: true },
+      });
+      
+      const subtotalItens = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      const taxaEntrega = pedidoAtual?.valorTeleEntrega || 0;
+      const novoTotal = subtotalItens + taxaEntrega;
+      
       data.total = novoTotal;
+      data.totalPedida = subtotalItens; // totalPedida não inclui taxa
+    }
+    
+    // Recalcular total se alterou tipo de entrega ou valor da taxa
+    if (recalcularTotal && !(itens && Array.isArray(itens))) {
+      const itensAtualizados = await db.itemPedido.findMany({
+        where: { pedidoId: id },
+      });
+      
+      const subtotalItens = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+      const taxaEntrega = data.valorTeleEntrega ? parseFloat(data.valorTeleEntrega as string) : 0;
+      const novoTotal = subtotalItens + taxaEntrega;
+      
+      data.total = novoTotal;
+      data.totalPedida = subtotalItens;
     }
     
     const pedido = await db.pedido.update({

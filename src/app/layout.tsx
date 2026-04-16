@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { GlobalLoading } from "@/components/LoadingProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Fonte elegante para títulos
 const playfair = Playfair_Display({
@@ -26,7 +28,8 @@ export const metadata: Metadata = {
   keywords: ["padaria", "pedidos", "cupom fiscal", "ESC/POS", "impressora térmica", "Elgin"],
   authors: [{ name: "Padaria Paula" }],
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {
@@ -55,8 +58,11 @@ export default function RootLayout({
         className={`${playfair.variable} ${dmSans.variable} antialiased bg-background text-foreground min-h-screen`}
         style={{ fontFamily: "'DM Sans', sans-serif" }}
       >
-        {children}
-        <Toaster />
+        <ErrorBoundary>
+          {children}
+          <Toaster />
+          <GlobalLoading />
+        </ErrorBoundary>
       </body>
     </html>
   );

@@ -4,12 +4,22 @@
 // Lista de pedidos TELE ENTREGA pendentes
 
 import { useState, useEffect } from 'react';
-import { Truck, RefreshCw, Eye, Check, MapPin, Phone, MessageCircle, Clock, Calendar } from 'lucide-react';
+import { Truck, RefreshCw, Eye, Check, MapPin, Phone, Clock, Calendar, Navigation, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { formatarNumeroPedido } from '@/lib/escpos';
@@ -50,15 +60,6 @@ interface Pedido {
   createdAt: string;
 }
 
-interface Configuracao {
-  id?: string;
-  nomeLoja: string;
-  endereco: string;
-  telefone: string;
-  cnpj: string;
-  mensagemWhatsApp?: string | null;
-}
-
 export default function EntregasLista() {
   const { toast } = useToast();
 
@@ -66,15 +67,11 @@ export default function EntregasLista() {
   const [loading, setLoading] = useState(true);
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [config, setConfig] = useState<Configuracao | null>(null);
-
-  // Carregar configurações
-  useEffect(() => {
-    fetch('/api/configuracao')
-      .then(res => res.json())
-      .then(setConfig)
-      .catch(console.error);
-  }, []);
+  
+  // Diálogo de confirmação de finalização
+  const [dialogFinalizarOpen, setDialogFinalizarOpen] = useState(false);
+  const [pedidoParaFinalizar, setPedidoParaFinalizar] = useState<Pedido | null>(null);
+  const [finalizando, setFinalizando] = useState(false);
 
   // Carregar pedidos TELE_ENTREGA pendentes
   const carregarPedidos = async () => {
@@ -83,6 +80,13 @@ export default function EntregasLista() {
       // Buscar pedidos pendentes de entrega (TELE_ENTREGA e não ENTREGUE)
       const res = await fetch('/api/pedidos?limite=100');
       const data = await res.json();
+
+      // Verificar se a resposta é um array
+      if (!Array.isArray(data)) {
+        console.error('API retornou erro:', data);
+        setPedidos([]);
+        return;
+      }
 
       // Filtrar apenas TELE_ENTREGA que não foram entregues
       const pedidosEntrega = data.filter((p: Pedido) =>
@@ -94,6 +98,7 @@ export default function EntregasLista() {
       setPedidos(pedidosEntrega);
     } catch (error) {
       console.error('Erro ao carregar pedidos:', error);
+      setPedidos([]);
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar os pedidos.',
@@ -142,14 +147,24 @@ export default function EntregasLista() {
     setDialogOpen(true);
   };
 
-  // Marcar como entregue
+  // Marcar como entregue (com confirmação)
   const handleMarcarEntregue = async (pedido: Pedido) => {
+    setPedidoParaFinalizar(pedido);
+    setDialogFinalizarOpen(true);
+  };
+  
+  // Confirmar finalização do pedido
+  const handleConfirmarFinalizacao = async () => {
+    if (!pedidoParaFinalizar) return;
+    
+    setFinalizando(true);
+    
     try {
       const response = await fetch('/api/pedidos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: pedido.id,
+          id: pedidoParaFinalizar.id,
           status: 'ENTREGUE',
         }),
       });
@@ -157,14 +172,16 @@ export default function EntregasLista() {
       const pedidoAtualizado = await response.json();
 
       // Remover da lista de entregas
-      setPedidos(prev => prev.filter(p => p.id !== pedido.id));
+      setPedidos(prev => prev.filter(p => p.id !== pedidoParaFinalizar.id));
+      
+      setDialogFinalizarOpen(false);
+      setDialogOpen(false);
+      setPedidoParaFinalizar(null);
 
       toast({
-        title: 'Pedido entregue!',
-        description: `Pedido #${formatarNumeroPedido(pedido.numero)} marcado como entregue.`,
+        title: 'Pedido finalizado!',
+        description: `Pedido #${formatarNumeroPedido(pedidoParaFinalizar.numero)} marcado como ENTREGUE.`,
       });
-
-      setDialogOpen(false);
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       toast({
@@ -172,26 +189,43 @@ export default function EntregasLista() {
         description: 'Não foi possível atualizar o status.',
         variant: 'destructive',
       });
+    } finally {
+      setFinalizando(false);
     }
   };
 
-  // Abrir WhatsApp
-  const handleAbrirWhatsApp = (pedido: Pedido) => {
-    // Limpar telefone (remover caracteres não numéricos)
-    const telefone = pedido.cliente.telefone.replace(/\D/g, '');
-    // Adicionar código do Brasil se necessário
-    const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
-
-    // Substituir variáveis na mensagem
-    let mensagem = config?.mensagemWhatsApp || 'Olá {nome}! Seu pedido está pronto para entrega.';
-    mensagem = mensagem.replace('{nome}', pedido.cliente.nome);
-    mensagem = mensagem.replace('{pedido}', formatarNumeroPedido(pedido.numero));
-
-    // Codificar mensagem para URL
-    const mensagemCodificada = encodeURIComponent(mensagem);
-
-    // Abrir WhatsApp
-    window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
+  // Abrir no Google Maps
+  const handleAbrirMapa = (pedido: Pedido) => {
+    // Construir endereço completo
+    let endereco = '';
+    
+    if (pedido.enderecoEntrega) {
+      endereco = pedido.enderecoEntrega;
+      if (pedido.bairroEntrega) {
+        endereco += `, ${pedido.bairroEntrega}`;
+      }
+    } else if (pedido.cliente.endereco) {
+      endereco = pedido.cliente.endereco;
+      if (pedido.cliente.bairro) {
+        endereco += `, ${pedido.cliente.bairro}`;
+      }
+    }
+    
+    if (!endereco) {
+      toast({
+        title: 'Endereço não disponível',
+        description: 'Este pedido não possui endereço cadastrado.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Adicionar cidade para melhor precisão (Paulista-PE)
+    endereco += ', Paulista - PE';
+    
+    // Abrir Google Maps com o endereço
+    const enderecoCodificado = encodeURIComponent(endereco);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoCodificado}`, '_blank');
   };
 
   return (
@@ -279,11 +313,11 @@ export default function EntregasLista() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleAbrirWhatsApp(pedido)}
-                        className="h-9 text-green-600 border-green-300 hover:bg-green-50"
+                        onClick={() => handleAbrirMapa(pedido)}
+                        className="h-9 w-9 p-0 text-blue-600 border-blue-300 hover:bg-blue-50"
+                        title="Ver no Mapa"
                       >
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        WhatsApp
+                        <Navigation className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="outline"
@@ -338,10 +372,21 @@ export default function EntregasLista() {
 
               {/* Endereço de Entrega */}
               <div className="bg-muted/30 rounded-lg p-3">
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Endereço de Entrega
-                </h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Endereço de Entrega
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAbrirMapa(pedidoSelecionado)}
+                    className="h-7 text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <Navigation className="w-3 h-3 mr-1" />
+                    Mapa
+                  </Button>
+                </div>
                 <p className="text-sm">
                   {pedidoSelecionado.enderecoEntrega}
                   {pedidoSelecionado.bairroEntrega && ` - ${pedidoSelecionado.bairroEntrega}`}
@@ -400,14 +445,6 @@ export default function EntregasLista() {
               {/* Ações */}
               <div className="flex gap-2 pt-2">
                 <Button
-                  variant="outline"
-                  className="flex-1 text-green-600 border-green-300 hover:bg-green-50"
-                  onClick={() => handleAbrirWhatsApp(pedidoSelecionado)}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  WhatsApp
-                </Button>
-                <Button
                   className="flex-1 btn-padaria"
                   onClick={() => handleMarcarEntregue(pedidoSelecionado)}
                 >
@@ -419,6 +456,46 @@ export default function EntregasLista() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Confirmação de Finalização */}
+      <AlertDialog open={dialogFinalizarOpen} onOpenChange={setDialogFinalizarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="w-5 h-5" />
+              Confirmar Finalização
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left">
+              Você está prestes a marcar o pedido <strong>#{pedidoParaFinalizar && formatarNumeroPedido(pedidoParaFinalizar.numero)}</strong> como <strong>ENTREGUE</strong>.
+              <br /><br />
+              <span className="text-amber-600 font-medium">⚠️ Atenção:</span> Após a finalização, o pedido não poderá mais ser editado.
+              <br /><br />
+              Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={finalizando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarFinalizacao}
+              disabled={finalizando}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {finalizando ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Finalizando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Sim, Finalizar Pedido
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -27,7 +27,7 @@ export type PedidoCompleto = {
   status?: string;
   impresso?: boolean;
   tipoEntrega: string;
-  dataEntrega: string;
+  dataEntrega: string | null | undefined;  // Pode ser null se não preenchido
   horarioEntrega?: string | null;
   enderecoEntrega: string | null;
   bairroEntrega: string | null;
@@ -176,11 +176,26 @@ export function gerarCupomCliente(
   }
   linhas.push(linhaDivisoria('-'));
   
-  // === TIPO DE ENTREGA (dados do pedido) ===
+  // === TIPO DE ENTREGA (dados do pedido) - SEMPRE MOSTRAR ===
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
-  if (pedido.dataEntrega) {
-    linhas.push(`DATA: ${formatarDataEntrega(pedido.dataEntrega)}`);
+  
+  // ====== DATA DE ENTREGA/RETIRADA - SEMPRE MOSTRAR ======
+  let dataParaMostrar = '';
+  let horarioParaMostrar = '';
+  
+  if (pedido.dataEntrega && pedido.dataEntrega.length > 0) {
+    dataParaMostrar = formatarDataEntrega(pedido.dataEntrega);
+    horarioParaMostrar = pedido.horarioEntrega || '';
+  } else {
+    // Fallback: usar data de criação do pedido
+    dataParaMostrar = dataFormatada;
+  }
+  
+  if (horarioParaMostrar) {
+    linhas.push(`DATA: ${dataParaMostrar} - HORARIO: ${horarioParaMostrar}`);
+  } else {
+    linhas.push(`DATA: ${dataParaMostrar}`);
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -272,13 +287,27 @@ export function gerarCupomCozinha(
   linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
   linhas.push(linhaDivisoria('='));
   
-  // Tipo de entrega com data e horário
+  // Tipo de entrega com data e horário - SEMPRE MOSTRAR
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
-  if (pedido.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(pedido.dataEntrega);
-    const horario = pedido.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+  
+  // ====== DATA DE ENTREGA/RETIRADA - SEMPRE MOSTRAR ======
+  let dataParaMostrar = '';
+  let horarioParaMostrar = '';
+  
+  if (pedido.dataEntrega && pedido.dataEntrega.length > 0) {
+    dataParaMostrar = formatarDataEntrega(pedido.dataEntrega);
+    horarioParaMostrar = pedido.horarioEntrega || '';
+  } else {
+    // Fallback: usar data de criação do pedido
+    const dataCriacao = new Date(pedido.createdAt);
+    dataParaMostrar = dataCriacao.toLocaleDateString('pt-BR');
+  }
+  
+  if (horarioParaMostrar) {
+    linhas.push(`DATA: ${dataParaMostrar} - HORARIO: ${horarioParaMostrar}`);
+  } else {
+    linhas.push(`DATA: ${dataParaMostrar}`);
   }
   linhas.push(linhaDivisoria('-'));
   
@@ -321,6 +350,8 @@ export function gerarCupomCozinha(
 /**
  * Gera versão com "fonte grande" para comanda de cozinha
  * Formato simples: QTD x PRODUTO
+ * Fonte dos itens aumentada para melhor visualização
+ * v3 - Com logs de debug
  */
 export function gerarCupomCozinhaGrande(
   pedido: PedidoCompleto,
@@ -328,28 +359,54 @@ export function gerarCupomCozinhaGrande(
 ): string {
   const linhas: string[] = [];
   
+  // CABEÇALHO
   linhas.push(linhaDivisoria('='));
   linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
   linhas.push(linhaDivisoria('='));
   
-  // Tipo de entrega com data e horário
+  // ====== TIPO DE ENTREGA - SEMPRE MOSTRAR ======
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
   const entregaStr = tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA';
-  const dataEntrega = pedido.dataEntrega ? formatarDataEntrega(pedido.dataEntrega) : '';
-  const horario = pedido.horarioEntrega || '';
   
-  linhas.push(`ENTREGA: ${entregaStr}`);
-  if (dataEntrega) {
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+  // Log para debug
+  console.log('=== COMANDA COZINHA DEBUG ===');
+  console.log('tipoEntrega:', tipoEntrega);
+  console.log('dataEntrega:', pedido.dataEntrega);
+  console.log('horarioEntrega:', pedido.horarioEntrega);
+  
+  linhas.push('ENTREGA: ' + entregaStr);
+  
+  // ====== DATA DE ENTREGA/RETIRADA - SEMPRE MOSTRAR ======
+  let dataParaMostrar = '';
+  let horarioParaMostrar = '';
+  
+  if (pedido.dataEntrega && String(pedido.dataEntrega).length > 0) {
+    dataParaMostrar = formatarDataEntrega(String(pedido.dataEntrega));
+    horarioParaMostrar = pedido.horarioEntrega ? String(pedido.horarioEntrega) : '';
+    console.log('Usando dataEntrega:', dataParaMostrar);
+  } else {
+    // Fallback: usar data de criação do pedido
+    const dataCriacao = new Date(pedido.createdAt);
+    dataParaMostrar = dataCriacao.toLocaleDateString('pt-BR');
+    console.log('Usando dataCriacao como fallback:', dataParaMostrar);
   }
+  
+  // Montar linha de data - SEMPRE ADICIONAR
+  if (horarioParaMostrar && horarioParaMostrar.length > 0) {
+    linhas.push('DATA: ' + dataParaMostrar + ' - HORARIO: ' + horarioParaMostrar);
+  } else {
+    linhas.push('DATA: ' + dataParaMostrar);
+  }
+  
   linhas.push(linhaDivisoria('-'));
   
-  // Cliente e telefone
-  linhas.push(`CLIENTE: ${pedido.cliente.nome.toUpperCase()}`);
-  linhas.push(`FONE: ${formatarTelefone(pedido.cliente.telefone)}`);
+  // CLIENTE
+  linhas.push('CLIENTE: ' + pedido.cliente.nome.toUpperCase());
+  linhas.push('TELEFONE: ' + formatarTelefone(pedido.cliente.telefone));
   linhas.push(linhaDivisoria('-'));
   
-  // Itens
+  // ITENS
+  linhas.push('ITENS:');
   for (const item of pedido.itens) {
     const qtdProd = item.quantidadePedida || item.quantidade;
     
@@ -359,34 +416,40 @@ export function gerarCupomCozinhaGrande(
       const kgStr = kg % 1 === 0 
         ? kg.toString() 
         : kg.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
-      qtdStr = `${kgStr}kg`;
+      qtdStr = kgStr + ' KG';
     } else {
-      qtdStr = `${Math.round(qtdProd)}x`;
+      qtdStr = Math.round(qtdProd) + ' UN';
     }
     
     const produto = item.produto.nome.toUpperCase();
-    linhas.push(`${qtdStr.padEnd(8)}${produto}`);
+    linhas.push(' > ' + qtdStr + ' ' + produto);
     
     if (item.observacao) {
-      linhas.push(`   OBS: ${truncar(item.observacao.toUpperCase(), LARGURA_PAPEL - 8)}`);
+      linhas.push('   OBS: ' + truncar(item.observacao.toUpperCase(), LARGURA_PAPEL - 8));
     }
   }
   
   linhas.push(linhaDivisoria('-'));
   
+  // OBSERVAÇÕES GERAIS
   if (pedido.observacoes) {
-    linhas.push(`OBS: ${truncar(pedido.observacoes.toUpperCase(), LARGURA_PAPEL - 5)}`);
+    linhas.push('OBS: ' + truncar(pedido.observacoes.toUpperCase(), LARGURA_PAPEL - 5));
     linhas.push(linhaDivisoria('-'));
   }
   
   linhas.push(linhaDivisoria('='));
   linhas.push('');
   
-  return linhas.join('\n');
+  const resultado = linhas.join('\n');
+  console.log('=== COMANDA RESULTADO ===');
+  console.log(resultado);
+  
+  return resultado;
 }
 
 /**
  * Abre diálogo de impressão do navegador
+ * Fonte aumentada para melhor visualização dos itens
  */
 export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): void {
   const janela = window.open('', '_blank', 'width=320,height=600');
@@ -399,17 +462,18 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
           <style>
             body {
               font-family: 'Courier New', monospace;
-              font-size: 12px;
-              line-height: 1.4;
+              font-size: 15px;
+              line-height: 1.6;
               margin: 0;
               padding: 5px;
             }
             pre {
               white-space: pre-wrap;
               margin: 0;
+              font-size: 15px;
             }
             @media print {
-              body { padding: 0; font-size: 11px; }
+              body { padding: 0; font-size: 14px; }
               @page { margin: 0; size: 80mm auto; }
             }
           </style>
@@ -470,7 +534,7 @@ export type OrcamentoCompleto = {
   observacoes?: string | null;
   total: number;
   tipoEntrega: string;
-  dataEntrega: string;
+  dataEntrega: string | null | undefined;  // Pode ser null se não preenchido
   horarioEntrega?: string | null;
   enderecoEntrega?: string | null;
   bairroEntrega?: string | null;
@@ -506,13 +570,26 @@ export function gerarCupomOrcamento(
   }
   linhas.push(linhaDivisoria('-'));
   
-  // === TIPO DE ENTREGA ===
+  // === TIPO DE ENTREGA - SEMPRE MOSTRAR ===
   const tipoEntrega = orcamento.tipoEntrega || 'RETIRA';
   linhas.push(`ENTREGA: ${tipoEntrega === 'RETIRA' ? 'CLIENTE RETIRA' : 'TELE ENTREGA'}`);
-  if (orcamento.dataEntrega) {
-    const dataEntrega = formatarDataEntrega(orcamento.dataEntrega);
-    const horario = orcamento.horarioEntrega || '';
-    linhas.push(`DATA: ${dataEntrega}${horario ? ` - HORARIO: ${horario}` : ''}`);
+  
+  // ====== DATA DE ENTREGA/RETIRADA - SEMPRE MOSTRAR ======
+  let dataParaMostrar = '';
+  let horarioParaMostrar = '';
+  
+  if (orcamento.dataEntrega && orcamento.dataEntrega.length > 0) {
+    dataParaMostrar = formatarDataEntrega(orcamento.dataEntrega);
+    horarioParaMostrar = orcamento.horarioEntrega || '';
+  } else {
+    // Fallback: usar data de criação do orçamento
+    dataParaMostrar = dataFormatada;
+  }
+  
+  if (horarioParaMostrar) {
+    linhas.push(`DATA: ${dataParaMostrar} - HORARIO: ${horarioParaMostrar}`);
+  } else {
+    linhas.push(`DATA: ${dataParaMostrar}`);
   }
   linhas.push(linhaDivisoria('-'));
   

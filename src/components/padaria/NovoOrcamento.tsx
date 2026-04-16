@@ -7,14 +7,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock,
-  Package, Scale, Hash, Trash2, FileText, X
+  Package, Scale, Hash, Trash2, FileText, X, DollarSign, LayoutGrid, List, ShoppingCart, Edit2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -28,6 +26,81 @@ import { useOrcamentoStore } from '@/store/useOrcamentoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
+import { ordenarItensPorCategoria } from '@/lib/escpos';
+
+// ============================================
+// ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
+// 1. TORTAS ESPECIAIS (0)
+// 2. TORTAS (1)
+// 3. SALGADINHOS (2)
+// 4. SALGADOS (3)
+// 5. DOCINHOS (4)
+// 6. DOCES (5)
+// 7. BEBIDAS (6)
+// 8. OUTROS (99)
+// ============================================
+const ORDEM_CATEGORIAS: Record<string, number> = {
+  // 1. TORTAS ESPECIAIS
+  'Tortas Especiais': 0,
+  'TORTAS ESPECIAIS': 0,
+  'Torta Especial': 0,
+  'TORTA ESPECIAL': 0,
+  
+  // 2. TORTAS
+  'Tortas': 1,
+  'TORTAS': 1,
+  'Torta': 1,
+  'TORTA': 1,
+  
+  // 3. SALGADINHOS
+  'Salgadinhos': 2,
+  'SALGADINHOS': 2,
+  'Salgadinho': 2,
+  'SALGADINHO': 2,
+  
+  // 4. SALGADOS
+  'Salgados': 3,
+  'SALGADOS': 3,
+  'Salgado': 3,
+  'SALGADO': 3,
+  
+  // 5. DOCINHOS
+  'Docinhos': 4,
+  'DOCINHOS': 4,
+  'Docinho': 4,
+  'DOCINHO': 4,
+  
+  // 6. DOCES
+  'Doces': 5,
+  'DOCES': 5,
+  'Doce': 5,
+  'DOCE': 5,
+  
+  // 7. BEBIDAS
+  'Bebidas': 6,
+  'BEBIDAS': 6,
+  'Bebida': 6,
+  'BEBIDA': 6,
+  
+  // 8. OUTROS
+  'Outros': 99,
+  'OUTROS': 99,
+  'Outro': 99,
+  'OUTRO': 99,
+};
+
+// Função para obter ordem de uma categoria
+function obterOrdemCategoria(categoria: string): number {
+  return ORDEM_CATEGORIAS[categoria] ?? ORDEM_CATEGORIAS[categoria.toUpperCase()] ?? 99;
+}
+
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 interface Cliente {
   id: string;
@@ -61,9 +134,8 @@ const HORARIOS_COMERCIAIS = [
   '19:00', '19:30', '20:00', '20:30', '21:00'
 ];
 
-// Opções de KG - mais compactas
+// Opções de KG - mais compactas (sem opção 0)
 const OPCOES_KG = [
-  { valor: 0, label: 'Qtd' },
   { valor: 0.5, label: '500g' },
   { valor: 1.0, label: '1kg' },
   { valor: 1.5, label: '1.5kg' },
@@ -83,7 +155,7 @@ export default function NovoOrcamento() {
   const { 
     cliente, setCliente, clearCliente,
     entrega, setEntrega,
-    itens, adicionarItem, removerItem, 
+    itens, adicionarItem, removerItem, atualizarItem,
     observacoes, setObservacoes,
     total,
     resetOrcamento
@@ -109,6 +181,7 @@ export default function NovoOrcamento() {
   const [horarioEntrega, setHorarioEntrega] = useState('');
   const [enderecoEntrega, setEnderecoEntrega] = useState('');
   const [bairroEntrega, setBairroEntrega] = useState('');
+  const [valorTeleEntrega, setValorTeleEntrega] = useState('');
   const [observacoesTexto, setObservacoesTexto] = useState('');
   
   // Estados de controle
@@ -117,6 +190,17 @@ export default function NovoOrcamento() {
   
   // Estado unificado para seleções - mais eficiente
   const [selecoes, setSelecoes] = useState<Record<string, {quantidade: number, tamanho?: string, observacao?: string}>>({});
+  
+  // Modo de visualização: lista ou grade compacta (lista é o padrão)
+  const [modoVisualizacao, setModoVisualizacao] = useState<'lista' | 'grade'>('lista');
+  
+  // Estado do Sheet do carrinho (mobile)
+  const [carrinhoAberto, setCarrinhoAberto] = useState(false);
+  
+  // Estado para edição de item (tamanho/observação)
+  const [editandoItem, setEditandoItem] = useState<number | null>(null);
+  const [novoTamanho, setNovoTamanho] = useState<string>('');
+  const [novaObservacao, setNovaObservacao] = useState<string>('');
 
   // Carregar produtos
   useEffect(() => {
@@ -183,10 +267,12 @@ export default function NovoOrcamento() {
     return () => clearTimeout(timeout);
   }, [buscaCliente]);
 
-  // Categorias únicas
+  // Categorias únicas ORDENADAS
   const categorias = useMemo(() => {
-    const cats = new Set(produtos.map(p => p.categoria || 'Outros'));
-    return ['Todos', ...Array.from(cats)];
+    const cats = Array.from(new Set(produtos.map(p => p.categoria || 'Outros')));
+    // Ordenar pela ordem definida
+    const catsOrdenadas = cats.sort((a, b) => obterOrdemCategoria(a) - obterOrdemCategoria(b));
+    return ['Todos', ...catsOrdenadas];
   }, [produtos]);
 
   // Filtrar produtos - otimizado
@@ -200,7 +286,7 @@ export default function NovoOrcamento() {
     });
   }, [produtos, buscaProduto, categoriaAtiva]);
 
-  // Agrupar por categoria
+  // Agrupar por categoria ORDENADO
   const produtosPorCategoria = useMemo(() => {
     if (categoriaAtiva !== 'Todos') {
       return { [categoriaAtiva]: produtosFiltrados };
@@ -211,7 +297,18 @@ export default function NovoOrcamento() {
       if (!grupos[cat]) grupos[cat] = [];
       grupos[cat].push(produto);
     });
-    return grupos;
+    
+    // Ordenar as categorias pela ordem definida
+    const categoriasOrdenadas = Object.keys(grupos).sort((a, b) => {
+      return obterOrdemCategoria(a) - obterOrdemCategoria(b);
+    });
+    
+    const gruposOrdenados: Record<string, Produto[]> = {};
+    categoriasOrdenadas.forEach(cat => {
+      gruposOrdenados[cat] = grupos[cat];
+    });
+    
+    return gruposOrdenados;
   }, [produtosFiltrados, categoriaAtiva]);
 
   // Handlers do cliente
@@ -264,12 +361,12 @@ export default function NovoOrcamento() {
       bairro: clienteSelecionadoLocal.bairro,
     });
     
-    setEntrega({ tipoEntrega, dataEntrega, horarioEntrega, enderecoEntrega, bairroEntrega });
+    setEntrega({ tipoEntrega, dataEntrega, horarioEntrega, enderecoEntrega, bairroEntrega, valorTeleEntrega: parseFloat(valorTeleEntrega.replace(',', '.')) || 0 });
     setEtapa('produtos');
   };
 
   // Atualizar seleção - função unificada
-  const atualizarSelecao = useCallback((produtoId: string, dados: Partial<{quantidade: number, tamanho: string}>) => {
+  const atualizarSelecao = useCallback((produtoId: string, dados: Partial<{quantidade: number, tamanho: string, observacao: string}>) => {
     setSelecoes(prev => ({
       ...prev,
       [produtoId]: { ...prev[produtoId], ...dados }
@@ -295,7 +392,11 @@ export default function NovoOrcamento() {
         return;
       }
 
-      const preco = produto.precosTamanhos?.[selecao.tamanho] || produto.valorUnit;
+      const precoTamanho = produto.precosTamanhos?.[selecao.tamanho];
+      // Garantir que o preço é um número válido
+      const preco = (precoTamanho !== undefined && precoTamanho !== null && !isNaN(precoTamanho) && precoTamanho > 0)
+        ? precoTamanho
+        : produto.valorUnit;
       
       adicionarItem({
         produtoId: produto.id,
@@ -306,6 +407,7 @@ export default function NovoOrcamento() {
         subtotal: preco,
         tamanho: selecao.tamanho,
         observacao: selecao.observacao || undefined,
+        categoria: produto.categoria,
       });
 
       limparSelecao(produto.id);
@@ -328,11 +430,20 @@ export default function NovoOrcamento() {
       valorUnit: produto.valorUnit,
       tipoVenda: produto.tipoVenda,
       subtotal: Math.round(subtotal * 100) / 100,
+      categoria: produto.categoria,
     });
 
     limparSelecao(produto.id);
     toast({ title: 'Adicionado!', description: `${produto.nome}` });
   }, [selecoes, adicionarItem, limparSelecao, toast]);
+
+  // Calcular total com taxa de entrega
+  const totalComTaxa = useMemo(() => {
+    const taxa = entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0
+      ? entrega.valorTeleEntrega
+      : 0;
+    return total + taxa;
+  }, [total, entrega.tipoEntrega, entrega.valorTeleEntrega]);
 
   // Salvar orçamento
   const handleSalvarOrcamento = async () => {
@@ -362,12 +473,13 @@ export default function NovoOrcamento() {
             tamanho: item.tamanho,
           })),
           observacoes: observacoesTexto,
-          total,
+          total: totalComTaxa,
           tipoEntrega: entrega.tipoEntrega,
           dataEntrega: entrega.dataEntrega,
           horarioEntrega: entrega.horarioEntrega,
           enderecoEntrega: entrega.enderecoEntrega,
           bairroEntrega: entrega.bairroEntrega,
+          valorTeleEntrega: entrega.valorTeleEntrega || null,
         }),
       });
 
@@ -390,114 +502,299 @@ export default function NovoOrcamento() {
 
   const dataMinima = new Date().toISOString().split('T')[0];
 
-  // Renderizar linha do produto - memoizado
-  const renderProdutoLinha = useCallback((produto: Produto) => {
+  // Função para obter preços de tamanho do produto
+  const obterPrecosTamanhos = useCallback((produtoId: string): Record<string, number> | null => {
+    const produto = produtos.find(p => p.id === produtoId);
+    return produto?.precosTamanhos || null;
+  }, [produtos]);
+
+  // Função para iniciar edição de item
+  const handleEditarItem = useCallback((index: number) => {
+    const item = itens[index];
+    if (item && item.tamanho) {
+      setEditandoItem(index);
+      setNovoTamanho(item.tamanho);
+      setNovaObservacao(item.observacao || '');
+    }
+  }, [itens]);
+
+  // Função para salvar edição do item
+  const handleSalvarEdicao = useCallback((index: number) => {
+    const item = itens[index];
+    if (!item) return;
+
+    const precos = obterPrecosTamanhos(item.produtoId);
+    let novoValorUnit = item.valorUnit;
+    let novoSubtotal = item.subtotal;
+
+    // Se mudou o tamanho, atualizar preço
+    if (novoTamanho && novoTamanho !== item.tamanho && precos) {
+      const novoPreco = precos[novoTamanho];
+      if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
+        novoValorUnit = novoPreco;
+        novoSubtotal = novoPreco; // Para tortas, quantidade é sempre 1
+      }
+    }
+
+    // Atualizar nome se tamanho mudou
+    const novoNome = novoTamanho !== item.tamanho 
+      ? item.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`)
+      : item.nome;
+
+    atualizarItem(index, {
+      nome: novoNome,
+      tamanho: novoTamanho,
+      observacao: novaObservacao || undefined,
+      valorUnit: novoValorUnit,
+      subtotal: novoSubtotal,
+    });
+
+    setEditandoItem(null);
+    setNovoTamanho('');
+    setNovaObservacao('');
+
+    toast({ title: 'Item atualizado!' });
+  }, [itens, novoTamanho, novaObservacao, obterPrecosTamanhos, atualizarItem, toast]);
+
+  // Função para cancelar edição
+  const handleCancelarEdicao = useCallback(() => {
+    setEditandoItem(null);
+    setNovoTamanho('');
+    setNovaObservacao('');
+  }, []);
+
+  // Renderizar card COMPACTO para grade (4 por linha) - OTIMIZADO PARA CLIQUE
+  const renderProdutoCardCompacto = useCallback((produto: Produto) => {
     const selecao = selecoes[produto.id] || {};
     const temSelecao = produto.tipoProduto === 'ESPECIAL' 
       ? !!selecao.tamanho 
       : (selecao.quantidade && selecao.quantidade > 0);
     
-    const subtotal = produto.tipoProduto === 'ESPECIAL' && selecao.tamanho
-      ? produto.precosTamanhos?.[selecao.tamanho] || 0
-      : (selecao.quantidade || 0) * produto.valorUnit;
+    return (
+      <div 
+        key={produto.id}
+        className="p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col"
+      >
+        {/* Nome - truncado */}
+        <div className="text-xs font-medium truncate mb-0.5" title={produto.nome}>
+          {produto.nome}
+        </div>
+        
+        {/* Preço compacto */}
+        <div className="text-[11px] text-primary font-semibold mb-1.5">
+          {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+            <span className="truncate block">
+              {Object.entries(produto.precosTamanhos)
+                .filter(([tam, preco]) => {
+                  const tamanhosValidos = ['PP', 'P', 'M', 'G'];
+                  return tamanhosValidos.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                })
+                .sort((a, b) => ['PP', 'P', 'M', 'G'].indexOf(a[0]) - ['PP', 'P', 'M', 'G'].indexOf(b[0]))
+                .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
+                .join(' ')}
+            </span>
+          ) : (
+            <span>{formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}</span>
+          )}
+        </div>
+
+        {/* Seletor compacto - TAMANHO MAIOR PARA FACILITAR CLIQUE */}
+        <div className="flex items-center gap-1.5">
+          {produto.tipoProduto === 'ESPECIAL' ? (
+            <div className="flex gap-1 flex-1">
+              {['PP', 'P', 'M', 'G']
+                .filter(tam => {
+                  const temTamanho = produto.tamanhos?.includes(tam);
+                  const preco = produto.precosTamanhos?.[tam];
+                  const temPrecoValido = preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                  return temTamanho && temPrecoValido;
+                })
+                .map(tam => (
+                  <Button
+                    key={tam}
+                    type="button"
+                    variant={selecao.tamanho === tam ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-8 w-8 p-0 text-xs font-bold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
+                    onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
+                  >
+                    {tam}
+                  </Button>
+                ))}
+            </div>
+          ) : produto.tipoVenda === 'KG' ? (
+            <Select
+              value={selecao.quantidade?.toString() || ''}
+              onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) })}
+            >
+              <SelectTrigger className="h-8 flex-1 text-xs px-2">
+                <SelectValue placeholder="Qtd" />
+              </SelectTrigger>
+              <SelectContent className="max-h-48">
+                {OPCOES_KG.map((opcao) => (
+                  <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-sm">
+                    {opcao.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Qtd"
+              className="h-8 flex-1 text-xs text-center px-2"
+              value={selecao.quantidade || ''}
+              onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
+            />
+          )}
+
+          {/* Botão adicionar - MAIOR E MAIS VISÍVEL */}
+          <Button
+            onClick={() => handleAdicionarProduto(produto)}
+            className="h-8 w-8 p-0 btn-padaria shrink-0"
+            disabled={!temSelecao}
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        {/* Campo observação para torta especial quando tamanho selecionado */}
+        {produto.tipoProduto === 'ESPECIAL' && selecao.tamanho && (
+          <Input
+            placeholder="Obs..."
+            className="h-7 text-[10px] mt-1.5 px-2"
+            value={selecao.observacao || ''}
+            onChange={(e) => atualizarSelecao(produto.id, { observacao: e.target.value })}
+          />
+        )}
+      </div>
+    );
+  }, [selecoes, atualizarSelecao, handleAdicionarProduto]);
+
+  // Renderizar card do produto - memoizado
+  const renderProdutoCard = useCallback((produto: Produto) => {
+    const selecao = selecoes[produto.id] || {};
+    const temSelecao = produto.tipoProduto === 'ESPECIAL' 
+      ? !!selecao.tamanho 
+      : (selecao.quantidade && selecao.quantidade > 0);
+    
+    // Calcular subtotal com verificação de preço válido
+    let subtotal = 0;
+    if (produto.tipoProduto === 'ESPECIAL' && selecao.tamanho) {
+      const precoTamanho = produto.precosTamanhos?.[selecao.tamanho];
+      subtotal = (precoTamanho !== undefined && precoTamanho !== null && !isNaN(precoTamanho) && precoTamanho > 0)
+        ? precoTamanho
+        : 0;
+    } else {
+      subtotal = (selecao.quantidade || 0) * produto.valorUnit;
+    }
 
     return (
       <div 
         key={produto.id}
-        className="p-2 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
+        className="p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          {/* Nome e preço */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm truncate">{produto.nome}</span>
-              {produto.tipoProduto === 'ESPECIAL' ? (
-                <Badge className="text-[10px] px-1 py-0 h-4 bg-primary text-primary-foreground">Torta</Badge>
-              ) : (
-                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
-                  {produto.tipoVenda === 'KG' ? <Scale className="w-3 h-3 mr-0.5" /> : <Hash className="w-3 h-3 mr-0.5" />}
-                  {produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                </Badge>
-              )}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
-                <span className="text-primary font-medium">
-                  {Object.entries(produto.precosTamanhos)
-                    .filter(([, preco]) => preco)
-                    .sort((a, b) => ['P', 'M', 'G', 'GG'].indexOf(a[0]) - ['P', 'M', 'G', 'GG'].indexOf(b[0]))
-                    .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
-                    .join(' ')}
-                </span>
-              ) : (
-                <span className="text-primary font-semibold">{formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}</span>
-              )}
-            </div>
-          </div>
-
-          {/* Seletor */}
-          <div className="flex items-center gap-1 shrink-0">
+        {/* Nome e preço */}
+        <div className="mb-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm truncate flex-1">{produto.nome}</span>
             {produto.tipoProduto === 'ESPECIAL' ? (
-              <>
-                {['P', 'M', 'G', 'GG']
-                  .filter(tam => produto.tamanhos?.includes(tam))
-                  .map(tam => (
-                    <Button
-                      key={tam}
-                      type="button"
-                      variant={selecao.tamanho === tam ? 'default' : 'outline'}
-                      size="sm"
-                      className={`h-7 w-7 p-0 text-xs ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
-                      onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
-                    >
-                      {tam}
-                    </Button>
-                  ))}
-              </>
-            ) : produto.tipoVenda === 'KG' ? (
-              <Select
-                value={selecao.quantidade?.toString() || '0'}
-                onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
-              >
-                <SelectTrigger className="h-7 w-20 text-xs">
-                  <SelectValue placeholder="Qtd" />
-                </SelectTrigger>
-                <SelectContent className="max-h-48">
-                  {OPCOES_KG.map((opcao) => (
-                    <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-xs">
-                      {opcao.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Badge className="text-[10px] px-1.5 py-0.5 h-5 bg-primary text-primary-foreground">Torta</Badge>
             ) : (
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                placeholder="Qtd"
-                className="h-7 w-16 text-xs text-center"
-                value={selecao.quantidade || ''}
-                onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
-              />
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 h-5">
+                {produto.tipoVenda === 'KG' ? <Scale className="w-3 h-3 mr-0.5" /> : <Hash className="w-3 h-3 mr-0.5" />}
+                {produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+              </Badge>
             )}
-
-            {/* Botão adicionar */}
-            <Button
-              onClick={() => handleAdicionarProduto(produto)}
-              className="h-7 w-7 p-0 btn-padaria shrink-0"
-              disabled={!temSelecao}
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
           </div>
+          <div className="text-sm text-muted-foreground">
+            {produto.tipoProduto === 'ESPECIAL' && produto.precosTamanhos ? (
+              <span className="text-primary font-medium">
+                {Object.entries(produto.precosTamanhos)
+                  .filter(([tam, preco]) => {
+                    // Filtrar apenas tamanhos válidos (PP, P, M, G) e preços válidos
+                    const tamanhosValidos = ['PP', 'P', 'M', 'G'];
+                    return tamanhosValidos.includes(tam) && preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                  })
+                  .sort((a, b) => ['PP', 'P', 'M', 'G'].indexOf(a[0]) - ['PP', 'P', 'M', 'G'].indexOf(b[0]))
+                  .map(([tam, preco]) => `${tam}:${formatarMoeda(preco)}`)
+                  .join(' ')}
+              </span>
+            ) : (
+              <span className="text-primary font-semibold text-base">{formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Seletor */}
+        <div className="flex items-center gap-2">
+          {produto.tipoProduto === 'ESPECIAL' ? (
+            <div className="flex items-center gap-1 flex-1">
+              {['PP', 'P', 'M', 'G']
+                .filter(tam => {
+                  const temTamanho = produto.tamanhos?.includes(tam);
+                  const preco = produto.precosTamanhos?.[tam];
+                  const temPrecoValido = preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                  return temTamanho && temPrecoValido;
+                })
+                .map(tam => (
+                  <Button
+                    key={tam}
+                    type="button"
+                    variant={selecao.tamanho === tam ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-10 w-10 p-0 text-sm font-semibold ${selecao.tamanho === tam ? 'btn-padaria' : ''}`}
+                    onClick={() => atualizarSelecao(produto.id, { tamanho: selecao.tamanho === tam ? undefined : tam })}
+                  >
+                    {tam}
+                  </Button>
+                ))}
+            </div>
+          ) : produto.tipoVenda === 'KG' ? (
+            <Select
+              value={selecao.quantidade?.toString() || '0'}
+              onValueChange={(value) => atualizarSelecao(produto.id, { quantidade: parseFloat(value) || 0 })}
+            >
+              <SelectTrigger className="h-10 w-28 text-sm font-medium">
+                <SelectValue placeholder="Quantidade" />
+              </SelectTrigger>
+              <SelectContent className="max-h-48">
+                {OPCOES_KG.map((opcao) => (
+                  <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-sm">
+                    {opcao.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Qtd"
+              className="h-10 w-24 text-sm text-center font-medium"
+              value={selecao.quantidade || ''}
+              onChange={(e) => atualizarSelecao(produto.id, { quantidade: e.target.value ? parseFloat(e.target.value) : 0 })}
+            />
+          )}
+
+          {/* Botão adicionar */}
+          <Button
+            onClick={() => handleAdicionarProduto(produto)}
+            className="h-10 w-10 p-0 btn-padaria shrink-0"
+            disabled={!temSelecao}
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
         </div>
         
         {/* Campo observação para torta especial */}
         {produto.tipoProduto === 'ESPECIAL' && selecao.tamanho && (
           <Input
             placeholder="Observação (ex: sem cebola, mais queijo...)"
-            className="h-7 text-xs mt-2"
+            className="h-9 text-sm mt-2"
             value={selecao.observacao || ''}
             onChange={(e) => atualizarSelecao(produto.id, { observacao: e.target.value })}
           />
@@ -507,380 +804,661 @@ export default function NovoOrcamento() {
   }, [selecoes, atualizarSelecao, handleAdicionarProduto]);
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in space-y-4">
-      {/* Etapa 1: Cliente e Entrega */}
+    <div className="max-w-5xl mx-auto animate-fade-in">
+      {/* Etapa 1: Cliente e Entrega - LAYOUT SUPER COMPACTO */}
       {etapa === 'cliente' && (
-        <>
-          {/* Seleção de Cliente */}
-          <Card className="card-padaria">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Selecionar Cliente
-              </CardTitle>
-              <CardDescription>Busque por nome ou telefone</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {clienteSelecionadoLocal ? (
-                <Card className="border-primary/50 bg-primary/5">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/20 rounded-full p-2">
-                          <Check className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">{clienteSelecionadoLocal.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            <Phone className="w-3 h-3 inline mr-1" />
-                            {formatarTelefone(clienteSelecionadoLocal.telefone)}
-                          </p>
-                        </div>
+        <div className="h-[calc(100vh-140px)] flex flex-col gap-1.5">
+          {/* Header compacto */}
+          <div className="flex items-center justify-center py-0.5">
+            <h2 className="text-base font-bold text-primary">Novo Orçamento</h2>
+          </div>
+          
+          {/* Conteúdo principal - duas colunas */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 min-h-0">
+            {/* COLUNA ESQUERDA - Cliente */}
+            <Card className="card-padaria flex flex-col">
+              <CardHeader className="pb-0.5 pt-1.5 px-2">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" />
+                  Cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5 px-2 pb-2 flex-1 flex flex-col">
+                {clienteSelecionadoLocal ? (
+                  <div className="p-1.5 bg-primary/5 rounded-lg border border-primary/30 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="bg-primary/20 rounded-full p-0.5">
+                        <Check className="w-2.5 h-2.5 text-primary" />
                       </div>
-                      <Button variant="ghost" size="sm" onClick={handleTrocarCliente}>
-                        Trocar
-                      </Button>
+                      <div>
+                        <p className="font-medium text-xs">{clienteSelecionadoLocal.nome}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          <Phone className="w-2 h-2 inline mr-0.5" />
+                          {formatarTelefone(clienteSelecionadoLocal.telefone)}
+                        </p>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={() => setTela('clientes')}>
+                      Trocar
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                      <Input
+                        placeholder="Nome ou telefone..."
+                        className="pl-7 h-7 text-xs"
+                        value={buscaCliente}
+                        onChange={(e) => setBuscaCliente(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Lista de clientes */}
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                      {clientes.length > 0 ? (
+                        <div className="space-y-0.5">
+                          {clientes.map((c) => (
+                            <button
+                              key={c.id}
+                              className="w-full p-1.5 text-left hover:bg-muted rounded transition-colors flex items-center justify-between"
+                              onClick={() => handleSelecionarCliente(c)}
+                            >
+                              <div>
+                                <p className="font-medium text-xs">{c.nome}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {formatarTelefone(c.telefone)}
+                                </p>
+                              </div>
+                              <Plus className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : loadingClientes ? (
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Buscando...</p>
+                      ) : buscaCliente.length >= 2 ? (
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Nenhum cliente</p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground text-center py-1">Digite para buscar</p>
+                      )}
+                    </div>
+                    
+                    <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => setTela('clientes')}>
+                      <Plus className="w-2.5 h-2.5 mr-0.5" />
+                      Novo Cliente
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* COLUNA DIREITA - Entrega */}
+            <Card className="card-padaria flex flex-col">
+              <CardHeader className="pb-0.5 pt-1.5 px-2">
+                <CardTitle className="text-xs flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Entrega
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5 px-2 pb-2">
+                {/* Tipo de entrega - compacto */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    className={`p-1.5 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1 ${
+                      tipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setTipoEntrega('RETIRA')}
+                  >
+                    <Store className="w-3 h-3" />
+                    <span className="text-[10px] font-medium">Retira</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`p-1.5 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1 ${
+                      tipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setTipoEntrega('TELE_ENTREGA')}
+                  >
+                    <Truck className="w-3 h-3" />
+                    <span className="text-[10px] font-medium">Entrega</span>
+                  </button>
+                </div>
+
+                {/* Data e Horário */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div>
+                    <Label className="text-[9px] text-muted-foreground">Data *</Label>
                     <Input
-                      placeholder="Digite nome ou telefone..."
-                      className="input-padaria pl-10 h-11"
-                      value={buscaCliente}
-                      onChange={(e) => setBuscaCliente(e.target.value)}
+                      type="date"
+                      min={dataMinima}
+                      className="h-7 text-xs"
+                      value={dataEntrega}
+                      onChange={(e) => setDataEntrega(e.target.value)}
                     />
                   </div>
-                  
-                  {clientes.length > 0 && (
-                    <ScrollArea className="h-48">
-                      <div className="space-y-1">
-                        {clientes.map((c) => (
-                          <button
-                            key={c.id}
-                            className="w-full p-3 text-left hover:bg-muted rounded-lg transition-colors flex items-center justify-between"
-                            onClick={() => handleSelecionarCliente(c)}
-                          >
-                            <div>
-                              <p className="font-medium">{c.nome}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatarTelefone(c.telefone)}
-                                {c.cpfCnpj && ` • ${c.cpfCnpj}`}
-                              </p>
-                            </div>
-                            <Plus className="w-4 h-4 text-muted-foreground" />
-                          </button>
+                  <div>
+                    <Label className="text-[9px] text-muted-foreground">Horário *</Label>
+                    <Select value={horarioEntrega} onValueChange={setHorarioEntrega}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HORARIOS_COMERCIAIS.map((h) => (
+                          <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
                         ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                  
-                  {loadingClientes && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Buscando...</p>
-                  )}
-                  
-                  <Button variant="outline" className="w-full" onClick={() => setTela('clientes')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Cadastrar Novo Cliente
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Dados de Entrega */}
-          <Card className="card-padaria">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Dados da Entrega
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Tipo de Entrega *</Label>
-                <RadioGroup
-                  value={tipoEntrega}
-                  onValueChange={(value) => setTipoEntrega(value as 'RETIRA' | 'TELE_ENTREGA')}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  <div className={`flex items-center space-x-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    tipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                  }`}>
-                    <RadioGroupItem value="RETIRA" id="retira" />
-                    <Label htmlFor="retira" className="cursor-pointer flex items-center gap-2">
-                      <Store className="w-4 h-4" />
-                      <span className="text-sm font-medium">Cliente Retira</span>
-                    </Label>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className={`flex items-center space-x-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    tipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-                  }`}>
-                    <RadioGroupItem value="TELE_ENTREGA" id="tele-entrega" />
-                    <Label htmlFor="tele-entrega" className="cursor-pointer flex items-center gap-2">
-                      <Truck className="w-4 h-4" />
-                      <span className="text-sm font-medium">Tele Entrega</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="dataEntrega" className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-3.5 h-3.5" />
-                    Data *
-                  </Label>
-                  <Input
-                    id="dataEntrega"
-                    type="date"
-                    min={dataMinima}
-                    className="input-padaria h-10"
-                    value={dataEntrega}
-                    onChange={(e) => setDataEntrega(e.target.value)}
-                  />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="horarioEntrega" className="flex items-center gap-2 text-sm">
-                    <Clock className="w-3.5 h-3.5" />
-                    Horário *
-                  </Label>
-                  <Select value={horarioEntrega} onValueChange={setHorarioEntrega}>
-                    <SelectTrigger className="input-padaria h-10">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HORARIOS_COMERCIAIS.map((h) => (
-                        <SelectItem key={h} value={h}>{h}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              {tipoEntrega === 'TELE_ENTREGA' && (
-                <div className="space-y-3 p-4 bg-muted/50 rounded-lg border-2 border-primary/30">
-                  <p className="text-sm font-medium flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Endereço de Entrega
-                  </p>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="endereco" className="text-sm">Endereço *</Label>
-                      <Input
-                        id="endereco"
-                        placeholder="Rua, número, complemento"
-                        className="input-padaria h-11 text-base"
-                        value={enderecoEntrega}
-                        onChange={(e) => setEnderecoEntrega(e.target.value)}
-                      />
+                {/* Endereço para tele-entrega */}
+                {tipoEntrega === 'TELE_ENTREGA' && (
+                  <div className="space-y-1 p-1.5 bg-muted/50 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-1 text-[10px] font-medium text-primary">
+                      <MapPin className="w-2.5 h-2.5" />
+                      Endereço
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="bairro" className="text-sm">Bairro *</Label>
+                    <Input
+                      placeholder="Endereço *"
+                      className="h-7 text-xs"
+                      value={enderecoEntrega}
+                      onChange={(e) => setEnderecoEntrega(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Bairro *"
+                      className="h-7 text-xs"
+                      value={bairroEntrega}
+                      onChange={(e) => setBairroEntrega(e.target.value)}
+                    />
+                    <div>
+                      <Label className="text-[9px] text-muted-foreground">Taxa</Label>
                       <Input
-                        id="bairro"
-                        placeholder="Nome do bairro"
-                        className="input-padaria h-11 text-base"
-                        value={bairroEntrega}
-                        onChange={(e) => setBairroEntrega(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="h-7 text-xs"
+                        value={valorTeleEntrega}
+                        onChange={(e) => setValorTeleEntrega(e.target.value)}
                       />
                     </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
+          {/* Botão Continuar - SEMPRE VISÍVEL */}
           <Button
-            size="lg"
-            className="w-full btn-padaria h-12 text-base"
+            className="w-full btn-padaria h-9 text-xs shrink-0"
             onClick={handleContinuarParaProdutos}
             disabled={!clienteSelecionadoLocal || !dataEntrega || !horarioEntrega}
           >
             Continuar para Produtos
           </Button>
-        </>
+        </div>
       )}
 
-      {/* Etapa 2: Produtos */}
+      {/* Etapa 2: Produtos - LAYOUT DUAS COLUNAS (Desktop) / COLUNA ÚNICA (Mobile) */}
       {etapa === 'produtos' && (
-        <>
-          {/* Resumo do Cliente */}
-          <Card className="card-padaria border-primary/30 bg-primary/5">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/20 rounded-full p-2">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-primary">{cliente?.nome}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-[10px]">
-                        {entrega.tipoEntrega === 'RETIRA' ? (
-                          <><Store className="w-3 h-3 mr-1" />Retira</>
-                        ) : (
-                          <><Truck className="w-3 h-3 mr-1" />Entrega</>
-                        )}
-                      </Badge>
-                      <Badge variant="secondary" className="text-[10px]">
-                        {new Date(entrega.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')} - {entrega.horarioEntrega}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setEtapa('cliente')}>
-                  Editar
-                </Button>
+        <div className="flex flex-col lg:flex-row gap-3 lg:h-[calc(100vh-140px)]">
+          {/* COLUNA ESQUERDA - PRODUTOS */}
+          <div className="flex-1 flex flex-col gap-2 min-w-0 pb-20 lg:pb-0">
+            {/* Resumo do Cliente - COMPACTO */}
+            <div className="flex items-center justify-between px-3 py-1.5 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm text-primary truncate max-w-[120px]">{cliente?.nome}</span>
+                <Badge variant="outline" className="text-[9px] h-5 px-1.5">
+                  {entrega.tipoEntrega === 'RETIRA' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
+                </Badge>
+                <Badge variant="secondary" className="text-[9px] h-5 px-1.5">
+                  {new Date(entrega.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')} {entrega.horarioEntrega}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Busca e Filtros */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar produtos..."
-                className="input-padaria pl-10 h-10"
-                value={buscaProduto}
-                onChange={(e) => setBuscaProduto(e.target.value)}
-              />
-              {buscaProduto && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                  onClick={() => setBuscaProduto('')}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setEtapa('cliente')}>
+                Editar
+              </Button>
             </div>
-            <Select value={categoriaAtiva} onValueChange={setCategoriaAtiva}>
-              <SelectTrigger className="w-36 h-10">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categorias.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          {/* Lista de Produtos - Layout Compacto */}
-          <Card className="card-padaria">
-            <CardContent className="p-0">
-              <div className="h-[calc(100vh-380px)] overflow-y-auto">
-                {loadingProdutos ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Package className="w-8 h-8 animate-pulse text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Carregando...</span>
-                  </div>
-                ) : (
-                  <div className="p-2 space-y-1">
-                    {Object.entries(produtosPorCategoria).map(([categoria, prods]) => (
-                      <div key={categoria} className="mb-3">
-                        {categoriaAtiva === 'Todos' && (
-                          <div className="flex items-center gap-2 px-1 py-1.5 sticky top-0 bg-card z-10 border-b border-border/50">
-                            <Badge variant="outline" className="text-xs font-semibold">{categoria}</Badge>
-                            <span className="text-xs text-muted-foreground">{prods.length}</span>
-                          </div>
-                        )}
-                        <div className="space-y-1 mt-1">
-                          {prods.map(produto => renderProdutoLinha(produto))}
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {produtosFiltrados.length === 0 && (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Nenhum produto encontrado</p>
-                      </div>
-                    )}
-                  </div>
+            {/* Busca e Filtros - COMPACTO */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  className="input-padaria pl-9 h-8 text-sm"
+                  value={buscaProduto}
+                  onChange={(e) => setBuscaProduto(e.target.value)}
+                />
+                {buscaProduto && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 p-0"
+                    onClick={() => setBuscaProduto('')}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Carrinho */}
-          {itens.length > 0 && (
-            <Card className="card-padaria border-primary/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Itens ({itens.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <ScrollArea className="max-h-40">
-                  {itens.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg mb-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => removerItem(index)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+              <Select value={categoriaAtiva} onValueChange={setCategoriaAtiva}>
+                <SelectTrigger className="w-24 h-8 text-xs">
+                  <SelectValue placeholder="Cat." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorias.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
-                </ScrollArea>
+                </SelectContent>
+              </Select>
+              <div className="flex gap-0.5">
+                <Button
+                  variant={modoVisualizacao === 'grade' ? 'default' : 'ghost'}
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${modoVisualizacao === 'grade' ? 'btn-padaria' : ''}`}
+                  onClick={() => setModoVisualizacao('grade')}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={modoVisualizacao === 'lista' ? 'default' : 'ghost'}
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${modoVisualizacao === 'lista' ? 'btn-padaria' : ''}`}
+                  onClick={() => setModoVisualizacao('lista')}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
 
-                <div className="flex justify-between items-center pt-2 border-t border-border">
-                  <span className="font-medium">Total:</span>
-                  <span className="font-bold text-lg text-primary">{formatarMoeda(total)}</span>
+            {/* Lista de Produtos - OCUPA ESPAÇO RESTANTE */}
+            <Card className="card-padaria flex-1 min-h-0">
+              <CardContent className="p-0 h-full">
+                <div className="h-full overflow-y-auto">
+                  {loadingProdutos ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Package className="w-8 h-8 animate-pulse text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Carregando...</span>
+                    </div>
+                  ) : modoVisualizacao === 'grade' ? (
+                    /* GRADE COMPACTA - 4 por linha */
+                    <div className="p-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {produtosFiltrados.map(produto => renderProdutoCardCompacto(produto))}
+                      </div>
+                      
+                      {produtosFiltrados.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Nenhum produto encontrado</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* LISTA COMPLETA - com categorias */
+                    <div className="p-2">
+                      {Object.entries(produtosPorCategoria).map(([categoria, prods]) => (
+                        <div key={categoria} className="mb-4">
+                          {categoriaAtiva === 'Todos' && (
+                            <div className="flex items-center gap-2 px-1 py-2 sticky top-0 bg-card z-10 border-b border-border/50 mb-2">
+                              <Badge variant="outline" className="text-xs font-semibold">{categoria}</Badge>
+                              <span className="text-xs text-muted-foreground">{prods.length} produtos</span>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {prods.map(produto => renderProdutoCard(produto))}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {produtosFiltrados.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Nenhum produto encontrado</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {/* Observações */}
-          <Card className="card-padaria">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Observações</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="Observações gerais..."
-                className="input-padaria min-h-[60px]"
-                value={observacoesTexto}
-                onChange={(e) => setObservacoesTexto(e.target.value)}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Botões */}
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 h-12" onClick={() => setEtapa('cliente')}>
-              Voltar
-            </Button>
-            <Button
-              className="flex-1 btn-padaria h-12"
-              onClick={handleSalvarOrcamento}
-              disabled={salvando || itens.length === 0}
-            >
-              {salvando ? 'Salvando...' : 'Salvar Orçamento'}
-            </Button>
           </div>
-        </>
+
+          {/* COLUNA DIREITA - CARRINHO LATERAL (Desktop) */}
+          <div className="hidden lg:flex w-72 flex-col gap-2 shrink-0">
+            {/* Header do Carrinho */}
+            <div className="flex items-center justify-between px-3 py-2 bg-primary rounded-lg">
+              <div className="flex items-center gap-2 text-primary-foreground">
+                <FileText className="w-4 h-4" />
+                <span className="font-semibold text-sm">Itens</span>
+                <Badge className="bg-white/20 text-white text-[10px] h-5 px-1.5">
+                  {itens.length}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Lista de Itens do Carrinho */}
+            <Card className="card-padaria flex-1 min-h-0">
+              <CardContent className="p-0 h-full flex flex-col">
+                {itens.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-xs">Nenhum item</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Itens com scroll */}
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                      {ordenarItensPorCategoria(itens).map((item, index) => {
+                        const precos = obterPrecosTamanhos(item.produtoId);
+                        const tamanhosDisponiveis = precos 
+                          ? ['PP', 'P', 'M', 'G'].filter(tam => {
+                              const preco = precos[tam];
+                              return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                            })
+                          : [];
+                        
+                        return (
+                        <div key={index} className="p-2 bg-muted/50 rounded-lg">
+                          {editandoItem === index ? (
+                            /* Modo edição */
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="text-[10px] text-muted-foreground mr-1">Tamanho:</span>
+                                {tamanhosDisponiveis.map(tam => (
+                                  <Button
+                                    key={tam}
+                                    type="button"
+                                    variant={novoTamanho === tam ? 'default' : 'outline'}
+                                    size="sm"
+                                    className={`h-6 w-6 p-0 text-[10px] font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
+                                    onClick={() => setNovoTamanho(tam)}
+                                  >
+                                    {tam}
+                                  </Button>
+                                ))}
+                              </div>
+                              <Input
+                                placeholder="Observação..."
+                                className="h-6 text-[10px]"
+                                value={novaObservacao}
+                                onChange={(e) => setNovaObservacao(e.target.value)}
+                              />
+                              <div className="flex gap-1">
+                                <Button size="sm" className="h-6 text-[10px] btn-padaria flex-1" onClick={() => handleSalvarEdicao(index)}>
+                                  Salvar
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={handleCancelarEdicao}>
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Modo visualização */
+                            <>
+                              <div className="flex items-start justify-between gap-1">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-xs truncate">{item.nome}</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span className="font-semibold text-xs text-primary">{formatarMoeda(item.subtotal)}</span>
+                                  {item.tamanho && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
+                                      onClick={() => handleEditarItem(index)}
+                                      title="Editar tamanho/observação"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => removerItem(index)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              {/* Observação do item - menos destaque */}
+                              {item.observacao && (
+                                <p className="text-[9px] text-orange-600 mt-1 italic truncate" title={item.observacao}>
+                                  ℹ {item.observacao}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Totais e Ações - FIXO NA PARTE INFERIOR */}
+                    <div className="border-t border-border p-2 space-y-2 bg-card">
+                      {/* Subtotal */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span className="font-medium">{formatarMoeda(total)}</span>
+                      </div>
+                      
+                      {/* Taxa de entrega */}
+                      {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 && (
+                        <div className="flex justify-between items-center text-xs text-primary">
+                          <span>Taxa entrega:</span>
+                          <span className="font-medium">{formatarMoeda(entrega.valorTeleEntrega)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Total */}
+                      <div className="flex justify-between items-center pt-1 border-t border-border">
+                        <span className="font-semibold text-sm">TOTAL:</span>
+                        <span className="font-bold text-lg text-primary">
+                          {formatarMoeda(totalComTaxa)}
+                        </span>
+                      </div>
+
+                      {/* Observações gerais */}
+                      <Textarea
+                        placeholder="Observações gerais..."
+                        className="input-padaria min-h-[40px] text-xs"
+                        value={observacoesTexto}
+                        onChange={(e) => setObservacoesTexto(e.target.value)}
+                      />
+
+                      {/* Botões de ação */}
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="flex-1 h-8 text-xs" onClick={() => setEtapa('cliente')}>
+                          Voltar
+                        </Button>
+                        <Button
+                          className="flex-1 btn-padaria h-8 text-xs"
+                          onClick={handleSalvarOrcamento}
+                          disabled={salvando || itens.length === 0}
+                        >
+                          {salvando ? 'Salvando...' : 'Salvar'}
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* FAB do Carrinho - MOBILE */}
+          <div className="fixed bottom-20 right-4 z-40 lg:hidden">
+            <Sheet open={carrinhoAberto} onOpenChange={setCarrinhoAberto}>
+              <SheetTrigger asChild>
+                <Button
+                  className="h-14 w-14 rounded-full shadow-lg btn-padaria relative"
+                >
+                  <ShoppingCart className="w-6 h-6" />
+                  {itens.length > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-accent text-accent-foreground">
+                      {itens.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[85vw] max-w-sm p-0 flex flex-col">
+                <SheetHeader className="px-4 py-3 border-b bg-primary text-primary-foreground">
+                  <SheetTitle className="text-base flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5" />
+                    Carrinho
+                    <Badge className="bg-white/20 text-white">{itens.length}</Badge>
+                  </SheetTitle>
+                </SheetHeader>
+                
+                <div className="flex-1 overflow-y-auto p-3">
+                  {itens.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <Package className="w-12 h-12 mb-2 opacity-30" />
+                      <p className="text-sm">Nenhum item</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {ordenarItensPorCategoria(itens).map((item, index) => {
+                        const precos = obterPrecosTamanhos(item.produtoId);
+                        const tamanhosDisponiveis = precos 
+                          ? ['PP', 'P', 'M', 'G'].filter(tam => {
+                              const preco = precos[tam];
+                              return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                            })
+                          : [];
+                        
+                        return (
+                        <div key={index} className="p-2 bg-muted/50 rounded-lg">
+                          {editandoItem === index ? (
+                            /* Modo edição */
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="text-xs text-muted-foreground mr-1">Tamanho:</span>
+                                {tamanhosDisponiveis.map(tam => (
+                                  <Button
+                                    key={tam}
+                                    type="button"
+                                    variant={novoTamanho === tam ? 'default' : 'outline'}
+                                    size="sm"
+                                    className={`h-7 w-7 p-0 text-xs font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
+                                    onClick={() => setNovoTamanho(tam)}
+                                  >
+                                    {tam}
+                                  </Button>
+                                ))}
+                              </div>
+                              <Input
+                                placeholder="Observação..."
+                                className="h-8 text-sm"
+                                value={novaObservacao}
+                                onChange={(e) => setNovaObservacao(e.target.value)}
+                              />
+                              <div className="flex gap-1">
+                                <Button size="sm" className="h-7 text-xs btn-padaria flex-1" onClick={() => handleSalvarEdicao(index)}>
+                                  Salvar
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCancelarEdicao}>
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Modo visualização */
+                            <>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{item.nome}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm text-primary">{formatarMoeda(item.subtotal)}</span>
+                                  {item.tamanho && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                      onClick={() => handleEditarItem(index)}
+                                      title="Editar tamanho/observação"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => removerItem(index)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                              {item.observacao && (
+                                <p className="text-[10px] text-orange-600 mt-1 italic truncate">{item.observacao}</p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                
+                {itens.length > 0 && (
+                  <div className="border-t p-3 space-y-2 bg-card">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span className="font-medium">{formatarMoeda(total)}</span>
+                    </div>
+                    
+                    {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 && (
+                      <div className="flex justify-between items-center text-sm text-primary">
+                        <span>Taxa entrega:</span>
+                        <span className="font-medium">{formatarMoeda(entrega.valorTeleEntrega)}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center pt-1 border-t">
+                      <span className="font-semibold">TOTAL:</span>
+                      <span className="font-bold text-lg text-primary">{formatarMoeda(totalComTaxa)}</span>
+                    </div>
+                    
+                    <Textarea
+                      placeholder="Observações..."
+                      className="min-h-[50px] text-sm"
+                      value={observacoesTexto}
+                      onChange={(e) => setObservacoesTexto(e.target.value)}
+                    />
+                    
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1 h-9 text-sm" onClick={() => setEtapa('cliente')}>
+                        Voltar
+                      </Button>
+                      <Button
+                        className="flex-1 btn-padaria h-9 text-sm"
+                        onClick={handleSalvarOrcamento}
+                        disabled={salvando || itens.length === 0}
+                      >
+                        {salvando ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+// v1774535288

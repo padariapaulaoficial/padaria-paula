@@ -597,18 +597,21 @@ export default function AdminPanel() {
   return (
     <div className="space-y-6 animate-fade-in">
       <Tabs defaultValue="produtos" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-muted/50">
-          <TabsTrigger value="produtos" className="flex items-center gap-2">
-            <Package className="w-4 h-4" />
-            Produtos
+        <TabsList className="grid w-full grid-cols-3 bg-muted/50 h-auto">
+          <TabsTrigger value="produtos" className="flex items-center gap-1 sm:gap-2 px-2 py-2 text-xs sm:text-sm">
+            <Package className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Produtos</span>
+            <span className="sm:hidden">Produtos</span>
           </TabsTrigger>
-          <TabsTrigger value="configuracoes" className="flex items-center gap-2">
-            <Store className="w-4 h-4" />
-            Configurações
+          <TabsTrigger value="configuracoes" className="flex items-center gap-1 sm:gap-2 px-2 py-2 text-xs sm:text-sm">
+            <Store className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Configurações</span>
+            <span className="sm:hidden">Config.</span>
           </TabsTrigger>
-          <TabsTrigger value="seguranca" className="flex items-center gap-2">
-            <Lock className="w-4 h-4" />
-            Segurança
+          <TabsTrigger value="seguranca" className="flex items-center gap-1 sm:gap-2 px-2 py-2 text-xs sm:text-sm">
+            <Lock className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Segurança</span>
+            <span className="sm:hidden">Segurança</span>
           </TabsTrigger>
         </TabsList>
 

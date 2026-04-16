@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 
-export type Tela = 'produtos' | 'resumo' | 'impressao' | 'historico' | 'admin' | 'clientes' | 'entregas' | 'orcamentos' | 'novo-orcamento';
+export type Tela = 'novo-pedido' | 'produtos' | 'resumo' | 'impressao' | 'historico' | 'admin' | 'clientes' | 'entregas' | 'orcamentos' | 'novo-orcamento';
 
 interface AppState {
   telaAtual: Tela;

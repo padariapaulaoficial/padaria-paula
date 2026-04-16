@@ -22,11 +22,14 @@ import CupomVisual from './CupomVisual';
 
 
 interface ItemPedido {
+  id: string;
   produto: { nome: string; tipoVenda: string };
   quantidade: number;
   quantidadePedida: number;
   valorUnit: number;
   subtotal: number;
+  observacao?: string;
+  tamanho?: string;
 }
 
 interface Pedido {
@@ -39,8 +42,10 @@ interface Pedido {
   totalPedida: number;
   tipoEntrega: string;
   dataEntrega: string | null;
+  horarioEntrega?: string | null;
   enderecoEntrega?: string;
   bairroEntrega?: string;
+  valorTeleEntrega?: number | null;
   createdAt: string;
   updatedAt?: Date;
   clienteId?: string;

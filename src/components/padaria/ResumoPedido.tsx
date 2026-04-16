@@ -3,7 +3,7 @@
 // ResumoPedido - Padaria Paula
 // Confirmação e finalização do pedido
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, Loader2, ShoppingBag, Scale, Edit2, Truck, Store, Calendar, MapPin, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -25,15 +25,37 @@ import {
 import { usePedidoStore, formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { ordenarItensPorCategoria } from '@/lib/escpos';
 
 export default function ResumoPedido() {
-  const { cliente, entrega, itens, total, totalPedida, observacoes, setObservacoes, atualizarPesoFinal, resetPedido } = usePedidoStore();
+  const { cliente, entrega, itens, total, totalPedida, observacoes, setObservacoes, atualizarPesoFinal, atualizarItem, resetPedido } = usePedidoStore();
   const { setTela } = useAppStore();
   const { toast } = useToast();
   const [salvando, setSalvando] = useState(false);
   const [editandoPeso, setEditandoPeso] = useState<number | null>(null);
   const [novoPeso, setNovoPeso] = useState('');
   const [dialogFinalizarOpen, setDialogFinalizarOpen] = useState(false);
+  
+  // Estado para edição de tamanho/observação de torta especial
+  const [editandoTamanho, setEditandoTamanho] = useState<number | null>(null);
+  const [novoTamanho, setNovoTamanho] = useState<string>('');
+  const [novaObservacao, setNovaObservacao] = useState<string>('');
+  
+  // Dados dos produtos para obter preços de tamanhos
+  const [produtos, setProdutos] = useState<{id: string; precosTamanhos: Record<string, number> | null}[]>([]);
+  
+  // Carregar produtos para obter preços de tamanhos
+  useEffect(() => {
+    fetch('/api/produtos?ativo=true')
+      .then(res => res.json())
+      .then(data => {
+        setProdutos(data.map((p: {id: string; precosTamanhos: Record<string, number> | null}) => ({
+          id: p.id,
+          precosTamanhos: p.precosTamanhos
+        })));
+      })
+      .catch(err => console.error('Erro ao carregar produtos:', err));
+  }, []);
 
   // Calcular diferença de total
   const diferencaTotal = total - totalPedida;
@@ -45,6 +67,9 @@ export default function ResumoPedido() {
   };
 
   const handleFinalizarPedido = async () => {
+    // Prevenir duplo clique
+    if (salvando) return;
+    
     if (!cliente) {
       toast({
         title: 'Erro',
@@ -107,6 +132,7 @@ export default function ResumoPedido() {
         horarioEntrega: entrega.horarioEntrega,
         enderecoEntrega: entrega.tipoEntrega === 'TELE_ENTREGA' ? entrega.enderecoEntrega : null,
         bairroEntrega: entrega.tipoEntrega === 'TELE_ENTREGA' ? entrega.bairroEntrega : null,
+        valorTeleEntrega: entrega.valorTeleEntrega || 0,
         observacoes,
         total,
         totalPedida,
@@ -199,6 +225,73 @@ export default function ResumoPedido() {
       title: 'Peso atualizado!',
       description: 'O peso foi ajustado e o total recalculado.',
     });
+  };
+
+  // Obter preços de tamanhos do produto
+  const obterPrecosTamanhos = (produtoId: string): Record<string, number> | null => {
+    const produto = produtos.find(p => p.id === produtoId);
+    return produto?.precosTamanhos || null;
+  };
+
+  // Abrir edição de tamanho/observação
+  const handleEditarTamanho = (index: number) => {
+    const item = itens[index];
+    if (item && item.tamanho) {
+      setEditandoTamanho(index);
+      setNovoTamanho(item.tamanho);
+      setNovaObservacao(item.observacao || '');
+    }
+  };
+
+  // Salvar edição de tamanho/observação
+  const handleSalvarTamanho = (index: number) => {
+    const item = itens[index];
+    if (!item) return;
+
+    const precos = obterPrecosTamanhos(item.produtoId);
+    let novoValorUnit = item.valorUnit;
+    let novoSubtotal = item.subtotal;
+    let novoSubtotalPedida = item.subtotalPedida;
+
+    // Se mudou o tamanho, atualizar preço
+    if (novoTamanho && novoTamanho !== item.tamanho && precos) {
+      const novoPreco = precos[novoTamanho];
+      if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
+        novoValorUnit = novoPreco;
+        novoSubtotal = novoPreco;
+        novoSubtotalPedida = novoPreco;
+      }
+    }
+
+    // Atualizar nome se tamanho mudou
+    const novoNome = novoTamanho !== item.tamanho 
+      ? item.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`)
+      : item.nome;
+
+    atualizarItem(index, {
+      nome: novoNome,
+      tamanho: novoTamanho,
+      observacao: novaObservacao || undefined,
+      valorUnit: novoValorUnit,
+      subtotal: novoSubtotal,
+      subtotalPedida: novoSubtotalPedida,
+    });
+
+    setEditandoTamanho(null);
+    setNovoTamanho('');
+    setNovaObservacao('');
+
+    toast({
+      title: 'Item atualizado!',
+      description: 'Tamanho e/ou observação alterados.',
+    });
+  };
+
+  // Cancelar edição de tamanho
+  const handleCancelarEdicaoTamanho = () => {
+    setEditandoTamanho(null);
+    setNovoTamanho('');
+    setNovaObservacao('');
   };
 
   // Se não tem cliente, voltar para cadastro
@@ -294,94 +387,169 @@ export default function ResumoPedido() {
             </h3>
             
             <div className="space-y-2">
-              {itens.map((item, index) => (
+              {ordenarItensPorCategoria(itens).map((item, index) => {
+                const precos = obterPrecosTamanhos(item.produtoId);
+                const tamanhosDisponiveis = precos 
+                  ? ['PP', 'P', 'M', 'G'].filter(tam => {
+                      const preco = precos[tam];
+                      return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+                    })
+                  : [];
+                
+                return (
                 <div
                   key={index}
-                  className={`flex justify-between items-center py-3 px-4 rounded-lg border ${
+                  className={`py-3 px-4 rounded-lg border ${
                     item.quantidade !== item.quantidadePedida 
                       ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900' 
                       : 'bg-muted/20 border-border/30'
                   }`}
                 >
-                  <div className="flex-1">
-                    <span className="font-medium">{item.nome}</span>
-                    
-                    {/* Produto KG - permite edição de peso */}
-                    {item.tipoVenda === 'KG' ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        {editandoPeso === index ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="text"
-                              value={novoPeso}
-                              onChange={(e) => setNovoPeso(e.target.value)}
-                              className="w-24 h-8 text-sm"
-                              placeholder="0,000"
-                            />
-                            <span className="text-sm text-muted-foreground">kg</span>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleSalvarPeso(index)}
-                              className="h-8"
-                            >
-                              ✓
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              onClick={() => setEditandoPeso(null)}
-                              className="h-8"
-                            >
-                              ✕
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground text-sm">
-                              {formatarQuantidade(item.quantidade, item.tipoVenda)}
-                            </span>
-                            {item.quantidade !== item.quantidadePedida && (
-                              <span className="text-xs text-muted-foreground line-through">
-                                (pedido: {formatarQuantidade(item.quantidadePedida, item.tipoVenda)})
-                              </span>
-                            )}
+                  {editandoTamanho === index ? (
+                    /* Modo edição de tamanho/observação */
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{item.nome}</span>
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-sm text-muted-foreground mr-2">Tamanho:</span>
+                        {tamanhosDisponiveis.map(tam => (
+                          <Button
+                            key={tam}
+                            type="button"
+                            variant={novoTamanho === tam ? 'default' : 'outline'}
+                            size="sm"
+                            className={`h-8 w-8 p-0 text-sm font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
+                            onClick={() => setNovoTamanho(tam)}
+                          >
+                            {tam}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Obs:</span>
+                        <Input
+                          value={novaObservacao}
+                          onChange={(e) => setNovaObservacao(e.target.value)}
+                          className="flex-1 h-8 text-sm"
+                          placeholder="Observação..."
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSalvarTamanho(index)}
+                          className="btn-padaria"
+                        >
+                          Salvar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={handleCancelarEdicaoTamanho}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Modo visualização normal */
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{item.nome}</span>
+                          {item.tamanho && (
                             <Button
                               size="sm"
                               variant="ghost"
                               className="h-6 w-6 p-0"
-                              onClick={() => handleEditarPeso(index, item.quantidade)}
-                              title="Ajustar peso final"
+                              onClick={() => handleEditarTamanho(index)}
+                              title="Editar tamanho/observação"
                             >
                               <Edit2 className="w-3 h-3" />
                             </Button>
+                          )}
+                        </div>
+                        
+                        {/* Produto KG - permite edição de peso */}
+                        {item.tipoVenda === 'KG' ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            {editandoPeso === index ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="text"
+                                  value={novoPeso}
+                                  onChange={(e) => setNovoPeso(e.target.value)}
+                                  className="w-24 h-8 text-sm"
+                                  placeholder="0,000"
+                                />
+                                <span className="text-sm text-muted-foreground">kg</span>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleSalvarPeso(index)}
+                                  className="h-8"
+                                >
+                                  ✓
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  onClick={() => setEditandoPeso(null)}
+                                  className="h-8"
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground text-sm">
+                                  {formatarQuantidade(item.quantidade, item.tipoVenda)}
+                                </span>
+                                {item.quantidade !== item.quantidadePedida && (
+                                  <span className="text-xs text-muted-foreground line-through">
+                                    (pedido: {formatarQuantidade(item.quantidadePedida, item.tipoVenda)})
+                                  </span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => handleEditarPeso(index, item.quantidade)}
+                                  title="Ajustar peso final"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm ml-2">
+                            {formatarQuantidade(item.quantidade, item.tipoVenda)}
+                          </span>
+                        )}
+                        
+                        {item.observacao && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Obs: {item.observacao}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">
+                          {formatarMoeda(item.valorUnit)}/{item.tipoVenda === 'KG' ? 'kg' : 'un'}
+                        </div>
+                        <span className="font-bold text-primary">{formatarMoeda(item.subtotal)}</span>
+                        {item.subtotal !== item.subtotalPedida && (
+                          <div className="text-xs text-green-600">
+                            era {formatarMoeda(item.subtotalPedida)}
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm ml-2">
-                        {formatarQuantidade(item.quantidade, item.tipoVenda)}
-                      </span>
-                    )}
-                    
-                    {item.observacao && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Obs: {item.observacao}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      {formatarMoeda(item.valorUnit)}/{item.tipoVenda === 'KG' ? 'kg' : 'un'}
                     </div>
-                    <span className="font-bold text-primary">{formatarMoeda(item.subtotal)}</span>
-                    {item.subtotal !== item.subtotalPedida && (
-                      <div className="text-xs text-green-600">
-                        era {formatarMoeda(item.subtotalPedida)}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -406,6 +574,20 @@ export default function ResumoPedido() {
 
           {/* Totais */}
           <div className="space-y-2">
+            {/* Subtotal dos itens */}
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Subtotal dos itens:</span>
+              <span>{formatarMoeda(total)}</span>
+            </div>
+            
+            {/* Taxa de entrega */}
+            {entrega.tipoEntrega === 'TELE_ENTREGA' && entrega.valorTeleEntrega > 0 && (
+              <div className="flex justify-between items-center text-sm text-primary">
+                <span>Taxa de entrega:</span>
+                <span>{formatarMoeda(entrega.valorTeleEntrega)}</span>
+              </div>
+            )}
+            
             {diferencaTotal !== 0 && (
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Total pedido:</span>
@@ -418,9 +600,11 @@ export default function ResumoPedido() {
                 <span>{diferencaTotal > 0 ? '+' : ''}{formatarMoeda(diferencaTotal)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center text-xl font-bold">
+            <div className="flex justify-between items-center text-xl font-bold pt-2 border-t border-border/50">
               <span>Total do Pedido:</span>
-              <span className="text-primary text-2xl">{formatarMoeda(total)}</span>
+              <span className="text-primary text-2xl">
+                {formatarMoeda(total + (entrega.tipoEntrega === 'TELE_ENTREGA' ? (entrega.valorTeleEntrega || 0) : 0))}
+              </span>
             </div>
           </div>
 

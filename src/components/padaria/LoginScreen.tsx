@@ -106,11 +106,11 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-sm card-padaria">
         <CardHeader className="text-center pb-2">
           {/* Logo da Padaria Paula */}
-          <div className="mx-auto mb-4 w-32 h-32 relative">
+          <div className="mx-auto mb-3 sm:mb-4 w-24 h-24 sm:w-32 sm:h-32 relative">
             <Image
               src="/logo-padaria.png"
               alt="Padaria e Confeitaria Paula"
@@ -119,14 +119,14 @@ export default function LoginScreen() {
               priority
             />
           </div>
-          <CardDescription className="flex items-center justify-center gap-2 mt-2">
+          <CardDescription className="flex items-center justify-center gap-2 mt-1 sm:mt-2 text-sm sm:text-base">
             <Lock className="w-4 h-4" />
             Digite a senha para acessar
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="pt-4">
-          <div className="flex justify-center gap-3 mb-6">
+        <CardContent className="pt-2 sm:pt-4 px-4 sm:px-6">
+          <div className="flex justify-center gap-2 sm:gap-3 mb-4 sm:mb-6">
             {[0, 1, 2, 3].map((index) => (
               <input
                 key={index}
@@ -139,11 +139,11 @@ export default function LoginScreen() {
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={handlePaste}
                 disabled={loading}
-                className="w-14 h-16 text-center text-2xl font-bold
-                         border-2 border-input rounded-lg
+                className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold
+                         border-2 border-input rounded-xl
                          bg-background focus:border-primary focus:ring-2 focus:ring-primary/20
                          outline-none transition-all
-                         disabled:opacity-50"
+                         disabled:opacity-50 touch-target"
               />
             ))}
           </div>
@@ -151,7 +151,7 @@ export default function LoginScreen() {
           <Button
             onClick={() => handleLogin()}
             disabled={loading || senha.some(d => !d)}
-            className="w-full btn-padaria h-12 text-lg"
+            className="w-full btn-padaria h-12 sm:h-14 text-base sm:text-lg"
           >
             {loading ? (
               <>
@@ -168,7 +168,7 @@ export default function LoginScreen() {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground mt-6 text-center">
+      <p className="text-xs text-muted-foreground mt-4 sm:mt-6 text-center px-4">
         Digite os 4 dígitos da senha de acesso
       </p>
     </div>

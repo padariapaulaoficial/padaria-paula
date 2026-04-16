@@ -4,7 +4,7 @@
 // Seleção de cliente + dados de entrega (tipo, data e horário)
 
 import { useState, useEffect } from 'react';
-import { Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock } from 'lucide-react';
+import { Search, User, Phone, Calendar, Truck, Store, MapPin, Plus, Check, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,30 @@ const HORARIOS_COMERCIAIS = [
   '19:00', '19:30', '20:00', '20:30', '21:00'
 ];
 
+// Função para verificar se horário já passou
+const horarioJaPassou = (horario: string, dataEntrega: string): boolean => {
+  if (!dataEntrega) return false;
+  
+  const hoje = new Date();
+  const dataEntregaDate = new Date(dataEntrega + 'T00:00:00');
+  
+  // Se a data de entrega é hoje, verificar horário
+  if (dataEntregaDate.toDateString() === hoje.toDateString()) {
+    const [hora, minuto] = horario.split(':').map(Number);
+    const agora = hoje.getHours() * 60 + hoje.getMinutes();
+    const horarioMinutos = hora * 60 + minuto;
+    
+    return horarioMinutos <= agora;
+  }
+  
+  // Se a data de entrega é anterior a hoje, todos os horários já passaram
+  if (dataEntregaDate < hoje) {
+    return true;
+  }
+  
+  return false;
+};
+
 export default function NovoPedido() {
   const { cliente, setCliente, entrega, setEntrega, clearCliente } = usePedidoStore();
   const { setTela } = useAppStore();
@@ -57,6 +81,7 @@ export default function NovoPedido() {
   const [horarioEntrega, setHorarioEntrega] = useState(entrega.horarioEntrega || '');
   const [enderecoEntrega, setEnderecoEntrega] = useState(entrega.enderecoEntrega || '');
   const [bairroEntrega, setBairroEntrega] = useState(entrega.bairroEntrega || '');
+  const [valorTeleEntrega, setValorTeleEntrega] = useState(entrega.valorTeleEntrega?.toString() || '');
 
   // Se já tem cliente na store (vindo de ClientesLista), usar ele
   useEffect(() => {
@@ -162,6 +187,16 @@ export default function NovoPedido() {
       });
       return;
     }
+
+    // Verificar se data/hora já passou
+    if (horarioJaPassou(horarioEntrega, dataEntrega)) {
+      toast({
+        title: 'Data/hora inválida',
+        description: 'Não é possível criar pedidos para datas ou horários que já passaram.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     if (tipoEntrega === 'TELE_ENTREGA' && (!enderecoEntrega || !bairroEntrega)) {
       toast({
@@ -190,6 +225,7 @@ export default function NovoPedido() {
       horarioEntrega,
       enderecoEntrega,
       bairroEntrega,
+      valorTeleEntrega: parseFloat(valorTeleEntrega.replace(',', '.')) || 0,
     });
     
     toast({
@@ -374,7 +410,12 @@ export default function NovoPedido() {
                 </SelectTrigger>
                 <SelectContent>
                   {HORARIOS_COMERCIAIS.map((h) => (
-                    <SelectItem key={h} value={h}>
+                    <SelectItem 
+                      key={h} 
+                      value={h}
+                      disabled={horarioJaPassou(h, dataEntrega)}
+                      className={horarioJaPassou(h, dataEntrega) ? 'opacity-40' : ''}
+                    >
                       {h}
                     </SelectItem>
                   ))}
@@ -410,6 +451,21 @@ export default function NovoPedido() {
                     value={bairroEntrega}
                     onChange={(e) => setBairroEntrega(e.target.value)}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="valorTeleEntrega" className="text-sm flex items-center gap-2">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    Taxa de Entrega
+                  </Label>
+                  <Input
+                    id="valorTeleEntrega"
+                    type="text"
+                    placeholder="R$ 0,00"
+                    className="input-padaria h-11 text-base"
+                    value={valorTeleEntrega}
+                    onChange={(e) => setValorTeleEntrega(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Valor cobrado pela entrega (será somado ao total)</p>
                 </div>
               </div>
             </div>

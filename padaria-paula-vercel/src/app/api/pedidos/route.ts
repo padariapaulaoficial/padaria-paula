@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, impresso, itens } = body;
+    const { id, status, impresso, itens, adicionarItem, removerItem } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -237,7 +237,66 @@ export async function PUT(request: NextRequest) {
     if (status) data.status = status;
     if (impresso !== undefined) data.impresso = impresso;
     
-    // Se houver itens para atualizar
+    // Remover item do pedido
+    if (removerItem) {
+      await db.itemPedido.delete({
+        where: { id: removerItem },
+      });
+      
+      // Recalcular total do pedido
+      const itensAtualizados = await db.itemPedido.findMany({
+        where: { pedidoId: id },
+      });
+      data.total = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+    }
+    
+    // Adicionar novo item ao pedido (soma quantidade se já existir)
+    if (adicionarItem) {
+      const { produtoId, quantidade, valorUnit } = adicionarItem;
+      
+      // Verificar se já existe este produto no pedido
+      const itemExistente = await db.itemPedido.findFirst({
+        where: {
+          pedidoId: id,
+          produtoId,
+        },
+      });
+      
+      if (itemExistente) {
+        // Somar quantidade ao item existente
+        const novaQuantidade = itemExistente.quantidade + quantidade;
+        const novoSubtotal = novaQuantidade * valorUnit;
+        
+        await db.itemPedido.update({
+          where: { id: itemExistente.id },
+          data: {
+            quantidade: novaQuantidade,
+            subtotal: novoSubtotal,
+          },
+        });
+      } else {
+        // Criar novo item
+        await db.itemPedido.create({
+          data: {
+            pedidoId: id,
+            produtoId,
+            quantidadePedida: quantidade,
+            quantidade,
+            valorUnit,
+            subtotalPedida: quantidade * valorUnit,
+            subtotal: quantidade * valorUnit,
+          },
+        });
+      }
+      
+      // Recalcular total do pedido
+      const itensAtualizados = await db.itemPedido.findMany({
+        where: { pedidoId: id },
+      });
+      data.total = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
+    }
+    
+    // Se houver itens para atualizar (edição de quantidade)
     if (itens && Array.isArray(itens)) {
       // Atualizar cada item
       for (const item of itens) {
@@ -256,8 +315,7 @@ export async function PUT(request: NextRequest) {
       const itensAtualizados = await db.itemPedido.findMany({
         where: { pedidoId: id },
       });
-      const novoTotal = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
-      data.total = novoTotal;
+      data.total = itensAtualizados.reduce((sum, item) => sum + item.subtotal, 0);
     }
     
     const pedido = await db.pedido.update({

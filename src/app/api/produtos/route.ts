@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
       ativo,
       tipoProduto,
       tamanhos,
-      precosTamanhos
+      precosTamanhos,
+      imagem
     } = body;
     
     if (!nome || !tipoVenda || valorUnit === undefined) {
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
         tipoProduto: tipoProduto || 'NORMAL',
         tamanhos: tamanhos ? JSON.stringify(tamanhos) : null,
         precosTamanhos: precosTamanhos ? JSON.stringify(precosTamanhos) : null,
+        imagem: imagem || null,
       },
     });
     

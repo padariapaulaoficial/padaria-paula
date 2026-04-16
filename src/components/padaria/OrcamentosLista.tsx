@@ -3,16 +3,18 @@
 // OrcamentosLista - Padaria Paula
 // Lista de orçamentos com ações de aprovar/rejeitar
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, RefreshCw, Eye, Check, X, FileText, Calendar, Trash2,
-  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send
+  MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send,
+  Edit2, Plus, Scale
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -25,18 +27,23 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingFetch } from '@/hooks/useLoadingFetch';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
+import { useAppStore } from '@/store/useAppStore';
 import {
   gerarCupomOrcamento,
   imprimirViaDialogo,
   formatarNumeroPedido,
+  ordenarItensPorCategoria,
   type OrcamentoCompleto,
   type ConfiguracaoCupom,
 } from '@/lib/escpos';
 
 interface ItemOrcamento {
   id: string;
+  produtoId?: string;
   produto: {
     nome: string;
     tipoVenda: string;
@@ -67,11 +74,43 @@ interface Orcamento {
   horarioEntrega?: string;
   enderecoEntrega?: string;
   bairroEntrega?: string;
+  valorTeleEntrega?: number | null;
   createdAt: string;
 }
 
+interface Produto {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipoVenda: 'KG' | 'UNIDADE';
+  valorUnit: number;
+  categoria: string | null;
+  ativo: boolean;
+  tipoProduto: 'NORMAL' | 'ESPECIAL';
+  tamanhos: string[] | null;
+  precosTamanhos: Record<string, number> | null;
+}
+
+// Opções de KG
+const OPCOES_KG = [
+  { valor: 0.5, label: '500g' },
+  { valor: 1.0, label: '1 kg' },
+  { valor: 1.5, label: '1,5 kg' },
+  { valor: 2.0, label: '2 kg' },
+  { valor: 2.5, label: '2,5 kg' },
+  { valor: 3.0, label: '3 kg' },
+  { valor: 4.0, label: '4 kg' },
+  { valor: 5.0, label: '5 kg' },
+  { valor: 6.0, label: '6 kg' },
+  { valor: 7.0, label: '7 kg' },
+  { valor: 8.0, label: '8 kg' },
+  { valor: 9.0, label: '9 kg' },
+  { valor: 10.0, label: '10 kg' },
+];
+
 export default function OrcamentosLista() {
   const { toast } = useToast();
+  const { showLoading, hideLoading } = useLoadingFetch();
   
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +122,107 @@ export default function OrcamentosLista() {
   const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [config, setConfig] = useState<ConfiguracaoCupom | null>(null);
+  
+  // Estados para edição de orçamento
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [modoAdicao, setModoAdicao] = useState(false);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [buscaProduto, setBuscaProduto] = useState('');
+  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
+  const [quantidadeAdicionar, setQuantidadeAdicionar] = useState('');
+  const [tamanhoSelecionado, setTamanhoSelecionado] = useState('');
+  const [observacaoNovoItem, setObservacaoNovoItem] = useState('');
+  const [adicionandoProduto, setAdicionandoProduto] = useState(false);
+  const [itensEditados, setItensEditados] = useState<Record<string, string>>({});
+  
+  // Estados para edição de tamanho e observação dos itens
+  const [tamanhosEditados, setTamanhosEditados] = useState<Record<string, string>>({});
+  const [observacoesEditadas, setObservacoesEditadas] = useState<Record<string, string>>({});
+  
+  // Estados para diálogos separados
+  const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
+  const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
+  
+  // Estados para edição de entrega
+  const [dialogEntregaOpen, setDialogEntregaOpen] = useState(false);
+  const [editTipoEntrega, setEditTipoEntrega] = useState<'RETIRA' | 'TELE_ENTREGA'>('RETIRA');
+  const [editDataEntrega, setEditDataEntrega] = useState('');
+  const [editHorarioEntrega, setEditHorarioEntrega] = useState('');
+  const [editValorTeleEntrega, setEditValorTeleEntrega] = useState('');
+  const [salvandoEntrega, setSalvandoEntrega] = useState(false);
+
+  // Horários comerciais disponíveis
+  const HORARIOS_COMERCIAIS = [
+    '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+    '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
+    '19:00', '19:30', '20:00', '20:30', '21:00'
+  ];
+
+  // Abrir modal de edição de entrega
+  const handleAbrirEdicaoEntrega = (orcamento: Orcamento) => {
+    setEditTipoEntrega(orcamento.tipoEntrega as 'RETIRA' | 'TELE_ENTREGA');
+    setEditDataEntrega(orcamento.dataEntrega);
+    setEditHorarioEntrega(orcamento.horarioEntrega || '');
+    setEditValorTeleEntrega(orcamento.valorTeleEntrega ? orcamento.valorTeleEntrega.toString() : '');
+    setDialogEntregaOpen(true);
+  };
+
+  // Salvar edição de entrega
+  const handleSalvarEdicaoEntrega = async () => {
+    if (!orcamentoSelecionado) return;
+    
+    if (!editDataEntrega) {
+      toast({ title: 'Data obrigatória', variant: 'destructive' });
+      return;
+    }
+    
+    // Validar valor da tele-entrega se for tele-entrega
+    if (editTipoEntrega === 'TELE_ENTREGA') {
+      const valorTele = parseFloat(editValorTeleEntrega.replace(',', '.')) || 0;
+      if (valorTele <= 0) {
+        toast({ title: 'Valor da entrega obrigatório', description: 'Informe o valor da taxa de tele-entrega.', variant: 'destructive' });
+        return;
+      }
+    }
+    
+    setSalvandoEntrega(true);
+    showLoading('Salvando entrega...');
+    
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          tipoEntrega: editTipoEntrega,
+          dataEntrega: editDataEntrega,
+          horarioEntrega: editHorarioEntrega || null,
+          valorTeleEntrega: editTipoEntrega === 'TELE_ENTREGA' ? parseFloat(editValorTeleEntrega.replace(',', '.')) || 0 : null,
+        }),
+      });
+      
+      const orcamentoAtualizado = await response.json();
+      
+      if (!response.ok) throw new Error(orcamentoAtualizado.error || 'Erro ao atualizar');
+      
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      setDialogEntregaOpen(false);
+      
+      toast({ 
+        title: 'Entrega atualizada!',
+        description: 'Dados de entrega salvos com sucesso.'
+      });
+    } catch (error) {
+      console.error('Erro ao salvar entrega:', error);
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    } finally {
+      setSalvandoEntrega(false);
+      hideLoading();
+    }
+  };
 
   // Carregar configurações
   useEffect(() => {
@@ -91,6 +231,23 @@ export default function OrcamentosLista() {
       .then(setConfig)
       .catch(console.error);
   }, []);
+
+  // Carregar produtos para adição - carrega quando o dialog abre
+  useEffect(() => {
+    if (dialogAdicaoOpen) {
+      fetch('/api/produtos?ativo=true')
+        .then(res => res.json())
+        .then(data => setProdutos(data))
+        .catch(console.error);
+    }
+  }, [dialogAdicaoOpen]);
+
+  // Filtrar produtos pela busca
+  const produtosFiltrados = useMemo(() => {
+    if (!buscaProduto) return produtos;
+    const termo = buscaProduto.toLowerCase();
+    return produtos.filter(p => p.nome.toLowerCase().includes(termo));
+  }, [produtos, buscaProduto]);
 
   // Carregar orçamentos
   const carregarOrcamentos = async () => {
@@ -157,7 +314,198 @@ export default function OrcamentosLista() {
   // Visualizar orçamento
   const handleVisualizar = (orcamento: Orcamento) => {
     setOrcamentoSelecionado(orcamento);
+    setModoEdicao(false);
+    setModoAdicao(false);
+    setItensEditados({});
+    setBuscaProduto('');
+    setProdutoSelecionado(null);
+    setQuantidadeAdicionar('');
+    setTamanhoSelecionado('');
+    setObservacaoNovoItem('');
     setDialogOpen(true);
+  };
+
+  // Editar quantidade de item
+  const handleEditarQuantidade = (itemId: string, valor: string) => {
+    setItensEditados(prev => ({
+      ...prev,
+      [itemId]: valor,
+    }));
+  };
+
+  // Salvar edição de quantidades
+  const handleSalvarEdicao = async () => {
+    if (!orcamentoSelecionado) return;
+    
+    // Separar itens alterados e itens para remover (quantidade = 0)
+    const itensParaRemover: string[] = [];
+    const itensParaAtualizar: { id: string; quantidade: number; subtotal: number; tamanho?: string; observacao?: string; produtoId?: string }[] = [];
+    
+    orcamentoSelecionado.itens.forEach(item => {
+      const novoValor = itensEditados[item.id];
+      const novoTamanho = tamanhosEditados[item.id];
+      const novaObservacao = observacoesEditadas[item.id];
+      
+      // Verificar se houve alteração em algum campo
+      const quantidadeMudou = novoValor !== undefined;
+      const tamanhoMudou = novoTamanho !== undefined;
+      const observacaoMudou = novaObservacao !== undefined;
+      
+      if (quantidadeMudou || tamanhoMudou || observacaoMudou) {
+        const novaQtd = novoValor ? parseFloat(novoValor.replace(',', '.')) : item.quantidade;
+        
+        if (!isNaN(novaQtd)) {
+          if (novaQtd === 0) {
+            // Item com quantidade 0 deve ser removido
+            itensParaRemover.push(item.id);
+          } else {
+            // Preparar atualização do item
+            const atualizacao: { id: string; quantidade: number; subtotal: number; tamanho?: string; observacao?: string; produtoId?: string } = {
+              id: item.id,
+              quantidade: novaQtd,
+              subtotal: novaQtd * item.valorUnit,
+            };
+            
+            // Incluir tamanho se foi alterado
+            if (tamanhoMudou) {
+              atualizacao.tamanho = novoTamanho || undefined;
+              atualizacao.produtoId = item.produtoId;
+            }
+            
+            // Incluir observação se foi alterada
+            if (observacaoMudou) {
+              atualizacao.observacao = novaObservacao || undefined;
+            }
+            
+            // Só adicionar se houve mudança real
+            if (novaQtd !== item.quantidade || tamanhoMudou || observacaoMudou) {
+              itensParaAtualizar.push(atualizacao);
+            }
+          }
+        }
+      }
+    });
+
+    if (itensParaAtualizar.length === 0 && itensParaRemover.length === 0) {
+      toast({ title: 'Nenhuma alteração', description: 'Não há alterações para salvar.' });
+      return;
+    }
+    
+    // Verificar se restará pelo menos um item
+    const itensRestantes = orcamentoSelecionado.itens.length - itensParaRemover.length;
+    if (itensRestantes === 0) {
+      toast({
+        title: 'Não permitido',
+        description: 'O orçamento deve ter pelo menos um item.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setProcessando(true);
+    showLoading('Salvando alterações...');
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          itens: itensParaAtualizar,
+          itensParaRemover,
+        }),
+      });
+
+      const orcamentoAtualizado = await response.json();
+      
+      if (!response.ok) throw new Error(orcamentoAtualizado.error || 'Erro ao atualizar');
+
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      setModoEdicao(false);
+      setItensEditados({});
+      setTamanhosEditados({});
+      setObservacoesEditadas({});
+      setDialogEdicaoOpen(false);
+      
+      toast({ title: 'Orçamento atualizado!' });
+    } catch (error) {
+      console.error('Erro ao salvar edição:', error);
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    } finally {
+      setProcessando(false);
+      hideLoading();
+    }
+  };
+
+  // Adicionar produto ao orçamento
+  const handleAdicionarProduto = async () => {
+    if (!orcamentoSelecionado || !produtoSelecionado) return;
+
+    let quantidade = 0;
+    let valorUnit = 0;
+    let tamanho: string | undefined = undefined;
+
+    if (produtoSelecionado.tipoProduto === 'ESPECIAL') {
+      if (!tamanhoSelecionado) {
+        toast({ title: 'Selecione o tamanho', variant: 'destructive' });
+        return;
+      }
+      const precoTamanho = produtoSelecionado.precosTamanhos?.[tamanhoSelecionado];
+      valorUnit = (precoTamanho && !isNaN(precoTamanho) && precoTamanho > 0) ? precoTamanho : produtoSelecionado.valorUnit;
+      quantidade = 1;
+      tamanho = tamanhoSelecionado;
+    } else {
+      quantidade = parseFloat(quantidadeAdicionar.replace(',', '.')) || 0;
+      valorUnit = produtoSelecionado.valorUnit;
+      if (quantidade <= 0) {
+        toast({ title: 'Quantidade inválida', variant: 'destructive' });
+        return;
+      }
+    }
+
+    const subtotal = quantidade * valorUnit;
+    setAdicionandoProduto(true);
+    showLoading('Adicionando produto...');
+
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          novosItens: [{
+            produtoId: produtoSelecionado.id,
+            quantidade,
+            valorUnit,
+            subtotal,
+            observacao: observacaoNovoItem || undefined,
+            tamanho,
+          }],
+        }),
+      });
+
+      const orcamentoAtualizado = await response.json();
+      if (!response.ok) throw new Error(orcamentoAtualizado.error || 'Erro ao adicionar');
+
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      
+      // Limpar formulário
+      setProdutoSelecionado(null);
+      setQuantidadeAdicionar('');
+      setTamanhoSelecionado('');
+      setObservacaoNovoItem('');
+      setBuscaProduto('');
+      setModoAdicao(false);
+      
+      toast({ title: 'Produto adicionado!', description: produtoSelecionado.nome });
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+      toast({ title: 'Erro ao adicionar', variant: 'destructive' });
+    } finally {
+      setAdicionandoProduto(false);
+      hideLoading();
+    }
   };
 
   // Imprimir cupom do orçamento
@@ -197,40 +545,41 @@ export default function OrcamentosLista() {
     const telefone = orcamento.cliente.telefone.replace(/\D/g, '');
     const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
     
-    // Montar mensagem cordial
-    let mensagem = `🍰 *Padaria e Confeitaria Paula*\n\n`;
+    // Montar mensagem com português correto
+    let mensagem = `*Padaria e Confeitaria Paula*\n\n`;
     mensagem += `Olá, *${orcamento.cliente.nome}*! Tudo bem?\n\n`;
     mensagem += `Preparamos um orçamento especial para você:\n`;
-    mensagem += `📋 *Orçamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
+    mensagem += `*Orçamento #${orcamento.numero.toString().padStart(4, '0')}*\n\n`;
     
-    // Itens
+    // Itens ordenados
     mensagem += `*Itens:*\n`;
-    orcamento.itens.forEach(item => {
-      const qtd = item.quantidade % 1 === 0 
-        ? item.quantidade.toString() 
+    const itensOrdenados = ordenarItensPorCategoria(orcamento.itens);
+    itensOrdenados.forEach(item => {
+      const qtd = item.quantidade % 1 === 0
+        ? item.quantidade.toString()
         : item.quantidade.toFixed(2).replace('.', ',');
       const tipo = item.produto.tipoVenda === 'KG' ? 'kg' : 'un';
-      mensagem += `• ${item.produto.nome}${item.tamanho ? ` (${item.tamanho})` : ''} - ${qtd}${tipo === 'kg' ? 'kg' : tipo === 'un' ? 'x' : ''} = R$ ${item.subtotal.toFixed(2).replace('.', ',')}\n`;
+      mensagem += `• ${item.produto.nome}${item.tamanho ? ` (${item.tamanho})` : ''} - ${qtd} ${tipo === 'kg' ? 'kg' : 'unidades'} = R$ ${item.subtotal.toFixed(2).replace('.', ',')}\n`;
       if (item.observacao) {
         mensagem += `  _${item.observacao}_\n`;
       }
     });
     
-    mensagem += `\n💰 *Total: R$ ${orcamento.total.toFixed(2).replace('.', ',')}*\n\n`;
+    mensagem += `\n*Total: R$ ${orcamento.total.toFixed(2).replace('.', ',')}*\n\n`;
     
     // Entrega
-    mensagem += `📅 *Entrega:* ${formatarDataEntrega(orcamento.dataEntrega)}`;
+    mensagem += `*Entrega:* ${formatarDataEntrega(orcamento.dataEntrega)}`;
     if (orcamento.horarioEntrega) {
       mensagem += ` às ${orcamento.horarioEntrega}`;
     }
     mensagem += `\n`;
     
     if (orcamento.tipoEntrega === 'RETIRA') {
-      mensagem += `📍 *Retirada no local*\n`;
+      mensagem += `Retirada no local\n`;
     } else {
-      mensagem += `🚚 *Tele Entrega*`;
+      mensagem += `Tele Entrega`;
       if (orcamento.enderecoEntrega) {
-        mensagem += `\n📍 ${orcamento.enderecoEntrega}`;
+        mensagem += `\n${orcamento.enderecoEntrega}`;
         if (orcamento.bairroEntrega) {
           mensagem += ` - ${orcamento.bairroEntrega}`;
         }
@@ -239,10 +588,10 @@ export default function OrcamentosLista() {
     }
     
     if (orcamento.observacoes) {
-      mensagem += `\n📝 *Obs:* ${orcamento.observacoes}\n`;
+      mensagem += `\nObs: ${orcamento.observacoes}\n`;
     }
     
-    mensagem += `\n✨ *Aguardamos sua aprovação!* Se precisar de qualquer alteração, é só nos chamar. Obrigada pela preferência! 💕`;
+    mensagem += `\nAguardamos sua aprovação! Se precisar de qualquer alteração, é só nos chamar. Obrigada pela preferência!`;
     
     const mensagemCodificada = encodeURIComponent(mensagem);
     window.open(`https://wa.me/${telefoneCompleto}?text=${mensagemCodificada}`, '_blank');
@@ -251,6 +600,7 @@ export default function OrcamentosLista() {
   // Aprovar orçamento e converter para pedido
   const handleAprovar = async (orcamento: Orcamento) => {
     setProcessando(true);
+    showLoading('Salvando alterações...');
     try {
       const res = await fetch('/api/orcamentos', {
         method: 'PUT',
@@ -276,6 +626,10 @@ export default function OrcamentosLista() {
       // Remover da lista local
       setOrcamentos(prev => prev.filter(o => o.id !== orcamento.id));
       setDialogOpen(false);
+      
+      // Direcionar para histórico
+      const { setTela } = useAppStore.getState();
+      setTela('historico');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
       toast({
@@ -285,12 +639,14 @@ export default function OrcamentosLista() {
       });
     } finally {
       setProcessando(false);
+      hideLoading();
     }
   };
 
   // Rejeitar orçamento
   const handleRejeitar = async (orcamento: Orcamento) => {
     setProcessando(true);
+    showLoading('Salvando alterações...');
     try {
       const res = await fetch('/api/orcamentos', {
         method: 'PUT',
@@ -324,6 +680,7 @@ export default function OrcamentosLista() {
       });
     } finally {
       setProcessando(false);
+      hideLoading();
     }
   };
 
@@ -394,10 +751,10 @@ export default function OrcamentosLista() {
 
           {/* Tabs de status */}
           <Tabs value={statusFiltro} onValueChange={setStatusFiltro} className="mt-3">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="PENDENTE">Pendentes</TabsTrigger>
-              <TabsTrigger value="APROVADO">Aprovados</TabsTrigger>
-              <TabsTrigger value="REJEITADO">Rejeitados</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="PENDENTE" className="text-xs sm:text-sm px-2 py-2">Pendentes</TabsTrigger>
+              <TabsTrigger value="APROVADO" className="text-xs sm:text-sm px-2 py-2">Aprovados</TabsTrigger>
+              <TabsTrigger value="REJEITADO" className="text-xs sm:text-sm px-2 py-2">Rejeitados</TabsTrigger>
             </TabsList>
           </Tabs>
         </CardContent>
@@ -517,156 +874,150 @@ export default function OrcamentosLista() {
         </ScrollArea>
       )}
 
-      {/* Dialog de detalhes */}
+      {/* Dialog de detalhes - COMPACTO */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
-            </DialogTitle>
-            <DialogDescription>
-              {orcamentoSelecionado && formatarData(orcamentoSelecionado.createdAt)}
-            </DialogDescription>
+        <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0">
+          {/* Header compacto */}
+          <DialogHeader className="p-3 border-b border-border shrink-0">
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-base font-bold">
+                Orçamento #{orcamentoSelecionado?.numero.toString().padStart(4, '0')}
+              </DialogTitle>
+              {orcamentoSelecionado && getStatusBadge(orcamentoSelecionado.status)}
+            </div>
           </DialogHeader>
 
           {orcamentoSelecionado && (
-            <div className="flex-1 overflow-hidden">
-              <div className="h-full flex flex-col">
-                {/* Status */}
-                <div className="flex items-center gap-2 mb-4">
-                  {getStatusBadge(orcamentoSelecionado.status)}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {/* Dados do cliente + Entrega em grid compacto */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Cliente */}
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <p className="font-semibold text-xs text-muted-foreground">Cliente</p>
+                  <p className="font-medium text-sm truncate">{orcamentoSelecionado.cliente.nome}</p>
+                  <p className="text-xs text-muted-foreground">{orcamentoSelecionado.cliente.telefone}</p>
                 </div>
-
-                {/* Dados do cliente */}
-                <div className="bg-muted/30 rounded-lg p-3 mb-4">
-                  <h4 className="font-semibold text-sm mb-2">Cliente</h4>
-                  <p className="text-sm"><strong>Nome:</strong> {orcamentoSelecionado.cliente.nome}</p>
-                  <p className="text-sm"><strong>Telefone:</strong> {orcamentoSelecionado.cliente.telefone}</p>
-                  
-                  {/* Dados de Entrega */}
-                  <div className="mt-2 pt-2 border-t border-border/50">
-                    <div className="flex items-center gap-2 text-sm">
+                {/* Entrega com ícone para alterar */}
+                <div className="bg-muted/30 rounded-lg p-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
                       {orcamentoSelecionado.tipoEntrega === 'RETIRA' ? (
-                        <>
-                          <Store className="w-4 h-4 text-primary" />
-                          <span className="font-medium">Cliente Retira</span>
-                        </>
+                        <><Store className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Retira</span></>
                       ) : (
-                        <>
-                          <Truck className="w-4 h-4 text-primary" />
-                          <span className="font-medium">Tele Entrega</span>
-                        </>
+                        <><Truck className="w-3 h-3 text-primary" /><span className="text-xs font-medium">Entrega</span></>
                       )}
                     </div>
-                    {orcamentoSelecionado.dataEntrega && (
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>{formatarDataEntrega(orcamentoSelecionado.dataEntrega)}</span>
-                        </div>
-                        {orcamentoSelecionado.horarioEntrega && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{orcamentoSelecionado.horarioEntrega}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {orcamentoSelecionado.tipoEntrega === 'TELE_ENTREGA' && orcamentoSelecionado.enderecoEntrega && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="w-3 h-3" />
-                        {orcamentoSelecionado.enderecoEntrega}
-                        {orcamentoSelecionado.bairroEntrega && ` - ${orcamentoSelecionado.bairroEntrega}`}
-                      </p>
+                    {orcamentoSelecionado.status === 'PENDENTE' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
+                        onClick={() => handleAbrirEdicaoEntrega(orcamentoSelecionado)}
+                        title={`Editar dados de entrega`}
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
                     )}
                   </div>
-                </div>
-
-                {/* Itens */}
-                <div className="flex-1 overflow-y-auto">
-                  <h4 className="font-semibold text-sm mb-2">Itens</h4>
-                  <div className="space-y-2">
-                    {orcamentoSelecionado.itens.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center py-2 border-b border-border/50">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.produto.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                            {item.observacao && <span className="ml-2 text-primary">({item.observacao})</span>}
-                          </p>
-                        </div>
-                        <p className="font-semibold text-sm">{formatarMoeda(item.subtotal)}</p>
-                      </div>
-                    ))}
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {orcamentoSelecionado.dataEntrega && formatarDataEntrega(orcamentoSelecionado.dataEntrega)}
+                    {orcamentoSelecionado.horarioEntrega && ` ${orcamentoSelecionado.horarioEntrega}`}
                   </div>
                 </div>
-
-                {/* Observações */}
-                {orcamentoSelecionado.observacoes && (
-                  <div className="mt-3 p-2 bg-muted/30 rounded-lg">
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Obs:</strong> {orcamentoSelecionado.observacoes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Total */}
-                <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-border mt-2">
-                  <span>Total:</span>
-                  <span className="text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
-                </div>
-
-                {/* Botão de enviar via WhatsApp */}
-                <div className="mt-4 pt-3 border-t border-border">
-                  <Button
-                    onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Enviar Orçamento via WhatsApp
-                  </Button>
-                </div>
-
-                {/* Botão de impressão */}
-                <div className="mt-2">
-                  <Button
-                    onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <Printer className="w-4 h-4 mr-2" />
-                    Imprimir Orçamento
-                  </Button>
-                </div>
-
-                {/* Botões de ação */}
-                {orcamentoSelecionado.status === 'PENDENTE' && (
-                  <DialogFooter className="mt-4 pt-3 border-t border-border">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleRejeitar(orcamentoSelecionado)}
-                      disabled={processando}
-                      className="text-destructive border-destructive hover:bg-destructive/10"
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Rejeitar
-                    </Button>
-                    <Button
-                      onClick={() => handleAprovar(orcamentoSelecionado)}
-                      disabled={processando}
-                      className="btn-padaria"
-                    >
-                      {processando ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                      )}
-                      Aprovar e Criar Pedido
-                    </Button>
-                  </DialogFooter>
-                )}
               </div>
+
+              {/* Endereço se tele-entrega */}
+              {orcamentoSelecionado.tipoEntrega === 'TELE_ENTREGA' && orcamentoSelecionado.enderecoEntrega && (
+                <div className="bg-muted/30 rounded-lg p-2 flex items-start gap-1">
+                  <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="text-xs">{orcamentoSelecionado.enderecoEntrega}{orcamentoSelecionado.bairroEntrega && ` - ${orcamentoSelecionado.bairroEntrega}`}</span>
+                </div>
+              )}
+
+              {/* Itens */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="font-semibold text-xs">Itens ({orcamentoSelecionado.itens.length})</h4>
+                  {orcamentoSelecionado.status === 'PENDENTE' && (
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="sm" onClick={() => setDialogEdicaoOpen(true)} className="h-6 px-1.5 text-[10px]">
+                        <Edit2 className="w-2.5 h-2.5 mr-0.5" />Editar
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDialogAdicaoOpen(true)} className="h-6 px-1.5 text-[10px]">
+                        <Plus className="w-2.5 h-2.5 mr-0.5" />Adicionar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-muted/30 rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
+                  {ordenarItensPorCategoria(orcamentoSelecionado.itens).map((item) => (
+                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/30 last:border-0 gap-2">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="text-xs font-medium truncate">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
+                        <p className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
+                        </p>
+                      </div>
+                      <p className="text-xs font-semibold shrink-0">{formatarMoeda(item.subtotal)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Observações */}
+              {orcamentoSelecionado.observacoes && (
+                <div className="p-2 bg-muted/30 rounded-lg">
+                  <p className="text-[10px] text-muted-foreground"><strong>Obs:</strong> {orcamentoSelecionado.observacoes}</p>
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="flex justify-between items-center font-bold pt-1 border-t border-border">
+                <span className="text-sm">Total:</span>
+                <span className="text-base text-primary">{formatarMoeda(orcamentoSelecionado.total)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Botões de ação - SEMPRE VISÍVEIS */}
+          {orcamentoSelecionado && !modoEdicao && !modoAdicao && (
+            <div className="shrink-0 p-3 border-t border-border space-y-1.5 bg-background">
+              {/* Linha 1: WhatsApp e Impressão */}
+              <div className="flex gap-1">
+                <Button
+                  onClick={() => handleEnviarWhatsApp(orcamentoSelecionado)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white h-8 text-[10px]"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 mr-1" />Confirme o Orçamento pelo WhatsApp
+                </Button>
+                <Button
+                  onClick={() => handleImprimirOrcamento(orcamentoSelecionado)}
+                  variant="outline"
+                  className="flex-1 h-8 text-xs"
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1" />Imprimir
+                </Button>
+              </div>
+              {/* Linha 2: Aprovar/Rejeitar */}
+              {orcamentoSelecionado.status === 'PENDENTE' && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleRejeitar(orcamentoSelecionado)}
+                    disabled={processando}
+                    className="flex-1 h-8 text-xs text-destructive border-destructive hover:bg-destructive/10"
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />Rejeitar
+                  </Button>
+                  <Button
+                    onClick={() => handleAprovar(orcamentoSelecionado)}
+                    disabled={processando}
+                    className="flex-1 h-8 btn-padaria text-xs"
+                  >
+                    {processando ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 mr-1" />}Aprovar Orçamento
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -694,6 +1045,374 @@ export default function OrcamentosLista() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Edição de Itens */}
+      <AlertDialog open={dialogEdicaoOpen} onOpenChange={(open) => {
+        setDialogEdicaoOpen(open);
+        if (!open) {
+          setItensEditados({});
+          setTamanhosEditados({});
+          setObservacoesEditadas({});
+        }
+      }}>
+        <AlertDialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-4 h-4" />
+              Editar Itens
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ajuste quantidade, tamanho e observações dos itens.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 py-2">
+            {ordenarItensPorCategoria(orcamentoSelecionado?.itens || []).map((item) => {
+              // Verificar se é Torta Especial (apenas pelo nome do produto)
+              const isTortaEspecial = item.produto.nome.toUpperCase().includes('TORTA ESPECIAL');
+              const tamanhosDisponiveis = ['PP', 'P', 'M', 'G'];
+              
+              return (
+                <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{item.produto.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatarMoeda(item.valorUnit)}/{item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        step={item.produto.tipoVenda === 'KG' ? '0.1' : '1'}
+                        min="0"
+                        className="w-16 h-8 text-sm text-center"
+                        value={itensEditados[item.id] !== undefined ? itensEditados[item.id] : item.quantidade.toString()}
+                        onChange={(e) => handleEditarQuantidade(item.id, e.target.value)}
+                      />
+                      <span className="text-xs text-muted-foreground w-6">
+                        {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Tamanho e Observação - apenas para Torta Especial */}
+                  {isTortaEspecial && (
+                    <>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground mb-1 block">Tamanho</Label>
+                        <div className="flex gap-1">
+                          {tamanhosDisponiveis.map((tam) => (
+                            <Button
+                              key={tam}
+                              type="button"
+                              variant={(tamanhosEditados[item.id] !== undefined ? tamanhosEditados[item.id] : item.tamanho) === tam ? 'default' : 'outline'}
+                              size="sm"
+                              className={`flex-1 h-7 text-[10px] ${(tamanhosEditados[item.id] !== undefined ? tamanhosEditados[item.id] : item.tamanho) === tam ? 'btn-padaria' : ''}`}
+                              onClick={() => setTamanhosEditados(prev => ({ ...prev, [item.id]: tam }))}
+                            >
+                              {tam}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground mb-1 block">Observação</Label>
+                        <Input
+                          placeholder="Ex: sem cebola, mais queijo..."
+                          className="h-8 text-xs"
+                          value={observacoesEditadas[item.id] !== undefined ? observacoesEditadas[item.id] : (item.observacao || '')}
+                          onChange={(e) => setObservacoesEditadas(prev => ({ ...prev, [item.id]: e.target.value }))}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setItensEditados({}); setTamanhosEditados({}); setObservacoesEditadas({}); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSalvarEdicao}
+              disabled={processando}
+              className="btn-padaria"
+            >
+              {processando ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Salvar Alterações
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Adição de Produtos - COMPACTO */}
+      <AlertDialog open={dialogAdicaoOpen} onOpenChange={(open) => {
+        setDialogAdicaoOpen(open);
+        if (!open) {
+          setProdutoSelecionado(null);
+          setBuscaProduto('');
+          setQuantidadeAdicionar('');
+          setTamanhoSelecionado('');
+          setObservacaoNovoItem('');
+        }
+      }}>
+        <AlertDialogContent className="max-w-sm max-h-[75vh] overflow-hidden flex flex-col p-0">
+          <AlertDialogHeader className="shrink-0 p-3 border-b border-border">
+            <AlertDialogTitle className="flex items-center gap-2 text-sm">
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar Produto
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            {/* Busca */}
+            <div className="relative shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                className="pl-8 h-8 text-xs"
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+              />
+            </div>
+            
+            {/* Lista de produtos compacta */}
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {produtosFiltrados.map(produto => (
+                <button
+                  key={produto.id}
+                  type="button"
+                  onClick={() => setProdutoSelecionado(produto)}
+                  className={`w-full px-2 py-1.5 text-left rounded transition-colors ${
+                    produtoSelecionado?.id === produto.id 
+                      ? 'bg-primary/20 border border-primary' 
+                      : 'bg-muted/30 border border-transparent hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-[11px] truncate">{produto.nome}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
+                      {formatarMoeda(produto.valorUnit)}/{produto.tipoVenda === 'KG' ? 'kg' : 'un'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+              {produtosFiltrados.length === 0 && (
+                <p className="text-center text-muted-foreground py-2 text-[10px]">Nenhum produto</p>
+              )}
+            </div>
+            
+            {/* Seleção de quantidade/tamanho - mais compacta */}
+            {produtoSelecionado && (
+              <div className="space-y-1.5 pt-2 border-t border-border shrink-0">
+                {produtoSelecionado.tipoProduto === 'ESPECIAL' ? (
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground mb-0.5 block">Tamanho</Label>
+                    <div className="flex gap-1">
+                      {['PP', 'P', 'M', 'G']
+                        .filter(tam => {
+                          const preco = produtoSelecionado.precosTamanhos?.[tam];
+                          return preco && !isNaN(preco) && preco > 0;
+                        })
+                        .map(tam => {
+                          const preco = produtoSelecionado.precosTamanhos?.[tam] || 0;
+                          return (
+                            <Button
+                              key={tam}
+                              type="button"
+                              variant={tamanhoSelecionado === tam ? 'default' : 'outline'}
+                              size="sm"
+                              className={`flex-1 h-7 text-[10px] ${tamanhoSelecionado === tam ? 'btn-padaria' : ''}`}
+                              onClick={() => setTamanhoSelecionado(tam)}
+                            >
+                              {tam} {formatarMoeda(preco)}
+                            </Button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ) : produtoSelecionado.tipoVenda === 'KG' ? (
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground mb-0.5 block">Peso</Label>
+                    <Select value={quantidadeAdicionar} onValueChange={setQuantidadeAdicionar}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPCOES_KG.map(op => (
+                          <SelectItem key={op.valor} value={op.valor.toString()} className="text-xs">
+                            {op.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground mb-0.5 block">Qtd</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      className="h-8 text-xs"
+                      value={quantidadeAdicionar}
+                      onChange={(e) => setQuantidadeAdicionar(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <div>
+                  <Label className="text-[10px] text-muted-foreground mb-0.5 block">Obs</Label>
+                  <Input
+                    placeholder="Opcional..."
+                    className="h-8 text-xs"
+                    value={observacaoNovoItem}
+                    onChange={(e) => setObservacaoNovoItem(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <AlertDialogFooter className="shrink-0 p-2 border-t border-border">
+            <AlertDialogCancel className="h-8 text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAdicionarProduto}
+              disabled={!produtoSelecionado || adicionandoProduto || 
+                (produtoSelecionado?.tipoProduto === 'ESPECIAL' ? !tamanhoSelecionado : !quantidadeAdicionar)}
+              className="btn-padaria h-8 text-xs"
+            >
+              {adicionandoProduto ? (
+                <><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Adicionando...</>
+              ) : (
+                <><Plus className="w-3 h-3 mr-1" />Adicionar</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Edição de Entrega */}
+      <Dialog open={dialogEntregaOpen} onOpenChange={setDialogEntregaOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Edit2 className="w-4 h-4" />
+              Editar Dados de Entrega
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Altere o tipo, data e horário de entrega.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-2">
+            {/* Tipo de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1.5 block">Tipo de Entrega</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    editTipoEntrega === 'RETIRA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setEditTipoEntrega('RETIRA')}
+                >
+                  <Store className="w-4 h-4" />
+                  <span className="text-xs font-medium">Retira</span>
+                </button>
+                <button
+                  type="button"
+                  className={`p-2 rounded-lg border-2 cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                    editTipoEntrega === 'TELE_ENTREGA' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setEditTipoEntrega('TELE_ENTREGA')}
+                >
+                  <Truck className="w-4 h-4" />
+                  <span className="text-xs font-medium">Entrega</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Data de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Data de Entrega</Label>
+              <Input
+                type="date"
+                className="h-9 text-sm"
+                value={editDataEntrega}
+                onChange={(e) => setEditDataEntrega(e.target.value)}
+              />
+            </div>
+
+            {/* Horário de Entrega */}
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Horário de Entrega</Label>
+              <Select value={editHorarioEntrega} onValueChange={setEditHorarioEntrega}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione o horário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {HORARIOS_COMERCIAIS.map((h) => (
+                    <SelectItem key={h} value={h} className="text-sm">{h}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Valor da Tele-Entrega - só mostra se for TELE_ENTREGA */}
+            {editTipoEntrega === 'TELE_ENTREGA' && (
+              <div>
+                <Label className="text-xs font-medium mb-1 block">Valor da Taxa de Entrega</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    className="h-9 text-sm pl-10"
+                    value={editValorTeleEntrega}
+                    onChange={(e) => setEditValorTeleEntrega(e.target.value)}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Este valor será somado ao total do orçamento.</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              className="h-9 text-xs"
+              onClick={() => setDialogEntregaOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="btn-padaria h-9 text-xs"
+              onClick={handleSalvarEdicaoEntrega}
+              disabled={salvandoEntrega || !editDataEntrega}
+            >
+              {salvandoEntrega ? (
+                <><RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />Salvando...</>
+              ) : (
+                <><Check className="w-3.5 h-3.5 mr-1" />Salvar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

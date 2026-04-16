@@ -8,17 +8,25 @@ datasource db {
 }
 
 model Configuracao {
-  id               String   @id @default(cuid())
-  nomeLoja         String   @default("Padaria e Confeitaria Paula")
-  endereco         String   @default("Rua das Flores, 123")
-  telefone         String   @default("(11) 99999-9999")
-  cnpj             String   @default("")
-  logoUrl          String?
-  senha            String   @default("2026")
-  senhaAdmin       String?
-  mensagemWhatsApp String?  @default("Olá {nome}! Seu pedido está pronto para entrega.")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  nomeLoja              String   @default("Padaria e Confeitaria Paula")
+  endereco              String   @default("Rua das Flores, 123")
+  telefone              String   @default("(11) 99999-9999")
+  cnpj                  String   @default("")
+  logoUrl               String?
+  senha                 String   @default("2026")
+  senhaAdmin            String?
+  // Mensagens WhatsApp editáveis
+  mensagemWhatsApp      String?  @default("Olá {nome}! Seu pedido está pronto para entrega.")
+  mensagemOrcamento     String?  @default("Olá {nome}! Segue seu orçamento.")
+  mensagemProntoRetirada String? @default("Olá {nome}! Seu pedido está PRONTO e esperando por você! Pode vir buscar quando quiser.")
+  mensagemProntoEntrega  String? @default("Olá {nome}! Seu pedido está PRONTO e já está a caminho!")
+  mensagemAprovacao      String? @default("Olá {nome}! Seu orçamento foi aprovado! Estamos preparando seu pedido.")
+  mensagemRevisao        String? @default("Olá {nome}! Por favor, revise seu pedido e confirme se está tudo correto.")
+  // Configuração de alerta de produção (dias antes)
+  diasAlertaProducao     Int?     @default(3)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Cliente {
@@ -54,27 +62,35 @@ model Produto {
 }
 
 model Pedido {
-  id              String       @id @default(cuid())
-  numero          Int
-  clienteId       String
-  observacoes     String?
-  total           Float
-  totalPedida     Float        @default(0)
-  status          String       @default("PENDENTE")
-  impresso        Boolean      @default(false)
-  tipoEntrega     String       @default("RETIRA")
-  dataEntrega     String
-  horarioEntrega  String?
-  enderecoEntrega String?
-  bairroEntrega   String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  itens           ItemPedido[]
-  cliente         Cliente      @relation(fields: [clienteId], references: [id])
+  id                  String       @id @default(cuid())
+  numero              Int
+  clienteId           String
+  observacoes         String?
+  total               Float
+  totalPedida         Float        @default(0)
+  status              String       @default("PENDENTE")
+  impresso            Boolean      @default(false)
+  tipoEntrega         String       @default("RETIRA")
+  dataEntrega         String
+  horarioEntrega      String?
+  enderecoEntrega     String?
+  bairroEntrega       String?
+  // Controle de pagamento
+  statusPagamento     String       @default("PENDENTE")  // PENDENTE, PARCIAL, PAGO
+  valorEntrada        Float        @default(0)
+  formaPagamentoEntrada String?
+  dataEntrada         DateTime?
+  alertaProducaoEnviado Boolean    @default(false)
+  valorTeleEntrega    Float?         // Valor da taxa de tele-entrega
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  itens               ItemPedido[]
+  cliente             Cliente      @relation(fields: [clienteId], references: [id])
 
   @@index([numero])
   @@index([clienteId])
   @@index([createdAt])
+  @@index([dataEntrega])
 }
 
 model ItemPedido {
@@ -107,6 +123,7 @@ model Orcamento {
   horarioEntrega  String?
   enderecoEntrega String?
   bairroEntrega   String?
+  valorTeleEntrega Float?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   itens           ItemOrcamento[]
@@ -133,3 +150,29 @@ model ItemOrcamento {
   @@index([produtoId])
 }
 
+// Bairros para tele-entrega
+model Bairro {
+  id          String   @id @default(cuid())
+  nome        String   @unique
+  taxaEntrega Float    @default(0)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([nome])
+}
+
+// Configurações do catálogo público
+model ConfiguracaoCatalogo {
+  id                        String   @id @default(cuid())
+  pedidoMinimo              Float    @default(0)
+  mensagemBoasVindas        String   @default("Bem-vindo ao nosso catálogo!")
+  mensagemDadosCliente      String   @default("Falta pouco! Preciso dos seus dados para finalizar seu pedido.")
+  exibirBusca               Boolean  @default(true)
+  exibirWhatsapp            Boolean  @default(true)
+  horarioAbertura           String?  @default("08:00")
+  horarioFechamento         String?  @default("20:00")
+  diasFuncionamento         String?  @default("1,2,3,4,5,6") // 0=Dom, 1=Seg, etc
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
