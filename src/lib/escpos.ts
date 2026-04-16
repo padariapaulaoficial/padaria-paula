@@ -61,8 +61,17 @@ export type PedidoCompleto = {
 // Largura do papel 80mm em caracteres (fonte normal)
 const LARGURA_PAPEL = 48;
 
-// Ordem de categorias para impressão: Tortas, Salgadinhos, Docinhos
+// Ordem de categorias para impressão:
+// 0 - Tortas Especiais (com tamanho)
+// 1 - Tortas normais
+// 2 - Salgadinhos/Salgados
+// 3 - Docinhos/Doces
+// 4 - Bolos
+// 5 - Pães
+// 6 - Bebidas
+// 99 - Outros
 const ORDEM_CATEGORIAS: Record<string, number> = {
+  'TORTA ESPECIAL': 0,  // Tortas especiais primeiro (detectar antes)
   'TORTAS': 1,
   'TORTA': 1,
   'SALGADINHOS': 2,
@@ -82,33 +91,40 @@ const ORDEM_CATEGORIAS: Record<string, number> = {
   'OUTROS': 99,
 };
 
+// Função para obter a ordem de um item baseado no nome e tamanho
+function obterOrdemItem(nome: string, tamanho?: string | null): number {
+  const nomeUpper = nome.toUpperCase();
+  
+  // Verificar se é Torta Especial (pelo nome OU se tem tamanho e é torta)
+  if (nomeUpper.includes('TORTA ESPECIAL')) {
+    return 0; // Tortas Especiais sempre primeiro
+  }
+  
+  // Se tem tamanho e o nome contém TORTA, tratar como especial
+  if (tamanho && nomeUpper.includes('TORTA')) {
+    return 0;
+  }
+  
+  // Buscar categoria pelo nome
+  let ordem = 99;
+  for (const [cat, ordemCat] of Object.entries(ORDEM_CATEGORIAS)) {
+    if (nomeUpper.includes(cat)) {
+      ordem = Math.min(ordem, ordemCat);
+    }
+  }
+  
+  return ordem;
+}
+
 // Função para ordenar itens por categoria
 export function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
   return [...itens].sort((a, b) => {
-    // Detectar categoria pelo nome do produto
     const nomeA = a.produto.nome.toUpperCase();
     const nomeB = b.produto.nome.toUpperCase();
     
-    // Detectar se é torta especial (tem tamanho)
-    const isTortaA = a.tamanho ? true : false;
-    const isTortaB = b.tamanho ? true : false;
-    
-    // Tortas especiais primeiro
-    if (isTortaA && !isTortaB) return -1;
-    if (!isTortaA && isTortaB) return 1;
-    
-    // Tentar detectar categoria pelo nome
-    let ordemA = 99;
-    let ordemB = 99;
-    
-    for (const [cat, ordem] of Object.entries(ORDEM_CATEGORIAS)) {
-      if (nomeA.includes(cat)) {
-        ordemA = Math.min(ordemA, ordem);
-      }
-      if (nomeB.includes(cat)) {
-        ordemB = Math.min(ordemB, ordem);
-      }
-    }
+    // Obter ordem de cada item
+    const ordemA = obterOrdemItem(nomeA, a.tamanho);
+    const ordemB = obterOrdemItem(nomeB, b.tamanho);
     
     // Se mesma categoria, ordenar por nome
     if (ordemA === ordemB) {
