@@ -369,7 +369,8 @@ export function gerarCupomCliente(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    const nome = nomeCompleto;
+    // Truncar nome para 22 caracteres para manter alinhamento
+    const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);
@@ -471,7 +472,7 @@ export function gerarCupomCozinha(
   linhas.push(linhaDivisoria('-'));
   
   // Cabeçalho
-  linhas.push('PRODUTO                                      QTD');
+  linhas.push('PRODUTO                               QTD');
   linhas.push(linhaDivisoria('-'));
   
   // Itens (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS)
@@ -488,7 +489,8 @@ export function gerarCupomCozinha(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    const nome = nomeCompleto.toUpperCase();
+    // Truncar nome para 35 caracteres para manter alinhamento (48 total - 12 para QTD - 1 espaço)
+    const nome = truncar(nomeCompleto.toUpperCase(), 35).padEnd(35);
     const qtdProd = item.quantidadePedida || item.quantidade;
     const qtd = formatarQuantidadeProduto(qtdProd, item.produto.tipoVenda).toUpperCase().padStart(12);
     
@@ -787,7 +789,8 @@ export function gerarCupomOrcamento(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    const nome = nomeCompleto;
+    // Truncar nome para 22 caracteres para manter alinhamento
+    const nome = truncar(nomeCompleto, 22).padEnd(22);
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);

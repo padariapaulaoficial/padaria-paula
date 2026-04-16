@@ -19,6 +19,37 @@ import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import ProdutosPorCategoria from './ProdutosPorCategoria';
 
+// Ordem de categorias para exibição
+const ORDEM_CATEGORIAS: Record<string, number> = {
+  'Tortas Especiais': 0,
+  'TORTAS ESPECIAIS': 0,
+  'Tortas': 1,
+  'TORTAS': 1,
+  'Torta': 1,
+  'TORTA': 1,
+  'Salgadinhos': 2,
+  'SALGADINHOS': 2,
+  'Salgados': 2,
+  'SALGADOS': 2,
+  'Docinhos': 3,
+  'DOCINHOS': 3,
+  'Doces': 3,
+  'DOCES': 3,
+  'Bolos': 4,
+  'BOLOS': 4,
+  'Pães': 5,
+  'PAES': 5,
+  'Bebidas': 6,
+  'BEBIDAS': 6,
+  'Outros': 99,
+  'OUTROS': 99,
+};
+
+// Função para obter ordem de uma categoria
+function obterOrdemCategoria(categoria: string): number {
+  return ORDEM_CATEGORIAS[categoria] ?? ORDEM_CATEGORIAS[categoria.toUpperCase()] ?? 99;
+}
+
 interface Produto {
   id: string;
   nome: string;
@@ -118,18 +149,21 @@ export default function CategoriasPDV() {
       });
   }, []);
 
-  // Extrair categorias únicas e contar produtos
+  // Extrair categorias únicas e contar produtos - ORDENADAS
   const categorias = useMemo(() => {
     const contagem: Record<string, number> = {};
     produtos.forEach(p => {
       const cat = p.categoria || 'Outros';
       contagem[cat] = (contagem[cat] || 0) + 1;
     });
-    return Object.entries(contagem).map(([nome, qtd]) => ({
-      nome,
-      quantidade: qtd,
-      config: CONFIG_CATEGORIAS[nome] || CONFIG_CATEGORIAS['Outros']
-    }));
+    // Ordenar pela ordem definida
+    return Object.entries(contagem)
+      .sort((a, b) => obterOrdemCategoria(a[0]) - obterOrdemCategoria(b[0]))
+      .map(([nome, qtd]) => ({
+        nome,
+        quantidade: qtd,
+        config: CONFIG_CATEGORIAS[nome] || CONFIG_CATEGORIAS['Outros']
+      }));
   }, [produtos]);
 
   // Produtos da categoria selecionada

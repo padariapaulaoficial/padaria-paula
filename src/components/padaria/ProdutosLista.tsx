@@ -24,6 +24,37 @@ import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda as formatarValor } from '@/store/usePedidoStore';
 
+// Ordem de categorias para exibição
+const ORDEM_CATEGORIAS: Record<string, number> = {
+  'Tortas Especiais': 0,
+  'TORTAS ESPECIAIS': 0,
+  'Tortas': 1,
+  'TORTAS': 1,
+  'Torta': 1,
+  'TORTA': 1,
+  'Salgadinhos': 2,
+  'SALGADINHOS': 2,
+  'Salgados': 2,
+  'SALGADOS': 2,
+  'Docinhos': 3,
+  'DOCINHOS': 3,
+  'Doces': 3,
+  'DOCES': 3,
+  'Bolos': 4,
+  'BOLOS': 4,
+  'Pães': 5,
+  'PAES': 5,
+  'Bebidas': 6,
+  'BEBIDAS': 6,
+  'Outros': 99,
+  'OUTROS': 99,
+};
+
+// Função para obter ordem de uma categoria
+function obterOrdemCategoria(categoria: string): number {
+  return ORDEM_CATEGORIAS[categoria] ?? ORDEM_CATEGORIAS[categoria.toUpperCase()] ?? 99;
+}
+
 interface Produto {
   id: string;
   nome: string;
@@ -103,10 +134,12 @@ export default function ProdutosLista() {
       });
   }, []);
 
-  // Extrair categorias únicas
+  // Extrair categorias únicas ORDENADAS
   const categorias = useMemo(() => {
-    const cats = new Set(produtos.map(p => p.categoria || 'Outros'));
-    return ['Todos', ...Array.from(cats)];
+    const cats = Array.from(new Set(produtos.map(p => p.categoria || 'Outros')));
+    // Ordenar pela ordem definida
+    const catsOrdenadas = cats.sort((a, b) => obterOrdemCategoria(a) - obterOrdemCategoria(b));
+    return ['Todos', ...catsOrdenadas];
   }, [produtos]);
 
   // Filtrar produtos
@@ -119,7 +152,7 @@ export default function ProdutosLista() {
     });
   }, [produtos, busca, categoriaAtiva]);
 
-  // Agrupar por categoria
+  // Agrupar por categoria ORDENADO
   const produtosPorCategoria = useMemo(() => {
     const grupos: Record<string, Produto[]> = {};
     produtosFiltrados.forEach(produto => {
@@ -127,7 +160,18 @@ export default function ProdutosLista() {
       if (!grupos[cat]) grupos[cat] = [];
       grupos[cat].push(produto);
     });
-    return grupos;
+    
+    // Ordenar as categorias pela ordem definida
+    const categoriasOrdenadas = Object.keys(grupos).sort((a, b) => {
+      return obterOrdemCategoria(a) - obterOrdemCategoria(b);
+    });
+    
+    const gruposOrdenados: Record<string, Produto[]> = {};
+    categoriasOrdenadas.forEach(cat => {
+      gruposOrdenados[cat] = grupos[cat];
+    });
+    
+    return gruposOrdenados;
   }, [produtosFiltrados]);
 
   // Ícone por tipo de venda
