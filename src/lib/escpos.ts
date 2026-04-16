@@ -47,6 +47,7 @@ export type PedidoCompleto = {
     produto: {
       nome: string;
       tipoVenda: string;
+      categoria?: string | null;
     };
     quantidade: number;
     quantidadePedida?: number;
@@ -106,60 +107,30 @@ const ORDEM_CATEGORIAS: Record<string, number> = {
   'OUTRO': 99,
 };
 
-// Função para obter a ordem de um item baseado no nome e tamanho
-function obterOrdemItem(nome: string, tamanho?: string | null): number {
-  const nomeUpper = nome.toUpperCase();
-  
-  // Verificar se é Torta Especial (pelo nome OU se tem tamanho e é torta)
-  if (nomeUpper.includes('TORTA ESPECIAL')) {
-    return 0; // Tortas Especiais sempre primeiro
-  }
-  
-  // Se tem tamanho e o nome contém TORTA, tratar como especial
-  if (tamanho && nomeUpper.includes('TORTA')) {
+// Função para obter a ordem de um item baseado na categoria real do produto
+function obterOrdemItem(categoria?: string | null, tamanho?: string | null): number {
+  // Tortas especiais (com tamanho) sempre primeiro
+  if (tamanho) {
     return 0;
   }
   
-  // Buscar categoria pelo nome - ORDEM EXATA
-  let ordem = 99;
-  for (const [cat, ordemCat] of Object.entries(ORDEM_CATEGORIAS)) {
-    if (nomeUpper.includes(cat)) {
-      ordem = Math.min(ordem, ordemCat);
-    }
-  }
+  // Usar a categoria real do produto
+  const catUpper = categoria?.toUpperCase() || 'OUTROS';
   
-  return ordem;
-}
-
-// Tipo para itens que podem ter nome em produto ou diretamente
-type ItemOrdenavel = 
-  | { produto: { nome: string; tipoVenda: string }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }
-  | { nome: string; tipoVenda: string; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null; produtoId?: string };
-
-// Função auxiliar para obter o nome do item (compatível com ambos os formatos)
-function obterNomeItem(item: ItemOrdenavel): string {
-  if ('produto' in item && item.produto) {
-    return item.produto.nome;
-  }
-  if ('nome' in item) {
-    return item.nome;
-  }
-  return '';
+  // Obter ordem das categorias (default 99 para categorias não mapeadas)
+  return ORDEM_CATEGORIAS[catUpper] ?? 99;
 }
 
 // Função para ordenar itens por categoria
-export function ordenarItensPorCategoria<T extends ItemOrdenavel>(itens: T[]): T[] {
+export function ordenarItensPorCategoria(itens: { produto: { nome: string; tipoVenda: string; categoria?: string | null }; quantidade: number; valorUnit: number; subtotal: number; observacao?: string | null; tamanho?: string | null }[]): typeof itens {
   return [...itens].sort((a, b) => {
-    const nomeA = obterNomeItem(a).toUpperCase();
-    const nomeB = obterNomeItem(b).toUpperCase();
-    
     // Obter ordem de cada item
-    const ordemA = obterOrdemItem(nomeA, a.tamanho);
-    const ordemB = obterOrdemItem(nomeB, b.tamanho);
+    const ordemA = obterOrdemItem(a.produto.categoria, a.tamanho);
+    const ordemB = obterOrdemItem(b.produto.categoria, b.tamanho);
     
     // Se mesma categoria, ordenar por nome
     if (ordemA === ordemB) {
-      return nomeA.localeCompare(nomeB);
+      return a.produto.nome.localeCompare(b.produto.nome);
     }
     
     return ordemA - ordemB;
@@ -693,6 +664,7 @@ export type OrcamentoCompleto = {
     produto: {
       nome: string;
       tipoVenda: string;
+      categoria?: string | null;
     };
     quantidade: number;
     valorUnit: number;

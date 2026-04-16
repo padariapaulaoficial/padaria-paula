@@ -407,6 +407,7 @@ export default function NovoOrcamento() {
         subtotal: preco,
         tamanho: selecao.tamanho,
         observacao: selecao.observacao || undefined,
+        categoria: produto.categoria,
       });
 
       limparSelecao(produto.id);
@@ -429,6 +430,7 @@ export default function NovoOrcamento() {
       valorUnit: produto.valorUnit,
       tipoVenda: produto.tipoVenda,
       subtotal: Math.round(subtotal * 100) / 100,
+      categoria: produto.categoria,
     });
 
     limparSelecao(produto.id);

@@ -250,6 +250,7 @@ export default function ProdutosLista() {
         subtotal: preco,
         observacao: observacao || undefined,
         tamanho: tamanho,
+        categoria: produto.categoria,
       });
 
       // Limpar seleção
@@ -301,6 +302,7 @@ export default function ProdutosLista() {
       tipoVenda: produto.tipoVenda,
       subtotalPedida: subtotal,      // Subtotal original
       subtotal: subtotal,            // Subtotal final (inicialmente igual)
+      categoria: produto.categoria,
     });
 
     // Limpar seleção

@@ -98,6 +98,60 @@ export interface ItemOrcamentoCarrinho {
   subtotal: number;
   observacao?: string;
   tamanho?: string; // Tamanho para produtos especiais (PP, P, M, G)
+  categoria?: string | null; // Categoria do produto para ordenação
+}
+
+// Ordem de categorias para exibição
+export const ORDEM_CATEGORIAS: Record<string, number> = {
+  'TORTAS': 1,
+  'TORTA': 1,
+  'SALGADINHOS': 2,
+  'SALGADINHO': 2,
+  'SALGADOS': 3,
+  'SALGADO': 3,
+  'DOCINHOS': 4,
+  'DOCINHO': 4,
+  'DOCES': 5,
+  'DOCE': 5,
+  'BEBIDAS': 6,
+  'BEBIDA': 6,
+  'OUTROS': 99,
+  '': 99,
+};
+
+// Função para obter ordem de categoria
+export function obterOrdemCategoria(categoria: string | null | undefined): number {
+  if (!categoria) return 99;
+  const catUpper = categoria.toUpperCase().trim();
+  
+  // Busca exata primeiro
+  if (ORDEM_CATEGORIAS[catUpper] !== undefined) {
+    return ORDEM_CATEGORIAS[catUpper];
+  }
+  
+  // Busca parcial
+  for (const [key, ordem] of Object.entries(ORDEM_CATEGORIAS)) {
+    if (catUpper.includes(key) || key.includes(catUpper)) {
+      return ordem;
+    }
+  }
+  
+  return 99;
+}
+
+// Função para ordenar itens por categoria
+export function ordenarItensPorCategoria<T extends { categoria?: string | null; tamanho?: string }>(itens: T[]): T[] {
+  return [...itens].sort((a, b) => {
+    // Tortas especiais (com tamanho) primeiro
+    const temTamanhoA = a.tamanho ? 0 : 1;
+    const temTamanhoB = b.tamanho ? 0 : 1;
+    if (temTamanhoA !== temTamanhoB) return temTamanhoA - temTamanhoB;
+    
+    // Depois ordenar por categoria
+    const ordemA = obterOrdemCategoria(a.categoria);
+    const ordemB = obterOrdemCategoria(b.categoria);
+    return ordemA - ordemB;
+  });
 }
 
 // Dados do cliente (apenas para seleção)
@@ -175,33 +229,37 @@ export const useOrcamentoStore = create<OrcamentoState>((set, get) => ({
   
   // ADICIONAR ITEM - ORDENA AUTOMATICAMENTE
   adicionarItem: (item) => {
-    const itens = ordenarItens([...get().itens, item]);
-    const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
+    // Adicionar novo item e ORDENAR por categoria
+    const novosItens = [...get().itens, item];
+    const itensOrdenados = ordenarItensPorCategoria(novosItens);
+    const total = itensOrdenados.reduce((sum, i) => sum + i.subtotal, 0);
     set({ 
-      itens, 
+      itens: itensOrdenados, 
       total: Math.round(total * 100) / 100,
     });
   },
   
   // REMOVER ITEM - REORDENA APÓS REMOÇÃO
   removerItem: (index) => {
-    const itensFiltrados = get().itens.filter((_, i) => i !== index);
-    const itens = ordenarItens(itensFiltrados);
-    const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
+    const itens = get().itens.filter((_, i) => i !== index);
+    // Reordenar após remoção
+    const itensOrdenados = ordenarItensPorCategoria(itens);
+    const total = itensOrdenados.reduce((sum, i) => sum + i.subtotal, 0);
     set({ 
-      itens, 
+      itens: itensOrdenados, 
       total: Math.round(total * 100) / 100,
     });
   },
   
   // ATUALIZAR ITEM - REORDENA APÓS ATUALIZAÇÃO
   atualizarItem: (index, itemAtualizado) => {
-    const itensAtualizados = [...get().itens];
-    itensAtualizados[index] = { ...itensAtualizados[index], ...itemAtualizado };
-    const itens = ordenarItens(itensAtualizados);
-    const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
+    const itens = [...get().itens];
+    itens[index] = { ...itens[index], ...itemAtualizado };
+    // Reordenar após atualização
+    const itensOrdenados = ordenarItensPorCategoria(itens);
+    const total = itensOrdenados.reduce((sum, i) => sum + i.subtotal, 0);
     set({ 
-      itens, 
+      itens: itensOrdenados, 
       total: Math.round(total * 100) / 100,
     });
   },
@@ -219,10 +277,11 @@ export const useOrcamentoStore = create<OrcamentoState>((set, get) => ({
         subtotal: Math.round(novoSubtotal * 100) / 100,
       };
       
-      const itens = ordenarItens(itensAtualizados);
-      const total = itens.reduce((sum, i) => sum + i.subtotal, 0);
+      // Reordenar após atualização
+      const itensOrdenados = ordenarItensPorCategoria(itensAtualizados);
+      const total = itensOrdenados.reduce((sum, i) => sum + i.subtotal, 0);
       set({ 
-        itens, 
+        itens: itensOrdenados, 
         total: Math.round(total * 100) / 100,
       });
     }
