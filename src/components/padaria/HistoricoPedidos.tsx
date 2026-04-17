@@ -354,10 +354,14 @@ export default function HistoricoPedidos() {
     return `${diaSemana} - ${dataFormatada} às ${horaFormatada}`;
   };
 
-  // Formatar data de entrega
+  // Formatar data de entrega com dia da semana
   const formatarDataEntrega = (data?: string) => {
     if (!data) return '';
-    return new Date(data + 'T12:00:00').toLocaleDateString('pt-BR');
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const dataObj = new Date(data + 'T12:00:00');
+    const diaSemana = diasSemana[dataObj.getDay()];
+    const dataFormatada = dataObj.toLocaleDateString('pt-BR');
+    return `${diaSemana} - ${dataFormatada}`;
   };
 
   // Badge de status
@@ -1309,6 +1313,18 @@ export default function HistoricoPedidos() {
                             </Badge>
                           )}
                         </div>
+                        {/* Data de entrega destacada */}
+                        {pedido.dataEntrega && (
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <Calendar className="w-3 h-3 text-primary" />
+                            <span className="text-xs font-semibold text-primary">
+                              {formatarDataEntrega(pedido.dataEntrega)}
+                              {pedido.horarioEntrega && (
+                                <span className="ml-1">às {pedido.horarioEntrega}</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
                         <p className="font-medium text-sm">{pedido.cliente.nome}</p>
                         <p className="text-xs text-muted-foreground">{pedido.cliente.telefone}</p>
                         <p className="text-xs text-muted-foreground">{formatarData(pedido.createdAt)}</p>
