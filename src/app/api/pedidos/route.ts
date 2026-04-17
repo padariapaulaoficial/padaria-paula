@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const data = searchParams.get('data');
+    const dataEntrega = searchParams.get('dataEntrega');
     const status = searchParams.get('status');
     const limite = searchParams.get('limite');
     const alertaProducao = searchParams.get('alertaProducao');
@@ -73,7 +74,12 @@ export async function GET(request: NextRequest) {
     // Filtros para listagem
     const where: Record<string, unknown> = {};
     
-    if (data) {
+    // Filtro por data de entrega (dataEntrega)
+    if (dataEntrega) {
+      where.dataEntrega = dataEntrega;
+    }
+    // Filtro por data de criação (mantido para compatibilidade)
+    else if (data) {
       const dataInicio = new Date(data);
       dataInicio.setHours(0, 0, 0, 0);
       const dataFim = new Date(data);
@@ -89,7 +95,7 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
     
-    // Listar pedidos
+    // Listar pedidos - ordenar por data de entrega e horário
     const pedidos = await db.pedido.findMany({
       where,
       include: {
@@ -100,7 +106,10 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: dataEntrega ? [
+        { horarioEntrega: 'asc' },
+        { createdAt: 'desc' }
+      ] : { createdAt: 'desc' },
       take: limite ? parseInt(limite) : 50,
     });
     

@@ -150,7 +150,13 @@ export default function HistoricoPedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
-  const [dataFiltro, setDataFiltro] = useState('');
+  
+  // Data de entrega - padrão: hoje
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+  const [dataFiltro, setDataFiltro] = useState(getTodayDate);
   const [statusFiltro, setStatusFiltro] = useState<string>('TODOS');
   const [pagamentoFiltro, setPagamentoFiltro] = useState<string>('TODOS');
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null);
@@ -258,8 +264,9 @@ export default function HistoricoPedidos() {
     setLoading(true);
     try {
       let url = '/api/pedidos?limite=100';
+      // Sempre filtrar por data de entrega
       if (dataFiltro) {
-        url += `&data=${dataFiltro}`;
+        url += `&dataEntrega=${dataFiltro}`;
       }
       
       const res = await fetch(url);
@@ -1187,11 +1194,39 @@ export default function HistoricoPedidos() {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Filtro de Data de Entrega - Destacado */}
+      <Card className="card-padaria bg-primary/5 border-primary/20">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span className="font-semibold text-sm">Data de Entrega:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                className="input-padaria w-48 h-11 text-center text-base font-medium border-2 border-primary/30 focus:border-primary"
+                value={dataFiltro}
+                onChange={(e) => setDataFiltro(e.target.value)}
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setDataFiltro(getTodayDate())} 
+                className="h-11 px-3 text-xs"
+                title="Voltar para hoje"
+              >
+                Hoje
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Filtros */}
       <Card className="card-padaria">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
             Histórico de Pedidos
           </CardTitle>
         </CardHeader>
@@ -1229,12 +1264,6 @@ export default function HistoricoPedidos() {
                 <SelectItem value="PAGO">Pago</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              type="date"
-              className="input-padaria w-full sm:w-40 h-10"
-              value={dataFiltro}
-              onChange={(e) => setDataFiltro(e.target.value)}
-            />
             <Button variant="outline" size="sm" onClick={carregarPedidos} className="h-10">
               <RefreshCw className="w-4 h-4" />
             </Button>
