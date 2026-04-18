@@ -752,10 +752,12 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 white-space: pre;
               }
               .header-info {
-                font-size: 16px;
+                font-size: 18px;
+                font-weight: bold;
               }
               .client-data {
-                font-size: 16px;
+                font-size: 18px;
+                font-weight: bold;
               }
               .header {
                 font-size: 22px;
@@ -776,10 +778,12 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
               @media print {
                 body { padding: 0; }
                 .header-info {
-                  font-size: 16px;
+                  font-size: 18px;
+                  font-weight: bold;
                 }
                 .client-data {
-                  font-size: 16px;
+                  font-size: 18px;
+                  font-weight: bold;
                 }
                 .header {
                   font-size: 22px;
@@ -787,9 +791,11 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 }
                 .item {
                   font-size: 22px;
+                  font-weight: bold;
                 }
                 .observacoes {
                   font-size: 16px;
+                  font-style: italic;
                 }
                 @page { margin: 0; size: 80mm auto; }
               }
