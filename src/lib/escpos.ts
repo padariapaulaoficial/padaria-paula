@@ -625,12 +625,24 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
   const linhasFormatadas: string[] = [];
   let inItemsSection = false;
   let inObservacoes = false;
+  let inHeaderSection = true; // Começa no cabeçalho (Pedido Nº, Entrega)
+  let inClientSection = false; // Dados do cliente
 
   for (let i = 0; i < linhas.length; i++) {
     const linha = linhas[i];
+    const linhaTrim = linha.trim();
 
-    // Detectar início da seção de itens
-    if (linha.trim() === 'ITENS:') {
+    // Detectar linha de separação antes do cliente (transição header -> cliente)
+    if (inHeaderSection && linha.includes('-----')) {
+      inClientSection = true;
+      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Detectar início da seção de itens (transição cliente -> itens)
+    if (linhaTrim === 'ITENS:') {
+      inHeaderSection = false;
+      inClientSection = false;
       inItemsSection = true;
       inObservacoes = false;
       linhasFormatadas.push(`<div class="header">${escapeHtml(linha)}</div>`);
@@ -638,7 +650,7 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
     }
 
     // Detectar início das observações (após itens)
-    if (linha.trim().startsWith('OBS:') || linha.trim() === 'OBSERVAÇÕES:') {
+    if (linhaTrim.startsWith('OBS:') || linhaTrim === 'OBSERVAÇÕES:') {
       inItemsSection = false;
       inObservacoes = true;
       linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
@@ -662,6 +674,8 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
     if (linha.includes('=====')) {
       inItemsSection = false;
       inObservacoes = false;
+      inHeaderSection = false;
+      inClientSection = false;
       linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
       continue;
     }
@@ -678,7 +692,19 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
       continue;
     }
 
-    // Linhas normais (cabeçalho, cliente, etc)
+    // Linhas do cabeçalho (Pedido Nº, Entrega)
+    if (inHeaderSection) {
+      linhasFormatadas.push(`<div class="header-info">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Linhas dos dados do cliente
+    if (inClientSection) {
+      linhasFormatadas.push(`<div class="client-data">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Linhas normais (fallback)
     linhasFormatadas.push(`<div>${escapeHtml(linha)}</div>`);
   }
 
@@ -725,15 +751,25 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
               div {
                 white-space: pre;
               }
+              .header-info {
+                font-size: 18px;
+                font-weight: bold;
+              }
+              .client-data {
+                font-size: 18px;
+                font-weight: bold;
+              }
               .header {
+                font-size: 22px;
                 font-weight: bold;
               }
               .item {
-                font-size: 24px;
+                font-size: 22px;
                 font-weight: bold;
                 line-height: 1.6;
               }
               .observacoes {
+                font-size: 16px;
                 font-style: italic;
               }
               .divisor {
@@ -741,8 +777,25 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
               }
               @media print {
                 body { padding: 0; }
+                .header-info {
+                  font-size: 18px;
+                  font-weight: bold;
+                }
+                .client-data {
+                  font-size: 18px;
+                  font-weight: bold;
+                }
+                .header {
+                  font-size: 22px;
+                  font-weight: bold;
+                }
                 .item {
                   font-size: 22px;
+                  font-weight: bold;
+                }
+                .observacoes {
+                  font-size: 16px;
+                  font-style: italic;
                 }
                 @page { margin: 0; size: 80mm auto; }
               }
