@@ -623,9 +623,9 @@ export function gerarCupomCozinhaGrande(
 export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): void {
   // Verificar se é comanda de cozinha para usar fonte maior
   const isComandaCozinha = titulo.toLowerCase().includes('cozinha');
-  const fontSize = isComandaCozinha ? '22px' : '12px';
-  const printFontSize = isComandaCozinha ? '20px' : '11px';
-  const lineHeight = isComandaCozinha ? '1.8' : '1.6';
+  const fontSize = isComandaCozinha ? '30px' : '12px';
+  const printFontSize = isComandaCozinha ? '28px' : '11px';
+  const lineHeight = isComandaCozinha ? '2.0' : '1.6';
   
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
