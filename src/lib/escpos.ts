@@ -617,52 +617,185 @@ export function gerarCupomCozinhaGrande(
 }
 
 /**
+ * Formata o conteúdo do cupom de cozinha com fontes diferenciadas
+ * Itens ficam com fonte maior para facilitar leitura de idosos
+ */
+function formatarCupomCozinhaHTML(conteudo: string): string {
+  const linhas = conteudo.split('\n');
+  const linhasFormatadas: string[] = [];
+  let inItemsSection = false;
+  let inObservacoes = false;
+
+  for (let i = 0; i < linhas.length; i++) {
+    const linha = linhas[i];
+
+    // Detectar início da seção de itens
+    if (linha.trim() === 'ITENS:') {
+      inItemsSection = true;
+      inObservacoes = false;
+      linhasFormatadas.push(`<div class="header">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Detectar início das observações (após itens)
+    if (linha.trim().startsWith('OBS:') || linha.trim() === 'OBSERVAÇÕES:') {
+      inItemsSection = false;
+      inObservacoes = true;
+      linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Detectar fim da seção de itens (linha divisória após os itens, antes de OBS ou fim)
+    if (inItemsSection && linha.includes('-----')) {
+      // Verificar se a próxima linha é observação ou se acabou
+      const proximaLinha = linhas[i + 1] || '';
+      if (proximaLinha.trim().startsWith('OBS:') ||
+          proximaLinha.trim().startsWith('OBSERVAÇÕES:') ||
+          proximaLinha.includes('=====')) {
+        inItemsSection = false;
+        linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
+        continue;
+      }
+    }
+
+    // Detectar fim do cupom
+    if (linha.includes('=====')) {
+      inItemsSection = false;
+      inObservacoes = false;
+      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Linha dentro da seção de itens - aplicar classe especial
+    if (inItemsSection) {
+      linhasFormatadas.push(`<div class="item">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Linhas de observação
+    if (inObservacoes) {
+      linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Linhas normais (cabeçalho, cliente, etc)
+    linhasFormatadas.push(`<div>${escapeHtml(linha)}</div>`);
+  }
+
+  return linhasFormatadas.join('\n');
+}
+
+/**
+ * Escapa caracteres HTML para evitar XSS
+ */
+function escapeHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Abre diálogo de impressão do navegador
- * Usa fonte maior para comanda de cozinha
+ * Para comanda de cozinha: itens com fonte maior para idosos
  */
 export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): void {
-  // Verificar se é comanda de cozinha para usar fonte maior
   const isComandaCozinha = titulo.toLowerCase().includes('cozinha');
-  const fontSize = isComandaCozinha ? '22px' : '12px';
-  const printFontSize = isComandaCozinha ? '20px' : '11px';
-  const lineHeight = isComandaCozinha ? '1.8' : '1.6';
-  
+
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
-    janela.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${titulo}</title>
-          <style>
-            body {
-              font-family: 'Courier New', monospace;
-              font-size: ${fontSize};
-              line-height: ${lineHeight};
-              margin: 0;
-              padding: 10px;
-            }
-            pre {
-              white-space: pre-wrap;
-              margin: 0;
-            }
-            @media print {
-              body { padding: 0; font-size: ${printFontSize}; line-height: ${lineHeight}; }
-              @page { margin: 0; size: 80mm auto; }
-            }
-          </style>
-        </head>
-        <body>
-          <pre>${conteudo}</pre>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `);
+    if (isComandaCozinha) {
+      // Para comanda de cozinha: fontes diferenciadas
+      const htmlContent = formatarCupomCozinhaHTML(conteudo);
+      janela.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${titulo}</title>
+            <style>
+              body {
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                line-height: 1.4;
+                margin: 0;
+                padding: 10px;
+              }
+              div {
+                white-space: pre;
+              }
+              .header {
+                font-weight: bold;
+              }
+              .item {
+                font-size: 24px;
+                font-weight: bold;
+                line-height: 1.6;
+              }
+              .observacoes {
+                font-style: italic;
+              }
+              .divisor {
+                font-size: 14px;
+              }
+              @media print {
+                body { padding: 0; }
+                .item {
+                  font-size: 22px;
+                }
+                @page { margin: 0; size: 80mm auto; }
+              }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+            <script>
+              window.onload = function() {
+                window.print();
+                window.close();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+    } else {
+      // Para outros cupons: fonte normal
+      janela.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${titulo}</title>
+            <style>
+              body {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1.6;
+                margin: 0;
+                padding: 10px;
+              }
+              pre {
+                white-space: pre-wrap;
+                margin: 0;
+              }
+              @media print {
+                body { padding: 0; font-size: 11px; }
+                @page { margin: 0; size: 80mm auto; }
+              }
+            </style>
+          </head>
+          <body>
+            <pre>${escapeHtml(conteudo)}</pre>
+            <script>
+              window.onload = function() {
+                window.print();
+                window.close();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+    }
     janela.document.close();
   }
 }
