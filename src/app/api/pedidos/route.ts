@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const clienteId = searchParams.get('clienteId');
     const data = searchParams.get('data');
     const dataEntrega = searchParams.get('dataEntrega');
     const status = searchParams.get('status');
@@ -93,6 +94,11 @@ export async function GET(request: NextRequest) {
     
     if (status) {
       where.status = status;
+    }
+    
+    // Filtro por cliente
+    if (clienteId) {
+      where.clienteId = clienteId;
     }
     
     // Listar pedidos - ordenar por data de entrega e horário
