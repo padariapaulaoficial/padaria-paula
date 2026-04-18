@@ -43,7 +43,7 @@ import { useLoadingFetch } from '@/hooks/useLoadingFetch';
 import { formatarMoeda } from '@/store/usePedidoStore';
 
 // Tamanhos fixos para produtos especiais (tortas)
-const TAMANHOS_FIXOS = ['PP', 'P', 'M', 'G'];
+const TAMANHOS_FIXOS = ['PP', 'P', 'M', 'G', 'GG'];
 
 // Categorias disponíveis
 const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
@@ -109,7 +109,7 @@ export default function AdminProdutos() {
   const [produtoEspecial, setProdutoEspecial] = useState({
     nome: '',
     categoria: 'Tortas',
-    precos: { PP: '', P: '', M: '', G: '' } as Record<string, string>,
+    precos: { PP: '', P: '', M: '', G: '', GG: '' } as Record<string, string>,
     imagem: null as File | null,
     imagemPreview: '',
   });
@@ -305,7 +305,7 @@ export default function AdminProdutos() {
       }
 
       setProdutos([produto, ...produtos]);
-      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { PP: '', P: '', M: '', G: '' }, imagem: null, imagemPreview: '' });
+      setProdutoEspecial({ nome: '', categoria: 'Tortas', precos: { PP: '', P: '', M: '', G: '', GG: '' }, imagem: null, imagemPreview: '' });
       setModalCadastroEspecial(false);
 
       toast({
