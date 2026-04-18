@@ -688,8 +688,19 @@ export default function HistoricoPedidos() {
 
   // Atualizar status
   const handleAtualizarStatus = async (pedido: Pedido, novoStatus: string) => {
-    // Se for ENTREGUE, mostrar confirmação com pagamento
+    // Se for ENTREGUE, verificar status de pagamento
     if (novoStatus === 'ENTREGUE') {
+      // Verificar se já está totalmente pago
+      const valorEntrada = pedido.valorEntrada || 0;
+      const statusPagamentoAtual = calcularStatusPagamento(pedido);
+      
+      if (statusPagamentoAtual === 'PAGO' || valorEntrada >= pedido.total) {
+        // Já está pago, apenas marcar como entregue
+        await atualizarStatusDireto(pedido, 'ENTREGUE');
+        return;
+      }
+      
+      // Não está totalmente pago, mostrar diálogo de confirmação
       setPedidoParaFinalizar(pedido);
       setFormaPagamentoFinal('');
       setValorRecebidoFinal('');
@@ -740,13 +751,28 @@ export default function HistoricoPedidos() {
     showLoading('Finalizando pedido...');
     
     try {
+      // Preparar dados para atualização
+      const updateData: Record<string, unknown> = {
+        id: pedidoParaFinalizar.id,
+        status: 'ENTREGUE',
+      };
+      
+      // Se o usuário confirmou pagamento, registrar o pagamento
+      if (formaPagamentoFinal) {
+        const valorJaPago = pedidoParaFinalizar.valorEntrada || 0;
+        const valorRestante = pedidoParaFinalizar.total - valorJaPago;
+        const novoTotalPago = pedidoParaFinalizar.total; // Paga o restante completo
+        
+        updateData.valorEntrada = novoTotalPago;
+        updateData.formaPagamentoEntrada = formaPagamentoFinal;
+        updateData.dataEntrada = new Date().toISOString();
+        updateData.statusPagamento = 'PAGO';
+      }
+      
       const response = await fetch('/api/pedidos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: pedidoParaFinalizar.id,
-          status: 'ENTREGUE',
-        }),
+        body: JSON.stringify(updateData),
       });
       
       const pedidoAtualizado = await response.json();
@@ -756,10 +782,18 @@ export default function HistoricoPedidos() {
       setDialogFinalizarOpen(false);
       setPedidoParaFinalizar(null);
       
-      toast({
-        title: 'Pedido finalizado!',
-        description: `Pedido #${formatarNumeroPedido(pedidoParaFinalizar.numero)} marcado como ENTREGUE.`,
-      });
+      // Mensagem diferente dependendo se houve pagamento
+      if (formaPagamentoFinal) {
+        toast({
+          title: 'Pedido finalizado e pago!',
+          description: `Pedido #${formatarNumeroPedido(pedidoParaFinalizar.numero)} marcado como ENTREGUE e pagamento registrado.`,
+        });
+      } else {
+        toast({
+          title: 'Pedido finalizado!',
+          description: `Pedido #${formatarNumeroPedido(pedidoParaFinalizar.numero)} marcado como ENTREGUE. Pagamento pendente.`,
+        });
+      }
     } catch (error) {
       console.error('Erro ao finalizar pedido:', error);
       toast({
