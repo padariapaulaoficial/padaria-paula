@@ -601,9 +601,9 @@ export default function ClientesLista() {
             <Card key={cliente.id} className="card-padaria hover:shadow-md transition-shadow">
               <CardContent className="p-2">
                 {/* Dados do cliente */}
-                <button 
+                <div 
                   onClick={() => handleVerDetalhes(cliente)}
-                  className="w-full text-left mb-1.5"
+                  className="cursor-pointer mb-1.5"
                 >
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-xs truncate">{cliente.nome}</h4>
@@ -614,7 +614,7 @@ export default function ClientesLista() {
                       {cliente._count.pedidos} ped
                     </Badge>
                   )}
-                </button>
+                </div>
                 
                 <div className="space-y-0.5 text-[10px] text-muted-foreground mb-2">
                   <div className="flex items-center gap-1">
