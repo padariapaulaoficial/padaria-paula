@@ -2,13 +2,41 @@
 
 // EditItemModal - Padaria Paula
 // Modal para edição de itens no carrinho/orçamento
-// Permite alterar tamanho e adicionar observações
+// REGRAS DE EDIÇÃO:
+// 1. ESPECIAL (tamanho): edita TAMANHO + OBSERVACAO
+// 2. KG (peso): edita QUANTIDADE/PESO + OBSERVACAO  
+// 3. UNIDADE: edita QUANTIDADE + OBSERVACAO
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatarMoeda } from '@/store/usePedidoStore';
+
+// Opções de KG para edição
+const OPCOES_KG = [
+  { valor: 0.5, label: '500g' },
+  { valor: 1.0, label: '1kg' },
+  { valor: 1.5, label: '1.5kg' },
+  { valor: 2.0, label: '2kg' },
+  { valor: 2.5, label: '2.5kg' },
+  { valor: 3.0, label: '3kg' },
+  { valor: 4.0, label: '4kg' },
+  { valor: 5.0, label: '5kg' },
+  { valor: 6.0, label: '6kg' },
+  { valor: 7.0, label: '7kg' },
+  { valor: 8.0, label: '8kg' },
+  { valor: 9.0, label: '9kg' },
+  { valor: 10.0, label: '10kg' },
+];
 
 interface EditItemModalProps {
   open: boolean;
@@ -22,11 +50,15 @@ interface EditItemModalProps {
     subtotal: number;
     quantidade: number;
     tipoVenda: 'KG' | 'UNIDADE';
+    tipoProduto?: 'NORMAL' | 'ESPECIAL';
+    precosTamanhos?: Record<string, number> | null;
   } | null;
   tamanhosDisponiveis: string[];
   precosTamanhos: Record<string, number> | null;
   novoTamanho: string;
   setNovoTamanho: (tamanho: string) => void;
+  novaQuantidade: number;
+  setNovaQuantidade: (quantidade: number) => void;
   novaObservacao: string;
   setNovaObservacao: (observacao: string) => void;
   onSave: () => void;
@@ -41,6 +73,8 @@ export default function EditItemModal({
   precosTamanhos,
   novoTamanho,
   setNovoTamanho,
+  novaQuantidade,
+  setNovaQuantidade,
   novaObservacao,
   setNovaObservacao,
   onSave,
@@ -48,13 +82,50 @@ export default function EditItemModal({
 }: EditItemModalProps) {
   if (!item) return null;
 
-  // Calcular preço se tamanho for alterado
-  const precoAtual = novoTamanho && precosTamanhos?.[novoTamanho]
-    ? precosTamanhos[novoTamanho]
-    : item.valorUnit;
+  // Determinar tipo de edição baseado nas propriedades do item
+  const isEspecial = item.tipoProduto === 'ESPECIAL' || (tamanhosDisponiveis.length > 0 && precosTamanhos);
+  const isKG = item.tipoVenda === 'KG' && !isEspecial;
+  const isUnidade = item.tipoVenda === 'UNIDADE' && !isEspecial;
+
+  // Calcular preço atualizado
+  const calcularPrecoAtualizado = (): { valorUnit: number; subtotal: number } => {
+    if (isEspecial && novoTamanho && precosTamanhos?.[novoTamanho]) {
+      // Produto ESPECIAL: preço baseado no tamanho
+      return {
+        valorUnit: precosTamanhos[novoTamanho],
+        subtotal: precosTamanhos[novoTamanho], // Quantidade sempre 1 para especiais
+      };
+    } else if (isKG && novaQuantidade > 0) {
+      // Produto KG: preço baseado na quantidade (peso)
+      return {
+        valorUnit: item.valorUnit,
+        subtotal: novaQuantidade * item.valorUnit,
+      };
+    } else if (isUnidade && novaQuantidade > 0) {
+      // Produto UNIDADE: preço baseado na quantidade
+      return {
+        valorUnit: item.valorUnit,
+        subtotal: novaQuantidade * item.valorUnit,
+      };
+    }
+    return {
+      valorUnit: item.valorUnit,
+      subtotal: item.subtotal,
+    };
+  };
+
+  const { valorUnit: precoAtualizado, subtotal: subtotalAtualizado } = calcularPrecoAtualizado();
 
   // Limpar nome do produto (remover tamanho entre parênteses)
   const nomeLimpo = item.nome.replace(/\s*\([A-Z]+\)$/, '');
+
+  // Detectar mudanças
+  const houveMudanca = () => {
+    if (isEspecial && novoTamanho !== item.tamanho) return true;
+    if ((isKG || isUnidade) && novaQuantidade !== item.quantidade) return true;
+    if (novaObservacao !== (item.observacao || '')) return true;
+    return false;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -66,24 +137,49 @@ export default function EditItemModal({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Nome do Produto */}
+          {/* Nome do Produto e Tipo */}
           <div className="bg-muted/50 rounded-lg p-3">
             <p className="font-medium text-sm">{nomeLimpo}</p>
-            {item.tamanho && (
-              <Badge variant="outline" className="mt-1 text-xs">
-                Tamanho atual: {item.tamanho}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 mt-1">
+              {isEspecial && (
+                <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                  Torta Especial
+                </Badge>
+              )}
+              {isKG && (
+                <Badge variant="secondary" className="text-xs">
+                  Por Peso (KG)
+                </Badge>
+              )}
+              {isUnidade && (
+                <Badge variant="secondary" className="text-xs">
+                  Por Unidade
+                </Badge>
+              )}
+              {item.tamanho && (
+                <Badge variant="outline" className="text-xs">
+                  Tamanho: {item.tamanho}
+                </Badge>
+              )}
+            </div>
           </div>
 
-          {/* Seletor de Tamanho - apenas para produtos com tamanhos */}
-          {tamanhosDisponiveis.length > 0 && (
+          {/* =====================================================
+              EDIÇÃO PARA PRODUTOS ESPECIAIS (TORTAS)
+              - Seletor de tamanho
+              - Preço varia por tamanho
+              - Quantidade sempre 1
+              ===================================================== */}
+          {isEspecial && tamanhosDisponiveis.length > 0 && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
                 Tamanho
               </label>
               <div className="flex items-center gap-2 flex-wrap">
-                {tamanhosDisponiveis.map(tam => {
+                {['PP', 'P', 'M', 'G', 'GG'].map(tam => {
+                  // Só mostrar tamanhos disponíveis
+                  if (!tamanhosDisponiveis.includes(tam)) return null;
+                  
                   const preco = precosTamanhos?.[tam];
                   const isSelected = novoTamanho === tam;
                   
@@ -114,7 +210,115 @@ export default function EditItemModal({
             </div>
           )}
 
-          {/* Campo de Observação - para TODOS os produtos */}
+          {/* =====================================================
+              EDIÇÃO PARA PRODUTOS POR PESO (KG)
+              - Seletor de peso
+              - Preço = peso x valorUnit
+              ===================================================== */}
+          {isKG && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Quantidade (Peso)
+              </label>
+              <Select
+                value={novaQuantidade.toString()}
+                onValueChange={(value) => setNovaQuantidade(parseFloat(value) || 0)}
+              >
+                <SelectTrigger className="h-10 w-full text-sm font-medium">
+                  <SelectValue placeholder="Selecione o peso" />
+                </SelectTrigger>
+                <SelectContent className="max-h-48">
+                  {OPCOES_KG.map((opcao) => (
+                    <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-sm">
+                      {opcao.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Mostrar preço calculado */}
+              {novaQuantidade > 0 && (
+                <div className="bg-muted/30 rounded-lg p-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Peso:</span>
+                    <span className="font-medium">{novaQuantidade}kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Preço/kg:</span>
+                    <span className="font-medium">{formatarMoeda(item.valorUnit)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-border mt-1 pt-1">
+                    <span className="text-muted-foreground font-medium">Subtotal:</span>
+                    <span className="font-bold text-primary">{formatarMoeda(subtotalAtualizado)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =====================================================
+              EDIÇÃO PARA PRODUTOS POR UNIDADE
+              - Input de quantidade
+              - Preço = quantidade x valorUnit
+              ===================================================== */}
+          {isUnidade && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Quantidade
+              </label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 w-10 p-0"
+                  onClick={() => setNovaQuantidade(Math.max(1, novaQuantidade - 1))}
+                  disabled={novaQuantidade <= 1}
+                >
+                  -
+                </Button>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  className="h-10 w-20 text-center text-sm font-medium"
+                  value={novaQuantidade || ''}
+                  onChange={(e) => setNovaQuantidade(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 w-10 p-0"
+                  onClick={() => setNovaQuantidade(novaQuantidade + 1)}
+                >
+                  +
+                </Button>
+              </div>
+              
+              {/* Mostrar preço calculado */}
+              {novaQuantidade > 0 && (
+                <div className="bg-muted/30 rounded-lg p-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Quantidade:</span>
+                    <span className="font-medium">{novaQuantidade} unidades</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Preço/un:</span>
+                    <span className="font-medium">{formatarMoeda(item.valorUnit)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-border mt-1 pt-1">
+                    <span className="text-muted-foreground font-medium">Subtotal:</span>
+                    <span className="font-bold text-primary">{formatarMoeda(subtotalAtualizado)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =====================================================
+              CAMPO DE OBSERVAÇÃO - PARA TODOS OS PRODUTOS
+              ===================================================== */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
               Observação
@@ -126,6 +330,24 @@ export default function EditItemModal({
               onChange={(e) => setNovaObservacao(e.target.value)}
             />
           </div>
+
+          {/* Resumo das alterações */}
+          {houveMudanca() && (
+            <div className="bg-primary/5 rounded-lg p-2 border border-primary/20 text-xs">
+              <p className="text-primary font-medium mb-1">Alterações:</p>
+              <ul className="text-muted-foreground space-y-0.5">
+                {isEspecial && novoTamanho !== item.tamanho && (
+                  <li>• Tamanho: {item.tamanho || 'Nenhum'} → {novoTamanho}</li>
+                )}
+                {(isKG || isUnidade) && novaQuantidade !== item.quantidade && (
+                  <li>• Quantidade: {item.quantidade} → {novaQuantidade}</li>
+                )}
+                {novaObservacao !== (item.observacao || '') && (
+                  <li>• Observação atualizada</li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -145,7 +367,7 @@ export default function EditItemModal({
               onOpenChange(false);
             }}
           >
-            Salvar
+            Salvar Alterações
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -96,6 +96,8 @@ export interface ItemCarrinho {
   quantidade: number;       // Quantidade final (ajustada para KG)
   valorUnit: number;
   tipoVenda: 'KG' | 'UNIDADE';
+  tipoProduto?: 'NORMAL' | 'ESPECIAL'; // Tipo do produto para edição
+  precosTamanhos?: Record<string, number> | null; // Preços por tamanho para edição
   subtotalPedida: number;   // Subtotal original
   subtotal: number;         // Subtotal final
   observacao?: string;
