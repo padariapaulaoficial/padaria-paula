@@ -2,141 +2,216 @@
 
 // CupomVisual - Padaria Paula
 // Visualização de cupom estilo papel térmico realista
-// Comanda de Cozinha: fontes diferenciadas por seção
+// Comanda da Cozinha: Cabeçalho 18px negrito, Cliente 18px negrito, Itens 22px negrito, Obs 16px itálico
 
 interface CupomVisualProps {
   conteudo: string;
   titulo?: string;
   fonteGrande?: boolean;
-  isComandaCozinha?: boolean;
 }
 
-/**
- * Escapa caracteres HTML para evitar XSS
- */
-function escapeHtml(texto: string): string {
-  return texto
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-/**
- * Formata o conteúdo do cupom de cozinha com fontes diferenciadas
- * - Header (Pedido Nº, Entrega): 18px bold
- * - Dados do cliente: 18px bold
- * - Itens: 22px bold
- * - Observações: 16px italic
- */
-function formatarCupomCozinhaHTML(conteudo: string): string {
-  const linhas = conteudo.split('\n');
-  const linhasFormatadas: string[] = [];
-  
-  // Estado para detectar seções
-  let inHeaderSection = true;  // Começa no cabeçalho (Pedido Nº, Entrega)
-  let inClientSection = false; // Dados do cliente
-  let inItemsSection = false;  // Itens do pedido
-  let inObservacoes = false;   // Observações
-
-  for (let i = 0; i < linhas.length; i++) {
-    const linha = linhas[i];
-    const linhaTrim = linha.trim();
-
-    // Detectar linha de separação antes do cliente (transição header -> cliente)
-    if (inHeaderSection && linha.match(/^-+$/)) {
-      inClientSection = true;
-      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Detectar início da seção de itens (transição cliente -> itens)
-    if (linhaTrim === 'ITENS:' || linhaTrim === 'ITENS DO PEDIDO:') {
-      inHeaderSection = false;
-      inClientSection = false;
-      inItemsSection = true;
-      inObservacoes = false;
-      linhasFormatadas.push(`<div class="header-itens">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Detectar início das observações (após itens)
-    if (linhaTrim.startsWith('OBS:') || linhaTrim === 'OBSERVAÇÕES:') {
-      inItemsSection = false;
-      inObservacoes = true;
-      linhasFormatadas.push(`<div class="observacoes-label">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Detectar fim da seção de itens (linha divisória após os itens, antes de OBS ou fim)
-    if (inItemsSection && linha.match(/^-+$/)) {
-      // Verificar se a próxima linha é observação ou se acabou
-      const proximaLinha = linhas[i + 1] || '';
-      if (proximaLinha.trim().startsWith('OBS:') ||
-          proximaLinha.trim().startsWith('OBSERVAÇÕES:') ||
-          proximaLinha.match(/^=+$/)) {
-        inItemsSection = false;
-        linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-        continue;
-      }
-    }
-
-    // Detectar fim do cupom (linha dupla)
-    if (linha.match(/^=+$/)) {
-      inItemsSection = false;
-      inObservacoes = false;
-      inHeaderSection = false;
-      inClientSection = false;
-      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linha dentro da seção de itens - aplicar classe especial (22px bold)
-    if (inItemsSection) {
-      linhasFormatadas.push(`<div class="item">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas de observação (16px italic)
-    if (inObservacoes) {
-      linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas do cabeçalho (Pedido Nº, Entrega) - 18px bold
-    if (inHeaderSection) {
-      linhasFormatadas.push(`<div class="header-info">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas dos dados do cliente - 18px bold
-    if (inClientSection) {
-      linhasFormatadas.push(`<div class="client-data">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas normais (fallback)
-    linhasFormatadas.push(`<div>${escapeHtml(linha)}</div>`);
-  }
-
-  return linhasFormatadas.join('\n');
-}
-
-export default function CupomVisual({ conteudo, titulo, fonteGrande = false, isComandaCozinha = false }: CupomVisualProps) {
+export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: CupomVisualProps) {
   // Função para criar borda serrilhada (simulando papel térmico cortado)
   const serrilhadoSVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0,6 L6,0 L12,6' fill='white' stroke='%23d1d5db' stroke-width='0.5'/%3E%3C/svg%3E")`;
 
-  // Detectar se é comanda de cozinha pelo título
-  const isCozinha = isComandaCozinha || (titulo?.toLowerCase().includes('cozinha') || false);
+  // Processar conteúdo para comanda da cozinha com estilos diferentes por seção
+  const processarConteudoCozinha = (texto: string) => {
+    const linhas = texto.split('\n');
+    const linhasProcessadas: Array<{ texto: string; estilo: React.CSSProperties }> = [];
+    
+    // Estado para controlar qual seção estamos
+    let secaoAtual: 'header' | 'client' | 'items' | 'end' = 'header';
+    
+    for (let i = 0; i < linhas.length; i++) {
+      const linha = linhas[i];
+      const linhaUpper = linha.toUpperCase().trim();
+      
+      // Detectar mudança de seção baseado em marcadores específicos
+      // Linha com "CLIENTE:" marca início da seção de dados do cliente
+      if (linhaUpper.startsWith('CLIENTE:') || linhaUpper.startsWith('TELEFONE:')) {
+        secaoAtual = 'client';
+      }
+      // Linha "ITENS:" marca início da seção de itens
+      else if (linhaUpper === 'ITENS:') {
+        secaoAtual = 'items';
+      }
+      // Linha "OBS:" ou "->" marca observações (sempre itálico)
+      else if (linhaUpper.startsWith('OBS:') || linhaUpper.includes('->')) {
+        secaoAtual = 'items'; // Mantém em items mas será itálico
+      }
+      // Linhas de separador NÃO mudam o estado (continua na mesma seção)
+      // Linha final com "====" marca o fim
+      else if (linha.match(/^={10,}$/) && i > 5) {
+        // Verificar se é o último separador (fim do documento)
+        const linhasRestantes = linhas.slice(i + 1).filter(l => l.trim());
+        if (linhasRestantes.length === 0 || linhasRestantes.every(l => l.match(/^={10,}$/))) {
+          secaoAtual = 'end';
+        }
+      }
+      
+      // Determinar estilo baseado no conteúdo da linha E na seção atual
+      let estilo: React.CSSProperties = {
+        fontFamily: "'Courier New', 'Lucida Console', 'Consolas', monospace",
+        color: '#1a1a1a',
+        letterSpacing: '0.03em',
+      };
+      
+      // Linha de observação (contém "->" ou começa com "OBS:")
+      if (linha.includes('->') || linhaUpper.startsWith('OBS:')) {
+        estilo = {
+          ...estilo,
+          fontSize: 16,
+          lineHeight: 1.5,
+          fontStyle: 'italic',
+          fontWeight: 400,
+        };
+      }
+      // Linha de item (começa com "  >" e está na seção de itens)
+      else if ((linha.trim().startsWith('>') || linha.match(/^\s*>\s/)) && secaoAtual === 'items') {
+        estilo = {
+          ...estilo,
+          fontSize: 22,
+          lineHeight: 1.6,
+          fontWeight: 700,
+        };
+      }
+      // Linha "ITENS:"
+      else if (linhaUpper === 'ITENS:') {
+        estilo = {
+          ...estilo,
+          fontSize: 18,
+          lineHeight: 1.5,
+          fontWeight: 700,
+        };
+      }
+      // Seção de cabeçalho ou cliente
+      else if (secaoAtual === 'header' || secaoAtual === 'client') {
+        // Linhas de separador
+        if (linha.match(/^-{5,}$/) || linha.match(/^={5,}$/)) {
+          estilo = {
+            ...estilo,
+            fontSize: 12,
+            lineHeight: 1.2,
+            fontWeight: 400,
+          };
+        }
+        // Linha de pedido (ex: "PEDIDO Nº 00001")
+        else if (linhaUpper.includes('PEDIDO Nº')) {
+          estilo = {
+            ...estilo,
+            fontSize: 18,
+            lineHeight: 1.5,
+            fontWeight: 700,
+          };
+        }
+        // Linha "ENTREGA:"
+        else if (linhaUpper.startsWith('ENTREGA:')) {
+          estilo = {
+            ...estilo,
+            fontSize: 18,
+            lineHeight: 1.5,
+            fontWeight: 700,
+          };
+        }
+        // Linha de data/horário
+        else if (linha.match(/^\w+\s+\d{2}\/\d{2}\/\d{4}/)) {
+          estilo = {
+            ...estilo,
+            fontSize: 18,
+            lineHeight: 1.5,
+            fontWeight: 700,
+          };
+        }
+        // Demais linhas do cabeçalho/cliente
+        else {
+          estilo = {
+            ...estilo,
+            fontSize: 18,
+            lineHeight: 1.5,
+            fontWeight: 700,
+          };
+        }
+      }
+      // Seção de itens
+      else if (secaoAtual === 'items') {
+        // Linhas de separador
+        if (linha.match(/^-{5,}$/) || linha.match(/^={5,}$/)) {
+          estilo = {
+            ...estilo,
+            fontSize: 12,
+            lineHeight: 1.2,
+            fontWeight: 400,
+          };
+        }
+        // Linha "ITENS:" já tratada acima
+        else if (linhaUpper === 'ITENS:') {
+          estilo = {
+            ...estilo,
+            fontSize: 18,
+            lineHeight: 1.5,
+            fontWeight: 700,
+          };
+        }
+        // Itens (qualquer linha com conteúdo na seção de itens)
+        else if (linha.trim()) {
+          estilo = {
+            ...estilo,
+            fontSize: 22,
+            lineHeight: 1.6,
+            fontWeight: 700,
+          };
+        }
+        else {
+          estilo = {
+            ...estilo,
+            fontSize: 12,
+            lineHeight: 1.2,
+            fontWeight: 400,
+          };
+        }
+      }
+      // Fim do documento
+      else {
+        estilo = {
+          ...estilo,
+          fontSize: 12,
+          lineHeight: 1.4,
+          fontWeight: 400,
+        };
+      }
+      
+      linhasProcessadas.push({ texto: linha, estilo });
+    }
+    
+    return linhasProcessadas;
+  };
+
+  // Para cupom normal (não cozinha), usar estilo simples
+  const processarConteudoNormal = (texto: string) => {
+    return texto.split('\n').map(linha => ({
+      texto: linha,
+      estilo: {
+        fontFamily: "'Courier New', 'Lucida Console', 'Consolas', monospace",
+        fontSize: 11,
+        lineHeight: 1.4,
+        fontWeight: 400,
+        color: '#1a1a1a',
+        letterSpacing: '0.03em',
+      } as React.CSSProperties,
+    }));
+  };
+
+  const linhasEstilizadas = fonteGrande 
+    ? processarConteudoCozinha(conteudo) 
+    : processarConteudoNormal(conteudo);
 
   return (
     <div className="flex justify-center py-4 px-2">
       <div 
-        className="relative" 
+        className="relative"
         style={{ 
-          width: 280,
-          minWidth: 280,
+          width: 320,
+          minWidth: 320,
         }}
       >
         {/* Papel térmico realista */}
@@ -187,72 +262,17 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false, isC
           <div 
             className="relative"
             style={{
-              padding: '12px 14px',
+              padding: fonteGrande ? '16px 18px' : '12px 14px',
               backgroundColor: '#fefefe',
             }}
           >
-            {isCozinha ? (
-              // Comanda de Cozinha: fontes diferenciadas por seção
-              <div 
-                style={{
-                  fontFamily: "'Courier New', 'Lucida Console', 'Consolas', monospace",
-                  lineHeight: 1.4,
-                  color: '#1a1a1a',
-                  letterSpacing: '0.03em',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                <style>{`
-                  .header-info {
-                    font-size: 18px;
-                    font-weight: bold;
-                  }
-                  .client-data {
-                    font-size: 18px;
-                    font-weight: bold;
-                  }
-                  .header-itens {
-                    font-size: 22px;
-                    font-weight: bold;
-                  }
-                  .item {
-                    font-size: 22px;
-                    font-weight: bold;
-                    line-height: 1.6;
-                  }
-                  .observacoes-label {
-                    font-size: 16px;
-                    font-weight: bold;
-                  }
-                  .observacoes {
-                    font-size: 16px;
-                    font-style: italic;
-                  }
-                  .divisor {
-                    font-size: 12px;
-                  }
-                `}</style>
-                <div dangerouslySetInnerHTML={{ __html: formatarCupomCozinhaHTML(conteudo) }} />
-              </div>
-            ) : (
-              // Outros cupons: fonte normal
-              <pre 
-                style={{
-                  fontFamily: "'Courier New', 'Lucida Console', 'Consolas', monospace",
-                  fontSize: fonteGrande ? 13 : 11,
-                  lineHeight: fonteGrande ? 1.6 : 1.4,
-                  fontWeight: fonteGrande ? 600 : 400,
-                  color: '#1a1a1a',
-                  letterSpacing: '0.03em',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  margin: 0,
-                }}
-              >
-                {conteudo}
-              </pre>
-            )}
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {linhasEstilizadas.map((linha, index) => (
+                <div key={index} style={linha.estilo}>
+                  {linha.texto || '\u00A0'}
+                </div>
+              ))}
+            </div>
           </div>
           
           {/* Linha de corte final */}
