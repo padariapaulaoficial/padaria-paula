@@ -168,6 +168,11 @@ export default function HistoricoPedidos() {
   
   // Edição de itens - valores livres
   const [salvando, setSalvando] = useState(false);
+  const [itensEditados, setItensEditados] = useState<Record<string, string>>({});
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [modoAdicao, setModoAdicao] = useState(false);
+  const [modoEntrada, setModoEntrada] = useState(false);
+  const [modoEdicaoData, setModoEdicaoData] = useState(false);
   
   // Estados para EditItemModal - edição individual de itens
   const [editItemModalOpen, setEditItemModalOpen] = useState(false);
