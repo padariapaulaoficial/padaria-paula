@@ -3,7 +3,7 @@
 // OrcamentosLista - Padaria Paula
 // Lista de orçamentos com ações de aprovar/rejeitar
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, RefreshCw, Eye, Check, X, FileText, Calendar, Trash2,
   MapPin, Truck, Store, Clock, Package, ShoppingCart, Printer, MessageCircle, Send,
@@ -40,6 +40,7 @@ import {
   type OrcamentoCompleto,
   type ConfiguracaoCupom,
 } from '@/lib/escpos';
+import EditItemModal from './EditItemModal';
 
 interface ItemOrcamento {
   id: string;
@@ -150,6 +151,26 @@ export default function OrcamentosLista() {
   const [editHorarioEntrega, setEditHorarioEntrega] = useState('');
   const [editValorTeleEntrega, setEditValorTeleEntrega] = useState('');
   const [salvandoEntrega, setSalvandoEntrega] = useState(false);
+  
+  // Estados para EditItemModal - edição individual de itens
+  const [editItemModalOpen, setEditItemModalOpen] = useState(false);
+  const [itemEditando, setItemEditando] = useState<{
+    id: string;
+    produtoId: string;
+    nome: string;
+    tamanho?: string;
+    observacao?: string;
+    valorUnit: number;
+    subtotal: number;
+    quantidade: number;
+    tipoVenda: 'KG' | 'UNIDADE';
+    tipoProduto?: 'NORMAL' | 'ESPECIAL';
+    precosTamanhos?: Record<string, number> | null;
+  } | null>(null);
+  const [novoTamanhoModal, setNovoTamanhoModal] = useState<string>('');
+  const [novaQuantidadeModal, setNovaQuantidadeModal] = useState<number>(0);
+  const [novaObservacaoModal, setNovaObservacaoModal] = useState<string>('');
+  const [salvandoItem, setSalvandoItem] = useState(false);
 
   // Horários comerciais disponíveis
   const HORARIOS_COMERCIAIS = [
@@ -248,6 +269,17 @@ export default function OrcamentosLista() {
     const termo = buscaProduto.toLowerCase();
     return produtos.filter(p => p.nome.toLowerCase().includes(termo));
   }, [produtos, buscaProduto]);
+  
+  // Função para obter informações do produto (incluindo tipoProduto e precosTamanhos)
+  const obterProdutoInfo = useCallback((produtoId: string | undefined): { tipoProduto: 'NORMAL' | 'ESPECIAL'; precosTamanhos: Record<string, number> | null; tamanhos: string[] } => {
+    if (!produtoId) return { tipoProduto: 'NORMAL', precosTamanhos: null, tamanhos: [] };
+    const produto = produtos.find(p => p.id === produtoId);
+    return {
+      tipoProduto: produto?.tipoProduto || 'NORMAL',
+      precosTamanhos: produto?.precosTamanhos || null,
+      tamanhos: produto?.tamanhos || [],
+    };
+  }, [produtos]);
 
   // Carregar orçamentos
   const carregarOrcamentos = async () => {
@@ -324,6 +356,144 @@ export default function OrcamentosLista() {
     setObservacaoNovoItem('');
     setDialogOpen(true);
   };
+  
+  // Carregar produtos para edição - se ainda não carregados
+  const carregarProdutosSeNecessario = async () => {
+    if (produtos.length === 0) {
+      try {
+        const res = await fetch('/api/produtos?ativo=true');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setProdutos(data);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar produtos:', err);
+      }
+    }
+  };
+
+  // Abrir modal de edição para um item específico
+  const handleEditarItem = useCallback(async (item: ItemOrcamento) => {
+    // Carregar produtos se necessário
+    await carregarProdutosSeNecessario();
+    
+    // Obter informações do produto
+    const produtoInfo = obterProdutoInfo(item.produtoId);
+    
+    setItemEditando({
+      id: item.id,
+      produtoId: item.produtoId || '',
+      nome: item.produto.nome,
+      tamanho: item.tamanho,
+      observacao: item.observacao,
+      valorUnit: item.valorUnit,
+      subtotal: item.subtotal,
+      quantidade: item.quantidade,
+      tipoVenda: item.produto.tipoVenda as 'KG' | 'UNIDADE',
+      tipoProduto: produtoInfo.tipoProduto,
+      precosTamanhos: produtoInfo.precosTamanhos,
+    });
+    setNovoTamanhoModal(item.tamanho || '');
+    setNovaQuantidadeModal(item.quantidade);
+    setNovaObservacaoModal(item.observacao || '');
+    setEditItemModalOpen(true);
+  }, [obterProdutoInfo, produtos.length]);
+  
+  // Salvar edição de item individual via modal
+  const handleSalvarEdicaoItem = async () => {
+    if (!itemEditando || !orcamentoSelecionado) return;
+    
+    const produtoInfo = obterProdutoInfo(itemEditando.produtoId);
+    const isEspecial = produtoInfo.tipoProduto === 'ESPECIAL' || (produtoInfo.precosTamanhos && itemEditando.tamanho);
+    const isKG = itemEditando.tipoVenda === 'KG' && !isEspecial;
+    const isUnidade = itemEditando.tipoVenda === 'UNIDADE' && !isEspecial;
+    
+    let novoValorUnit = itemEditando.valorUnit;
+    let novoSubtotal = itemEditando.subtotal;
+    let novaQtd = itemEditando.quantidade;
+    let novoTamanho = novoTamanhoModal || undefined;
+    
+    // PRODUTOS ESPECIAIS (TORTAS): editar tamanho
+    if (isEspecial && produtoInfo.precosTamanhos && novoTamanhoModal && novoTamanhoModal !== itemEditando.tamanho) {
+      const novoPreco = produtoInfo.precosTamanhos[novoTamanhoModal];
+      if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
+        novoValorUnit = novoPreco;
+        novoSubtotal = novoPreco; // Para tortas, quantidade é sempre 1
+        novaQtd = 1;
+      }
+    }
+    
+    // PRODUTOS KG: editar quantidade/peso
+    if (isKG && novaQuantidadeModal > 0 && novaQuantidadeModal !== itemEditando.quantidade) {
+      novaQtd = novaQuantidadeModal;
+      novoSubtotal = Math.round(novaQuantidadeModal * itemEditando.valorUnit * 100) / 100;
+    }
+    
+    // PRODUTOS UNIDADE: editar quantidade
+    if (isUnidade && novaQuantidadeModal > 0 && novaQuantidadeModal !== itemEditando.quantidade) {
+      novaQtd = novaQuantidadeModal;
+      novoSubtotal = Math.round(novaQuantidadeModal * itemEditando.valorUnit * 100) / 100;
+    }
+    
+    setSalvandoItem(true);
+    showLoading('Salvando alterações...');
+    
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          itens: [{
+            id: itemEditando.id,
+            quantidade: novaQtd,
+            subtotal: novoSubtotal,
+            tamanho: novoTamanho,
+            observacao: novaObservacaoModal || undefined,
+          }],
+        }),
+      });
+      
+      const orcamentoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(orcamentoAtualizado.error || 'Erro ao atualizar');
+      }
+      
+      // Atualizar lista local
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      
+      toast({
+        title: 'Item atualizado!',
+        description: 'As alterações foram salvas.',
+        duration: 3000,
+      });
+      
+      setEditItemModalOpen(false);
+      setItemEditando(null);
+      
+    } catch (error) {
+      console.error('Erro ao salvar edição:', error);
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível atualizar o item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSalvandoItem(false);
+      hideLoading();
+    }
+  };
+  
+  // Cancelar edição de item
+  const handleCancelarEdicaoItem = useCallback(() => {
+    setEditItemModalOpen(false);
+    setItemEditando(null);
+    setNovoTamanhoModal('');
+    setNovaQuantidadeModal(0);
+    setNovaObservacaoModal('');
+  }, []);
 
   // Editar quantidade de item
   const handleEditarQuantidade = (itemId: string, valor: string) => {
@@ -940,25 +1110,40 @@ export default function OrcamentosLista() {
                   <h4 className="font-semibold text-xs">Itens ({orcamentoSelecionado.itens.length})</h4>
                   {orcamentoSelecionado.status === 'PENDENTE' && (
                     <div className="flex gap-0.5">
-                      <Button variant="ghost" size="sm" onClick={() => setDialogEdicaoOpen(true)} className="h-6 px-1.5 text-[10px]">
-                        <Edit2 className="w-2.5 h-2.5 mr-0.5" />Editar
-                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => setDialogAdicaoOpen(true)} className="h-6 px-1.5 text-[10px]">
                         <Plus className="w-2.5 h-2.5 mr-0.5" />Adicionar
                       </Button>
                     </div>
                   )}
                 </div>
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1 max-h-28 overflow-y-auto">
+                <div className="bg-muted/30 rounded-lg p-2 space-y-1 max-h-32 overflow-y-auto">
                   {ordenarItensPorCategoria(orcamentoSelecionado.itens).map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/30 last:border-0 gap-2">
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <p className="text-xs font-medium truncate">{item.produto.nome}{item.tamanho && <span className="text-primary ml-1">({item.tamanho})</span>}</p>
-                        <p className="text-[10px] text-muted-foreground whitespace-nowrap">
+                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/20 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-medium truncate">
+                            {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
+                          </span>
+                          {orcamentoSelecionado.status === 'PENDENTE' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-4 w-4 p-0 text-muted-foreground hover:text-primary" 
+                              onClick={() => handleEditarItem(item)}
+                              title="Editar item"
+                            >
+                              <Edit2 className="w-2.5 h-2.5" />
+                            </Button>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-muted-foreground">
                           {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
-                        </p>
+                        </span>
+                        {item.observacao && (
+                          <span className="text-[8px] text-orange-600 italic block truncate">Obs: {item.observacao}</span>
+                        )}
                       </div>
-                      <p className="text-xs font-semibold shrink-0">{formatarMoeda(item.subtotal)}</p>
+                      <span className="text-[10px] font-semibold ml-1">{formatarMoeda(item.subtotal)}</span>
                     </div>
                   ))}
                 </div>
@@ -1413,6 +1598,40 @@ export default function OrcamentosLista() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* EditItemModal - Edição individual de itens */}
+      <EditItemModal
+        open={editItemModalOpen}
+        onOpenChange={setEditItemModalOpen}
+        item={itemEditando ? {
+          produtoId: itemEditando.produtoId,
+          nome: itemEditando.nome,
+          tamanho: itemEditando.tamanho,
+          observacao: itemEditando.observacao,
+          valorUnit: itemEditando.valorUnit,
+          subtotal: itemEditando.subtotal,
+          quantidade: itemEditando.quantidade,
+          tipoVenda: itemEditando.tipoVenda,
+          tipoProduto: itemEditando.tipoProduto,
+          precosTamanhos: itemEditando.precosTamanhos,
+        } : null}
+        tamanhosDisponiveis={itemEditando?.precosTamanhos 
+          ? ['PP', 'P', 'M', 'G', 'GG'].filter(tam => {
+              const preco = itemEditando.precosTamanhos?.[tam];
+              return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+            })
+          : []
+        }
+        precosTamanhos={itemEditando?.precosTamanhos || null}
+        novoTamanho={novoTamanhoModal}
+        setNovoTamanho={setNovoTamanhoModal}
+        novaQuantidade={novaQuantidadeModal}
+        setNovaQuantidade={setNovaQuantidadeModal}
+        novaObservacao={novaObservacaoModal}
+        setNovaObservacao={setNovaObservacaoModal}
+        onSave={handleSalvarEdicaoItem}
+        onCancel={handleCancelarEdicaoItem}
+      />
     </div>
   );
 }
