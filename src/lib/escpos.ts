@@ -644,31 +644,27 @@ export function gerarCupomCozinhaGrande(
 /**
  * Formata o conteúdo do cupom de cozinha com fontes diferenciadas
  * Itens ficam com fonte maior para facilitar leitura de idosos
+ * 
+ * Seções do cupom:
+ * - header-info: Pedido Nº, Entrega, Data (18px bold)
+ * - client-data: Cliente, Telefone (18px bold)
+ * - item: Produtos (22px bold)
+ * - observacoes: Observações (16px italic)
  */
 function formatarCupomCozinhaHTML(conteudo: string): string {
   const linhas = conteudo.split('\n');
   const linhasFormatadas: string[] = [];
   let inItemsSection = false;
   let inObservacoes = false;
-  let inHeaderSection = true; // Começa no cabeçalho (Pedido Nº, Entrega)
-  let inClientSection = false; // Dados do cliente
+  let sectionState: 'header' | 'client' | 'items' | 'end' = 'header'; // Estado mais explícito
 
   for (let i = 0; i < linhas.length; i++) {
     const linha = linhas[i];
     const linhaTrim = linha.trim();
 
-    // Detectar linha de separação antes do cliente (transição header -> cliente)
-    if (inHeaderSection && linha.includes('-----')) {
-      inClientSection = true;
-      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
     // Detectar início da seção de itens (transição cliente -> itens)
     if (linhaTrim === 'ITENS:') {
-      inHeaderSection = false;
-      inClientSection = false;
-      inItemsSection = true;
+      sectionState = 'items';
       inObservacoes = false;
       linhasFormatadas.push(`<div class="header">${escapeHtml(linha)}</div>`);
       continue;
@@ -676,37 +672,50 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
 
     // Detectar início das observações (após itens)
     if (linhaTrim.startsWith('OBS:') || linhaTrim === 'OBSERVAÇÕES:') {
-      inItemsSection = false;
+      sectionState = 'end';
       inObservacoes = true;
       linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
       continue;
     }
 
-    // Detectar fim da seção de itens (linha divisória após os itens, antes de OBS ou fim)
-    if (inItemsSection && linha.includes('-----')) {
-      // Verificar se a próxima linha é observação ou se acabou
+    // Detectar transição header -> cliente (primeiro ----- após início)
+    if (sectionState === 'header' && linha.includes('-----')) {
+      sectionState = 'client';
+      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
+      continue;
+    }
+
+    // Detectar transição cliente -> items (----- antes de ITENS:)
+    if (sectionState === 'client' && linha.includes('-----')) {
+      // Verificar se a próxima linha é ITENS:
       const proximaLinha = linhas[i + 1] || '';
-      if (proximaLinha.trim().startsWith('OBS:') ||
-          proximaLinha.trim().startsWith('OBSERVAÇÕES:') ||
-          proximaLinha.includes('=====')) {
-        inItemsSection = false;
+      if (proximaLinha.trim() === 'ITENS:') {
         linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
         continue;
       }
     }
 
-    // Detectar fim do cupom
+    // Detectar fim da seção de itens (linha divisória após os itens, antes de OBS ou fim)
+    if (sectionState === 'items' && linha.includes('-----')) {
+      const proximaLinha = linhas[i + 1] || '';
+      if (proximaLinha.trim().startsWith('OBS:') ||
+          proximaLinha.trim().startsWith('OBSERVAÇÕES:') ||
+          proximaLinha.includes('=====')) {
+        sectionState = 'end';
+        linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
+        continue;
+      }
+    }
+
+    // Linhas divisórias (=====)
     if (linha.includes('=====')) {
-      inItemsSection = false;
-      inObservacoes = false;
-      inHeaderSection = false;
-      inClientSection = false;
+      sectionState = 'end';
       linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
       continue;
     }
 
     // Linha dentro da seção de itens - aplicar classe especial
-    if (inItemsSection) {
+    if (sectionState === 'items') {
       linhasFormatadas.push(`<div class="item">${escapeHtml(linha)}</div>`);
       continue;
     }
@@ -717,14 +726,14 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
       continue;
     }
 
-    // Linhas do cabeçalho (Pedido Nº, Entrega)
-    if (inHeaderSection) {
+    // Linhas do cabeçalho (Pedido Nº, Entrega, Data)
+    if (sectionState === 'header') {
       linhasFormatadas.push(`<div class="header-info">${escapeHtml(linha)}</div>`);
       continue;
     }
 
     // Linhas dos dados do cliente
-    if (inClientSection) {
+    if (sectionState === 'client') {
       linhasFormatadas.push(`<div class="client-data">${escapeHtml(linha)}</div>`);
       continue;
     }
