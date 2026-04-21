@@ -3,7 +3,7 @@
 // HistoricoPedidos - Padaria Paula
 // Lista de pedidos com edição de itens e reimpressão
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, RefreshCw, Eye, Printer, Calendar, Trash2, AlertTriangle, FileText, Edit2, Scale, Check, X, MapPin, Truck, Store, Lock, Loader2, Clock, Package, MessageCircle, Plus, Hash, DollarSign, CreditCard, Banknote, Smartphone, Bell, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,7 @@ import {
   ordenarItensPorCategoria
 } from '@/lib/escpos';
 import AlertaProducao from './AlertaProducao';
+import EditItemModal from './EditItemModal';
 
 
 interface ItemPedido {
@@ -166,13 +167,31 @@ export default function HistoricoPedidos() {
   const [config, setConfig] = useState<Configuracao | null>(null);
   
   // Edição de itens - valores livres
+  const [salvando, setSalvando] = useState(false);
   const [itensEditados, setItensEditados] = useState<Record<string, string>>({});
   const [modoEdicao, setModoEdicao] = useState(false);
-  const [salvando, setSalvando] = useState(false);
+  const [modoAdicao, setModoAdicao] = useState(false);
+  const [modoEntrada, setModoEntrada] = useState(false);
+  const [modoEdicaoData, setModoEdicaoData] = useState(false);
   
-  // Estados para edição de tamanho e observação dos itens
-  const [tamanhosEditados, setTamanhosEditados] = useState<Record<string, string>>({});
-  const [observacoesEditadas, setObservacoesEditadas] = useState<Record<string, string>>({});
+  // Estados para EditItemModal - edição individual de itens
+  const [editItemModalOpen, setEditItemModalOpen] = useState(false);
+  const [itemEditando, setItemEditando] = useState<{
+    id: string;
+    produtoId: string;
+    nome: string;
+    tamanho?: string;
+    observacao?: string;
+    valorUnit: number;
+    subtotal: number;
+    quantidade: number;
+    tipoVenda: 'KG' | 'UNIDADE';
+    tipoProduto?: 'NORMAL' | 'ESPECIAL';
+    precosTamanhos?: Record<string, number> | null;
+  } | null>(null);
+  const [novoTamanhoModal, setNovoTamanhoModal] = useState<string>('');
+  const [novaQuantidadeModal, setNovaQuantidadeModal] = useState<number>(0);
+  const [novaObservacaoModal, setNovaObservacaoModal] = useState<string>('');
   
   // PIN para exclusão - layout igual ao login principal
   const [pinParaExcluir, setPinParaExcluir] = useState(['', '', '', '']);
@@ -180,7 +199,6 @@ export default function HistoricoPedidos() {
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Adicionar produtos ao pedido
-  const [modoAdicao, setModoAdicao] = useState(false);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [buscaProduto, setBuscaProduto] = useState('');
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
@@ -190,13 +208,11 @@ export default function HistoricoPedidos() {
   const [adicionandoProduto, setAdicionandoProduto] = useState(false);
   
   // Registro de entrada
-  const [modoEntrada, setModoEntrada] = useState(false);
   const [valorEntrada, setValorEntrada] = useState('');
   const [formaPagamentoEntrada, setFormaPagamentoEntrada] = useState('');
   const [salvandoEntrada, setSalvandoEntrada] = useState(false);
   
   // Edição de data de entrega
-  const [modoEdicaoData, setModoEdicaoData] = useState(false);
   const [novaDataEntrega, setNovaDataEntrega] = useState('');
   const [novoHorarioEntrega, setNovoHorarioEntrega] = useState('');
   const [salvandoData, setSalvandoData] = useState(false);
@@ -210,7 +226,6 @@ export default function HistoricoPedidos() {
   const [salvandoEntrega, setSalvandoEntrega] = useState(false);
   
   // Diálogos separados
-  const [dialogEdicaoOpen, setDialogEdicaoOpen] = useState(false);
   const [dialogAdicaoOpen, setDialogAdicaoOpen] = useState(false);
   const [dialogEntradaOpen, setDialogEntradaOpen] = useState(false);
   const [dialogDataOpen, setDialogDataOpen] = useState(false);
@@ -258,6 +273,17 @@ export default function HistoricoPedidos() {
     const termo = buscaProduto.toLowerCase();
     return produtos.filter(p => p.nome.toLowerCase().includes(termo));
   }, [produtos, buscaProduto]);
+  
+  // Função para obter informações do produto (incluindo tipoProduto e precosTamanhos)
+  const obterProdutoInfo = useCallback((produtoId: string | undefined): { tipoProduto: 'NORMAL' | 'ESPECIAL'; precosTamanhos: Record<string, number> | null; tamanhos: string[] } => {
+    if (!produtoId) return { tipoProduto: 'NORMAL', precosTamanhos: null, tamanhos: [] };
+    const produto = produtos.find(p => p.id === produtoId);
+    return {
+      tipoProduto: produto?.tipoProduto || 'NORMAL',
+      precosTamanhos: produto?.precosTamanhos || null,
+      tamanhos: produto?.tamanhos || [],
+    };
+  }, [produtos]);
 
   // Carregar pedidos
   const carregarPedidos = async () => {
@@ -400,12 +426,145 @@ export default function HistoricoPedidos() {
   };
 
   // Visualizar pedido
-  const handleVisualizar = (pedido: Pedido) => {
+  const handleVisualizar = async (pedido: Pedido) => {
     setPedidoSelecionado(pedido);
     setItensEditados({});
     setModoEdicao(false);
     setDialogOpen(true);
+    
+    // Carregar produtos para ter acesso a tipoProduto e precosTamanhos
+    if (produtos.length === 0) {
+      try {
+        const res = await fetch('/api/produtos?ativo=true');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setProdutos(data);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar produtos:', err);
+      }
+    }
   };
+  
+  // Abrir modal de edição para um item específico
+  const handleEditarItem = useCallback((item: ItemPedido) => {
+    // Obter informações do produto
+    const produtoInfo = obterProdutoInfo(item.produtoId);
+    
+    setItemEditando({
+      id: item.id,
+      produtoId: item.produtoId || '',
+      nome: item.produto.nome,
+      tamanho: item.tamanho,
+      observacao: item.observacao,
+      valorUnit: item.valorUnit,
+      subtotal: item.subtotal,
+      quantidade: item.quantidade,
+      tipoVenda: item.produto.tipoVenda as 'KG' | 'UNIDADE',
+      tipoProduto: produtoInfo.tipoProduto,
+      precosTamanhos: produtoInfo.precosTamanhos,
+    });
+    setNovoTamanhoModal(item.tamanho || '');
+    setNovaQuantidadeModal(item.quantidade);
+    setNovaObservacaoModal(item.observacao || '');
+    setEditItemModalOpen(true);
+  }, [obterProdutoInfo]);
+  
+  // Salvar edição de item individual via modal
+  const handleSalvarEdicaoItem = async () => {
+    if (!itemEditando || !pedidoSelecionado) return;
+    
+    const produtoInfo = obterProdutoInfo(itemEditando.produtoId);
+    const isEspecial = produtoInfo.tipoProduto === 'ESPECIAL' || (produtoInfo.precosTamanhos && itemEditando.tamanho);
+    const isKG = itemEditando.tipoVenda === 'KG' && !isEspecial;
+    const isUnidade = itemEditando.tipoVenda === 'UNIDADE' && !isEspecial;
+    
+    let novoValorUnit = itemEditando.valorUnit;
+    let novoSubtotal = itemEditando.subtotal;
+    let novaQtd = itemEditando.quantidade;
+    let novoTamanho = novoTamanhoModal || undefined;
+    
+    // PRODUTOS ESPECIAIS (TORTAS): editar tamanho
+    if (isEspecial && produtoInfo.precosTamanhos && novoTamanhoModal && novoTamanhoModal !== itemEditando.tamanho) {
+      const novoPreco = produtoInfo.precosTamanhos[novoTamanhoModal];
+      if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
+        novoValorUnit = novoPreco;
+        novoSubtotal = novoPreco; // Para tortas, quantidade é sempre 1
+        novaQtd = 1;
+      }
+    }
+    
+    // PRODUTOS KG: editar quantidade/peso
+    if (isKG && novaQuantidadeModal > 0 && novaQuantidadeModal !== itemEditando.quantidade) {
+      novaQtd = novaQuantidadeModal;
+      novoSubtotal = Math.round(novaQuantidadeModal * itemEditando.valorUnit * 100) / 100;
+    }
+    
+    // PRODUTOS UNIDADE: editar quantidade
+    if (isUnidade && novaQuantidadeModal > 0 && novaQuantidadeModal !== itemEditando.quantidade) {
+      novaQtd = novaQuantidadeModal;
+      novoSubtotal = Math.round(novaQuantidadeModal * itemEditando.valorUnit * 100) / 100;
+    }
+    
+    setSalvando(true);
+    showLoading('Salvando alterações...');
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          itens: [{
+            id: itemEditando.id,
+            quantidade: novaQtd,
+            subtotal: novoSubtotal,
+            tamanho: novoTamanho,
+            observacao: novaObservacaoModal || undefined,
+          }],
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(pedidoAtualizado.error || 'Erro ao atualizar');
+      }
+      
+      // Atualizar lista local
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      
+      toast({
+        title: 'Item atualizado!',
+        description: 'As alterações foram salvas.',
+        duration: 3000,
+      });
+      
+      setEditItemModalOpen(false);
+      setItemEditando(null);
+      
+    } catch (error) {
+      console.error('Erro ao salvar edição:', error);
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível atualizar o item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSalvando(false);
+      hideLoading();
+    }
+  };
+  
+  // Cancelar edição de item
+  const handleCancelarEdicaoItem = useCallback(() => {
+    setEditItemModalOpen(false);
+    setItemEditando(null);
+    setNovoTamanhoModal('');
+    setNovaQuantidadeModal(0);
+    setNovaObservacaoModal('');
+  }, []);
 
   // Imprimir cupom do cliente
   const handleImprimirCliente = (pedido: Pedido) => {
@@ -433,141 +592,6 @@ export default function HistoricoPedidos() {
       title: 'Impressão iniciada!',
       description: `Comanda da cozinha enviada para impressão.`,
     });
-  };
-
-  // Handler para edição de peso - valor livre
-  const handleEditarPesoLivre = (itemId: string, valor: string) => {
-    setItensEditados(prev => ({
-      ...prev,
-      [itemId]: valor,
-    }));
-  };
-
-  // Salvar edição de itens
-  const handleSalvarEdicao = async () => {
-    if (!pedidoSelecionado) return;
-    
-    // Separar itens alterados e itens para remover (quantidade = 0)
-    const itensParaRemover: string[] = [];
-    const itensParaAtualizar: { id: string; quantidade: number; subtotal: number; tamanho?: string; observacao?: string; produtoId?: string }[] = [];
-    
-    pedidoSelecionado.itens.forEach(item => {
-      const novoPesoStr = itensEditados[item.id];
-      const novoTamanho = tamanhosEditados[item.id];
-      const novaObservacao = observacoesEditadas[item.id];
-      
-      // Verificar se houve alteração em algum campo
-      const quantidadeMudou = novoPesoStr !== undefined;
-      const tamanhoMudou = novoTamanho !== undefined;
-      const observacaoMudou = novaObservacao !== undefined;
-      
-      if (quantidadeMudou || tamanhoMudou || observacaoMudou) {
-        const novoPeso = novoPesoStr ? parseFloat(novoPesoStr.replace(',', '.')) : item.quantidade;
-        
-        if (!isNaN(novoPeso)) {
-          if (novoPeso === 0) {
-            // Item com quantidade 0 deve ser removido
-            itensParaRemover.push(item.id);
-          } else {
-            // Preparar atualização do item
-            const atualizacao: { id: string; quantidade: number; subtotal: number; tamanho?: string; observacao?: string; produtoId?: string } = {
-              id: item.id,
-              quantidade: novoPeso,
-              subtotal: novoPeso * item.valorUnit,
-            };
-            
-            // Incluir tamanho se foi alterado
-            if (tamanhoMudou) {
-              atualizacao.tamanho = novoTamanho || undefined;
-              atualizacao.produtoId = item.produtoId;
-            }
-            
-            // Incluir observação se foi alterada
-            if (observacaoMudou) {
-              atualizacao.observacao = novaObservacao || undefined;
-            }
-            
-            // Só adicionar se houve mudança real
-            if (novoPeso !== item.quantidade || tamanhoMudou || observacaoMudou) {
-              itensParaAtualizar.push(atualizacao);
-            }
-          }
-        }
-      }
-    });
-    
-    if (itensParaAtualizar.length === 0 && itensParaRemover.length === 0) {
-      toast({
-        title: 'Nenhuma alteração',
-        description: 'Não há alterações para salvar.',
-      });
-      return;
-    }
-    
-    // Verificar se restará pelo menos um item
-    const itensRestantes = pedidoSelecionado.itens.length - itensParaRemover.length;
-    if (itensRestantes === 0 && itensParaAtualizar.length === 0) {
-      toast({
-        title: 'Não permitido',
-        description: 'O pedido deve ter pelo menos um item.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setSalvando(true);
-    showLoading('Salvando alterações...');
-    
-    try {
-      const response = await fetch('/api/pedidos', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: pedidoSelecionado.id,
-          itens: itensParaAtualizar,
-          itensParaRemover,
-        }),
-      });
-      
-      const pedidoAtualizado = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(pedidoAtualizado.error || 'Erro ao atualizar');
-      }
-      
-      // Atualizar lista local
-      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
-      setPedidoSelecionado(pedidoAtualizado);
-      
-      toast({
-        title: 'Pedido atualizado!',
-        description: 'As alterações foram salvas. Reimprima a comanda da cozinha se necessário.',
-        duration: 5000,
-      });
-      
-      setModoEdicao(false);
-      setItensEditados({});
-      setTamanhosEditados({});
-      setObservacoesEditadas({});
-      setDialogEdicaoOpen(false);
-      
-    } catch (error) {
-      console.error('Erro ao salvar edição:', error);
-      toast({
-        title: 'Erro ao salvar',
-        description: 'Não foi possível atualizar o pedido.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSalvando(false);
-      hideLoading();
-    }
-  };
-
-  // Cancelar edição
-  const handleCancelarEdicao = () => {
-    setItensEditados({});
-    setModoEdicao(false);
   };
 
   // Confirmar exclusão
@@ -1100,13 +1124,6 @@ export default function HistoricoPedidos() {
     }
   };
   
-  // Cancelar edição de data
-  const handleCancelarEdicaoData = () => {
-    setModoEdicaoData(false);
-    setNovaDataEntrega('');
-    setNovoHorarioEntrega('');
-  };
-  
   // Salvar nova data de entrega
   const handleSalvarDataEntrega = async () => {
     if (!pedidoSelecionado) return;
@@ -1512,25 +1529,38 @@ export default function HistoricoPedidos() {
                   <span className="font-semibold text-[10px]">Itens ({pedidoSelecionado.itens.length})</span>
                   {pedidoSelecionado.status !== 'ENTREGUE' && (
                     <div className="flex gap-0.5">
-                      <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setDialogEdicaoOpen(true)}>
-                        <Edit2 className="w-2.5 h-2.5 mr-0.5" />Editar
-                      </Button>
                       <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]" onClick={() => setDialogAdicaoOpen(true)}>
                         <Plus className="w-2.5 h-2.5 mr-0.5" />Adicionar
                       </Button>
                     </div>
                   )}
                 </div>
-                <div className="bg-muted/30 rounded-lg p-1.5 space-y-0.5 max-h-24 overflow-y-auto">
+                <div className="bg-muted/30 rounded-lg p-1.5 space-y-0.5 max-h-32 overflow-y-auto">
                   {ordenarItensPorCategoria(pedidoSelecionado.itens).map((item) => (
                     <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/20 last:border-0">
                       <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-medium truncate block">
-                          {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-medium truncate">
+                            {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
+                          </span>
+                          {pedidoSelecionado.status !== 'ENTREGUE' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-4 w-4 p-0 text-muted-foreground hover:text-primary" 
+                              onClick={() => handleEditarItem(item)}
+                              title="Editar item"
+                            >
+                              <Edit2 className="w-2.5 h-2.5" />
+                            </Button>
+                          )}
+                        </div>
                         <span className="text-[9px] text-muted-foreground">
                           {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
                         </span>
+                        {item.observacao && (
+                          <span className="text-[8px] text-orange-600 italic block truncate">Obs: {item.observacao}</span>
+                        )}
                       </div>
                       <span className="text-[10px] font-semibold ml-1">{formatarMoeda(item.subtotal)}</span>
                     </div>
@@ -1660,115 +1690,39 @@ export default function HistoricoPedidos() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog de Edição de Itens */}
-      <AlertDialog open={dialogEdicaoOpen} onOpenChange={(open) => {
-        setDialogEdicaoOpen(open);
-        if (!open) {
-          setItensEditados({});
-          setTamanhosEditados({});
-          setObservacoesEditadas({});
+      {/* EditItemModal - Edição individual de itens */}
+      <EditItemModal
+        open={editItemModalOpen}
+        onOpenChange={setEditItemModalOpen}
+        item={itemEditando ? {
+          produtoId: itemEditando.produtoId,
+          nome: itemEditando.nome,
+          tamanho: itemEditando.tamanho,
+          observacao: itemEditando.observacao,
+          valorUnit: itemEditando.valorUnit,
+          subtotal: itemEditando.subtotal,
+          quantidade: itemEditando.quantidade,
+          tipoVenda: itemEditando.tipoVenda,
+          tipoProduto: itemEditando.tipoProduto,
+          precosTamanhos: itemEditando.precosTamanhos,
+        } : null}
+        tamanhosDisponiveis={itemEditando?.precosTamanhos 
+          ? ['PP', 'P', 'M', 'G', 'GG'].filter(tam => {
+              const preco = itemEditando.precosTamanhos?.[tam];
+              return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+            })
+          : []
         }
-      }}>
-        <AlertDialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Edit2 className="w-4 h-4" />
-              Editar Itens
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Ajuste quantidade, tamanho e observações dos itens.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          
-          <div className="max-h-[60vh] overflow-y-auto space-y-3 py-2">
-            {ordenarItensPorCategoria(pedidoSelecionado?.itens || []).map((item) => {
-              // Verificar se é Torta Especial (apenas pelo nome do produto)
-              const isTortaEspecial = item.produto.nome.toUpperCase().includes('TORTA ESPECIAL');
-              const tamanhosDisponiveis = ['PP', 'P', 'M', 'G'];
-              
-              return (
-                <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{item.produto.nome}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatarMoeda(item.valorUnit)}/{item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step={item.produto.tipoVenda === 'KG' ? '0.001' : '1'}
-                        min="0"
-                        className="w-16 h-8 text-sm text-center"
-                        value={itensEditados[item.id] !== undefined ? itensEditados[item.id] : item.quantidade.toString()}
-                        onChange={(e) => handleEditarPesoLivre(item.id, e.target.value)}
-                      />
-                      <span className="text-xs text-muted-foreground w-6">
-                        {item.produto.tipoVenda === 'KG' ? 'kg' : 'un'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Tamanho e Observação - apenas para Torta Especial */}
-                  {isTortaEspecial && (
-                    <>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground mb-1 block">Tamanho</Label>
-                        <div className="flex gap-1">
-                          {tamanhosDisponiveis.map((tam) => (
-                            <Button
-                              key={tam}
-                              type="button"
-                              variant={(tamanhosEditados[item.id] !== undefined ? tamanhosEditados[item.id] : item.tamanho) === tam ? 'default' : 'outline'}
-                              size="sm"
-                              className={`flex-1 h-7 text-[10px] ${(tamanhosEditados[item.id] !== undefined ? tamanhosEditados[item.id] : item.tamanho) === tam ? 'btn-padaria' : ''}`}
-                              onClick={() => setTamanhosEditados(prev => ({ ...prev, [item.id]: tam }))}
-                            >
-                              {tam}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground mb-1 block">Observação</Label>
-                        <Input
-                          placeholder="Ex: sem cebola, mais queijo..."
-                          className="h-8 text-xs"
-                          value={observacoesEditadas[item.id] !== undefined ? observacoesEditadas[item.id] : (item.observacao || '')}
-                          onChange={(e) => setObservacoesEditadas(prev => ({ ...prev, [item.id]: e.target.value }))}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setItensEditados({}); setTamanhosEditados({}); setObservacoesEditadas({}); }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleSalvarEdicao}
-              disabled={salvando}
-              className="btn-padaria"
-            >
-              {salvando ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Salvar Alterações
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        precosTamanhos={itemEditando?.precosTamanhos || null}
+        novoTamanho={novoTamanhoModal}
+        setNovoTamanho={setNovoTamanhoModal}
+        novaQuantidade={novaQuantidadeModal}
+        setNovaQuantidade={setNovaQuantidadeModal}
+        novaObservacao={novaObservacaoModal}
+        setNovaObservacao={setNovaObservacaoModal}
+        onSave={handleSalvarEdicaoItem}
+        onCancel={handleCancelarEdicaoItem}
+      />
 
       {/* Dialog de Adição de Produtos - COMPACTO */}
       <AlertDialog open={dialogAdicaoOpen} onOpenChange={(open) => {
