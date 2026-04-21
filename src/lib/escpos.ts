@@ -510,12 +510,17 @@ export function gerarCupomCozinha(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    // Truncar nome para 35 caracteres para manter alinhamento (48 total - 12 para QTD - 1 espaço)
-    const nome = truncar(nomeCompleto.toUpperCase(), 35).padEnd(35);
+    // Mostrar nome completo, quebrar linha se necessário (SEM TRUNCAR)
+    const nome = nomeCompleto.toUpperCase();
     const qtdProd = item.quantidadePedida || item.quantidade;
     const qtd = formatarQuantidadeProduto(qtdProd, item.produto.tipoVenda).toUpperCase().padStart(12);
     
-    linhas.push(`${nome} ${qtd}`);
+    // Quebrar nome em múltiplas linhas se exceder 35 caracteres
+    const nomeLinhas = quebrarLinha(nome, 35);
+    linhas.push(`${nomeLinhas[0].padEnd(35)} ${qtd}`);
+    for (let i = 1; i < nomeLinhas.length; i++) {
+      linhas.push(nomeLinhas[i]);
+    }
     
     if (item.observacao) {
       linhas.push(`  >> ${item.observacao.toUpperCase()}`);
@@ -594,8 +599,13 @@ export function gerarCupomCozinhaGrande(
       : item.produto.nome;
     const produto = nomeCompleto.toUpperCase();
     
-    // Formato mais destacado para itens
-    linhas.push(`  > ${qtdStr}  ${produto}`);
+    // Formato mais destacado para itens - mostrar nome completo, quebrar se necessário
+    const prefix = `  > ${qtdStr}  `;
+    const nomeLinhas = quebrarLinha(produto, 40 - prefix.length);
+    linhas.push(prefix + nomeLinhas[0]);
+    for (let i = 1; i < nomeLinhas.length; i++) {
+      linhas.push(' '.repeat(prefix.length) + nomeLinhas[i]);
+    }
     
     if (item.observacao) {
       linhas.push(`       -> ${item.observacao.toUpperCase()}`);
