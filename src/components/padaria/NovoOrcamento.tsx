@@ -27,6 +27,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda, formatarQuantidade } from '@/store/usePedidoStore';
 import { ordenarItensPorCategoria } from '@/lib/escpos';
+import EditItemModal from './EditItemModal';
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
@@ -197,8 +198,19 @@ export default function NovoOrcamento() {
   // Estado do Sheet do carrinho (mobile)
   const [carrinhoAberto, setCarrinhoAberto] = useState(false);
   
-  // Estado para edição de item (tamanho/observação)
-  const [editandoItem, setEditandoItem] = useState<number | null>(null);
+  // Estado para edição de item via Modal
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [itemEditando, setItemEditando] = useState<{
+    produtoId: string;
+    nome: string;
+    tamanho?: string;
+    observacao?: string;
+    valorUnit: number;
+    subtotal: number;
+    quantidade: number;
+    tipoVenda: 'KG' | 'UNIDADE';
+  } | null>(null);
+  const [indiceEditando, setIndiceEditando] = useState<number | null>(null);
   const [novoTamanho, setNovoTamanho] = useState<string>('');
   const [novaObservacao, setNovaObservacao] = useState<string>('');
 
@@ -508,39 +520,49 @@ export default function NovoOrcamento() {
     return produto?.precosTamanhos || null;
   }, [produtos]);
 
-  // Função para iniciar edição de item (para TODOS os produtos)
+  // Função para abrir modal de edição de item
   const handleEditarItem = useCallback((index: number) => {
     const item = itens[index];
     if (item) {
-      setEditandoItem(index);
+      setItemEditando({
+        produtoId: item.produtoId,
+        nome: item.nome,
+        tamanho: item.tamanho,
+        observacao: item.observacao,
+        valorUnit: item.valorUnit,
+        subtotal: item.subtotal,
+        quantidade: item.quantidade,
+        tipoVenda: item.tipoVenda,
+      });
+      setIndiceEditando(index);
       setNovoTamanho(item.tamanho || '');
       setNovaObservacao(item.observacao || '');
+      setModalEdicaoAberto(true);
     }
   }, [itens]);
 
-  // Função para salvar edição do item (para TODOS os produtos)
-  const handleSalvarEdicao = useCallback((index: number) => {
-    const item = itens[index];
-    if (!item) return;
+  // Função para salvar edição do item (chamada pelo modal)
+  const handleSalvarEdicao = useCallback(() => {
+    if (indiceEditando === null || !itemEditando) return;
 
-    const precos = obterPrecosTamanhos(item.produtoId);
-    let novoValorUnit = item.valorUnit;
-    let novoSubtotal = item.subtotal;
-    let novoNome = item.nome;
+    const precos = obterPrecosTamanhos(itemEditando.produtoId);
+    let novoValorUnit = itemEditando.valorUnit;
+    let novoSubtotal = itemEditando.subtotal;
+    let novoNome = itemEditando.nome;
 
     // Se o produto tem tamanhos e o tamanho foi alterado, atualizar preço
-    if (precos && novoTamanho && novoTamanho !== item.tamanho) {
+    if (precos && novoTamanho && novoTamanho !== itemEditando.tamanho) {
       const novoPreco = precos[novoTamanho];
       if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
         novoValorUnit = novoPreco;
         novoSubtotal = novoPreco; // Para tortas, quantidade é sempre 1
       }
       // Atualizar nome com novo tamanho
-      novoNome = item.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`);
+      novoNome = itemEditando.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`);
     }
 
     // Atualizar item com observação (para todos os produtos)
-    atualizarItem(index, {
+    atualizarItem(indiceEditando, {
       nome: novoNome,
       tamanho: novoTamanho || undefined,
       observacao: novaObservacao || undefined,
@@ -548,19 +570,40 @@ export default function NovoOrcamento() {
       subtotal: novoSubtotal,
     });
 
-    setEditandoItem(null);
+    setModalEdicaoAberto(false);
+    setItemEditando(null);
+    setIndiceEditando(null);
     setNovoTamanho('');
     setNovaObservacao('');
 
     toast({ title: 'Item atualizado!' });
-  }, [itens, novoTamanho, novaObservacao, obterPrecosTamanhos, atualizarItem, toast]);
+  }, [indiceEditando, itemEditando, novoTamanho, novaObservacao, obterPrecosTamanhos, atualizarItem, toast]);
 
   // Função para cancelar edição
   const handleCancelarEdicao = useCallback(() => {
-    setEditandoItem(null);
+    setModalEdicaoAberto(false);
+    setItemEditando(null);
+    setIndiceEditando(null);
     setNovoTamanho('');
     setNovaObservacao('');
   }, []);
+
+  // Obter tamanhos disponíveis para o item sendo editado
+  const tamanhosDisponiveisItem = useMemo(() => {
+    if (!itemEditando) return [];
+    const precos = obterPrecosTamanhos(itemEditando.produtoId);
+    if (!precos) return [];
+    return ['PP', 'P', 'M', 'G', 'GG'].filter(tam => {
+      const preco = precos[tam];
+      return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
+    });
+  }, [itemEditando, obterPrecosTamanhos]);
+
+  // Obter preços dos tamanhos do item sendo editado
+  const precosTamanhosItem = useMemo(() => {
+    if (!itemEditando) return null;
+    return obterPrecosTamanhos(itemEditando.produtoId);
+  }, [itemEditando, obterPrecosTamanhos]);
 
   // Renderizar card COMPACTO para grade (4 por linha) - OTIMIZADO PARA CLIQUE
   const renderProdutoCardCompacto = useCallback((produto: Produto) => {
@@ -1149,97 +1192,45 @@ export default function NovoOrcamento() {
                   <>
                     {/* Itens com scroll */}
                     <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                      {ordenarItensPorCategoria(itens).map((item, index) => {
-                        const precos = obterPrecosTamanhos(item.produtoId);
-                        const tamanhosDisponiveis = precos 
-                          ? ['PP', 'P', 'M', 'G'].filter(tam => {
-                              const preco = precos[tam];
-                              return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
-                            })
-                          : [];
-                        
-                        return (
+                      {ordenarItensPorCategoria(itens).map((item, index) => (
                         <div key={index} className="p-2 bg-muted/50 rounded-lg">
-                          {editandoItem === index ? (
-                            /* Modo edição */
-                            <div className="space-y-2">
-                              {/* Tamanho - apenas para produtos com tamanhos */}
-                              {tamanhosDisponiveis.length > 0 && (
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  <span className="text-[10px] text-muted-foreground mr-1">Tamanho:</span>
-                                  {tamanhosDisponiveis.map(tam => (
-                                    <Button
-                                      key={tam}
-                                      type="button"
-                                      variant={novoTamanho === tam ? 'default' : 'outline'}
-                                      size="sm"
-                                      className={`h-6 w-6 p-0 text-[10px] font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
-                                      onClick={() => setNovoTamanho(tam)}
-                                    >
-                                      {tam}
-                                    </Button>
-                                  ))}
-                                </div>
-                              )}
-                              {/* Observação - para TODOS os produtos */}
-                              <Input
-                                placeholder="Observação..."
-                                className="h-6 text-[10px]"
-                                value={novaObservacao}
-                                onChange={(e) => setNovaObservacao(e.target.value)}
-                              />
-                              <div className="flex gap-1">
-                                <Button size="sm" className="h-6 text-[10px] btn-padaria flex-1" onClick={() => handleSalvarEdicao(index)}>
-                                  Salvar
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={handleCancelarEdicao}>
-                                  Cancelar
-                                </Button>
-                              </div>
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-xs truncate">{item.nome}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
+                              </p>
                             </div>
-                          ) : (
-                            /* Modo visualização */
-                            <>
-                              <div className="flex items-start justify-between gap-1">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-xs truncate">{item.nome}</p>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <span className="font-semibold text-xs text-primary">{formatarMoeda(item.subtotal)}</span>
-                                  {/* Botão de editar - para TODOS os produtos */}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
-                                    onClick={() => handleEditarItem(index)}
-                                    title="Editar observação/tamanho"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => removerItem(index)}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                              {/* Observação do item - menos destaque */}
-                              {item.observacao && (
-                                <p className="text-[9px] text-orange-600 mt-1 italic truncate" title={item.observacao}>
-                                  ℹ {item.observacao}
-                                </p>
-                              )}
-                            </>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="font-semibold text-xs text-primary">{formatarMoeda(item.subtotal)}</span>
+                              {/* Botão de editar - para TODOS os produtos */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
+                                onClick={() => handleEditarItem(index)}
+                                title="Editar observação/tamanho"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => removerItem(index)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          {/* Observação do item - menos destaque */}
+                          {item.observacao && (
+                            <p className="text-[9px] text-orange-600 mt-1 italic truncate" title={item.observacao}>
+                              ℹ {item.observacao}
+                            </p>
                           )}
                         </div>
-                        );
-                      })}
+                      ))}
                     </div>
 
                     {/* Totais e Ações - FIXO NA PARTE INFERIOR */}
@@ -1326,94 +1317,42 @@ export default function NovoOrcamento() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {ordenarItensPorCategoria(itens).map((item, index) => {
-                        const precos = obterPrecosTamanhos(item.produtoId);
-                        const tamanhosDisponiveis = precos 
-                          ? ['PP', 'P', 'M', 'G'].filter(tam => {
-                              const preco = precos[tam];
-                              return preco !== undefined && preco !== null && !isNaN(preco) && preco > 0;
-                            })
-                          : [];
-                        
-                        return (
+                      {ordenarItensPorCategoria(itens).map((item, index) => (
                         <div key={index} className="p-2 bg-muted/50 rounded-lg">
-                          {editandoItem === index ? (
-                            /* Modo edição */
-                            <div className="space-y-2">
-                              {/* Tamanho - apenas para produtos com tamanhos */}
-                              {tamanhosDisponiveis.length > 0 && (
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  <span className="text-xs text-muted-foreground mr-1">Tamanho:</span>
-                                  {tamanhosDisponiveis.map(tam => (
-                                    <Button
-                                      key={tam}
-                                      type="button"
-                                      variant={novoTamanho === tam ? 'default' : 'outline'}
-                                      size="sm"
-                                      className={`h-7 w-7 p-0 text-xs font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
-                                      onClick={() => setNovoTamanho(tam)}
-                                    >
-                                      {tam}
-                                    </Button>
-                                  ))}
-                                </div>
-                              )}
-                              {/* Observação - para TODOS os produtos */}
-                              <Input
-                                placeholder="Observação..."
-                                className="h-8 text-sm"
-                                value={novaObservacao}
-                                onChange={(e) => setNovaObservacao(e.target.value)}
-                              />
-                              <div className="flex gap-1">
-                                <Button size="sm" className="h-7 text-xs btn-padaria flex-1" onClick={() => handleSalvarEdicao(index)}>
-                                  Salvar
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCancelarEdicao}>
-                                  Cancelar
-                                </Button>
-                              </div>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{item.nome}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
+                              </p>
                             </div>
-                          ) : (
-                            /* Modo visualização */
-                            <>
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{item.nome}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatarQuantidade(item.quantidade, item.tipoVenda)} × {formatarMoeda(item.valorUnit)}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-sm text-primary">{formatarMoeda(item.subtotal)}</span>
-                                  {/* Botão de editar - para TODOS os produtos */}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
-                                    onClick={() => handleEditarItem(index)}
-                                    title="Editar observação/tamanho"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => removerItem(index)}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
-                              </div>
-                              {item.observacao && (
-                                <p className="text-[10px] text-orange-600 mt-1 italic truncate">{item.observacao}</p>
-                              )}
-                            </>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-primary">{formatarMoeda(item.subtotal)}</span>
+                              {/* Botão de editar - para TODOS os produtos */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                onClick={() => handleEditarItem(index)}
+                                title="Editar observação/tamanho"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => removerItem(index)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          {item.observacao && (
+                            <p className="text-[10px] text-orange-600 mt-1 italic truncate">{item.observacao}</p>
                           )}
                         </div>
-                        );
-                      })}
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1463,6 +1402,21 @@ export default function NovoOrcamento() {
           </div>
         </div>
       )}
+
+      {/* Modal de Edição de Item */}
+      <EditItemModal
+        open={modalEdicaoAberto}
+        onOpenChange={setModalEdicaoAberto}
+        item={itemEditando}
+        tamanhosDisponiveis={tamanhosDisponiveisItem}
+        precosTamanhos={precosTamanhosItem}
+        novoTamanho={novoTamanho}
+        setNovoTamanho={setNovoTamanho}
+        novaObservacao={novaObservacao}
+        setNovaObservacao={setNovaObservacao}
+        onSave={handleSalvarEdicao}
+        onCancel={handleCancelarEdicao}
+      />
     </div>
   );
 }
