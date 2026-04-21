@@ -95,6 +95,8 @@ export interface ItemOrcamentoCarrinho {
   quantidade: number;
   valorUnit: number;
   tipoVenda: 'KG' | 'UNIDADE';
+  tipoProduto?: 'NORMAL' | 'ESPECIAL'; // Tipo do produto para edição
+  precosTamanhos?: Record<string, number> | null; // Preços por tamanho para edição
   subtotal: number;
   observacao?: string;
   tamanho?: string; // Tamanho para produtos especiais (PP, P, M, G)

@@ -51,9 +51,12 @@ export default function Carrinho({ isMobile = false }: Props) {
     subtotal: number;
     quantidade: number;
     tipoVenda: 'KG' | 'UNIDADE';
+    tipoProduto?: 'NORMAL' | 'ESPECIAL';
+    precosTamanhos?: Record<string, number> | null;
   } | null>(null);
   const [indiceEditando, setIndiceEditando] = useState<number | null>(null);
   const [novoTamanho, setNovoTamanho] = useState<string>('');
+  const [novaQuantidade, setNovaQuantidade] = useState<number>(0);
   const [novaObservacao, setNovaObservacao] = useState<string>('');
   
   // Produtos para obter preços de tamanhos
@@ -77,6 +80,9 @@ export default function Carrinho({ isMobile = false }: Props) {
   const handleEditarItem = useCallback((index: number) => {
     const item = itens[index];
     if (item) {
+      // Buscar produto completo para obter tipoProduto e precosTamanhos
+      const produto = produtos.find(p => p.id === item.produtoId);
+      
       setItemEditando({
         produtoId: item.produtoId,
         nome: item.nome,
@@ -86,51 +92,76 @@ export default function Carrinho({ isMobile = false }: Props) {
         subtotal: item.subtotal,
         quantidade: item.quantidade,
         tipoVenda: item.tipoVenda,
+        tipoProduto: produto?.tipoProduto || item.tipoProduto,
+        precosTamanhos: produto?.precosTamanhos || item.precosTamanhos,
       });
       setIndiceEditando(index);
       setNovoTamanho(item.tamanho || '');
+      setNovaQuantidade(item.quantidade);
       setNovaObservacao(item.observacao || '');
       setModalEdicaoAberto(true);
     }
-  }, [itens]);
+  }, [itens, produtos]);
 
   // Função para salvar edição do item (chamada pelo modal)
   const handleSalvarEdicao = useCallback(() => {
     if (indiceEditando === null || !itemEditando) return;
 
-    const precos = obterPrecosTamanhos(itemEditando.produtoId);
+    const precos = itemEditando.precosTamanhos || obterPrecosTamanhos(itemEditando.produtoId);
+    const isEspecial = itemEditando.tipoProduto === 'ESPECIAL' || (precos && itemEditando.tamanho);
+    const isKG = itemEditando.tipoVenda === 'KG' && !isEspecial;
+    const isUnidade = itemEditando.tipoVenda === 'UNIDADE' && !isEspecial;
+
     let novoValorUnit = itemEditando.valorUnit;
     let novoSubtotal = itemEditando.subtotal;
+    let novaQtd = itemEditando.quantidade;
     let novoNome = itemEditando.nome;
 
-    // Se o produto tem tamanhos e o tamanho foi alterado, atualizar preço
-    if (precos && novoTamanho && novoTamanho !== itemEditando.tamanho) {
+    // PRODUTOS ESPECIAIS (TORTAS): editar tamanho
+    if (isEspecial && precos && novoTamanho && novoTamanho !== itemEditando.tamanho) {
       const novoPreco = precos[novoTamanho];
       if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
         novoValorUnit = novoPreco;
         novoSubtotal = novoPreco; // Para tortas, quantidade é sempre 1
+        novaQtd = 1;
       }
       // Atualizar nome com novo tamanho
       novoNome = itemEditando.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`);
     }
 
-    // Atualizar item com observação (para todos os produtos)
+    // PRODUTOS KG: editar quantidade/peso
+    if (isKG && novaQuantidade > 0 && novaQuantidade !== itemEditando.quantidade) {
+      novaQtd = novaQuantidade;
+      novoSubtotal = Math.round(novaQuantidade * itemEditando.valorUnit * 100) / 100;
+    }
+
+    // PRODUTOS UNIDADE: editar quantidade
+    if (isUnidade && novaQuantidade > 0 && novaQuantidade !== itemEditando.quantidade) {
+      novaQtd = novaQuantidade;
+      novoSubtotal = Math.round(novaQuantidade * itemEditando.valorUnit * 100) / 100;
+    }
+
+    // Atualizar item
     atualizarItem(indiceEditando, {
       nome: novoNome,
       tamanho: novoTamanho || undefined,
       observacao: novaObservacao || undefined,
       valorUnit: novoValorUnit,
       subtotal: novoSubtotal,
+      quantidade: novaQtd,
+      quantidadePedida: novaQtd,
+      subtotalPedida: novoSubtotal,
     });
 
     setModalEdicaoAberto(false);
     setItemEditando(null);
     setIndiceEditando(null);
     setNovoTamanho('');
+    setNovaQuantidade(0);
     setNovaObservacao('');
 
     toast({ title: 'Item atualizado!' });
-  }, [indiceEditando, itemEditando, novoTamanho, novaObservacao, obterPrecosTamanhos, atualizarItem, toast]);
+  }, [indiceEditando, itemEditando, novoTamanho, novaQuantidade, novaObservacao, obterPrecosTamanhos, atualizarItem, toast]);
 
   // Função para cancelar edição
   const handleCancelarEdicao = useCallback(() => {
@@ -138,6 +169,7 @@ export default function Carrinho({ isMobile = false }: Props) {
     setItemEditando(null);
     setIndiceEditando(null);
     setNovoTamanho('');
+    setNovaQuantidade(0);
     setNovaObservacao('');
   }, []);
 
@@ -292,6 +324,8 @@ export default function Carrinho({ isMobile = false }: Props) {
           precosTamanhos={precosTamanhosItem}
           novoTamanho={novoTamanho}
           setNovoTamanho={setNovoTamanho}
+          novaQuantidade={novaQuantidade}
+          setNovaQuantidade={setNovaQuantidade}
           novaObservacao={novaObservacao}
           setNovaObservacao={setNovaObservacao}
           onSave={handleSalvarEdicao}
@@ -446,6 +480,8 @@ export default function Carrinho({ isMobile = false }: Props) {
         precosTamanhos={precosTamanhosItem}
         novoTamanho={novoTamanho}
         setNovoTamanho={setNovoTamanho}
+        novaQuantidade={novaQuantidade}
+        setNovaQuantidade={setNovaQuantidade}
         novaObservacao={novaObservacao}
         setNovaObservacao={setNovaObservacao}
         onSave={handleSalvarEdicao}
