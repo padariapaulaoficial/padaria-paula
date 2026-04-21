@@ -467,6 +467,7 @@ export function gerarCupomCliente(
 /**
  * Gera o conteúdo do cupom da COZINHA (sem valores)
  * Mostra QUANTIDADE PEDIDA (original) para produção
+ * IMPORTANTE: NUNCA truncar nomes de produtos - quebrar em múltiplas linhas se necessário
  */
 export function gerarCupomCozinha(
   pedido: PedidoCompleto,
@@ -492,8 +493,8 @@ export function gerarCupomCozinha(
   linhas.push(`Fone: ${formatarTelefone(pedido.cliente.telefone)}`);
   linhas.push(linhaDivisoria('-'));
   
-  // Cabeçalho
-  linhas.push('PRODUTO                               QTD');
+  // Cabeçalho - NÃO mostrar cabeçalho fixo para permitir nomes longos
+  linhas.push('ITENS DO PEDIDO:');
   linhas.push(linhaDivisoria('-'));
   
   // Itens (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS)
@@ -510,16 +511,21 @@ export function gerarCupomCozinha(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    // Mostrar nome completo, quebrar linha se necessário (SEM TRUNCAR)
+    // Mostrar nome COMPLETO - NUNCA TRUNCAR
     const nome = nomeCompleto.toUpperCase();
     const qtdProd = item.quantidadePedida || item.quantidade;
-    const qtd = formatarQuantidadeProduto(qtdProd, item.produto.tipoVenda).toUpperCase().padStart(12);
+    const qtdStr = formatarQuantidadeProduto(qtdProd, item.produto.tipoVenda).toUpperCase();
     
-    // Quebrar nome em múltiplas linhas se exceder 35 caracteres
-    const nomeLinhas = quebrarLinha(nome, 35);
-    linhas.push(`${nomeLinhas[0].padEnd(35)} ${qtd}`);
+    // Formato: quantidade + nome completo (quebrar linha se necessário)
+    // Largura disponível para nome: 48 - qtdStr.length - 3 (espaços)
+    const larguraNome = LARGURA_PAPEL - qtdStr.length - 3;
+    const nomeLinhas = quebrarLinha(nome, larguraNome);
+    
+    // Primeira linha: quantidade + primeira parte do nome
+    linhas.push(`${qtdStr.padStart(8)}  ${nomeLinhas[0]}`);
+    // Linhas seguintes: indentar para alinhar com o nome
     for (let i = 1; i < nomeLinhas.length; i++) {
-      linhas.push(nomeLinhas[i]);
+      linhas.push(' '.repeat(10) + nomeLinhas[i]);
     }
     
     if (item.observacao) {
@@ -544,6 +550,7 @@ export function gerarCupomCozinha(
 /**
  * Gera comanda de cozinha - Layout para produção
  * Layout com linhas pontilhadas para separação visual
+ * IMPORTANTE: NUNCA truncar nomes de produtos - quebrar em múltiplas linhas se necessário
  */
 export function gerarCupomCozinhaGrande(
   pedido: PedidoCompleto,
@@ -551,10 +558,10 @@ export function gerarCupomCozinhaGrande(
 ): string {
   const linhas: string[] = [];
 
-  // Cabeçalho
-  linhas.push('========================================');
-  linhas.push(`        PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`);
-  linhas.push('========================================');
+  // Cabeçalho - usar largura completa do papel (48 caracteres)
+  linhas.push(linhaDivisoria('='));
+  linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
+  linhas.push(linhaDivisoria('='));
 
   // Tipo de entrega com data e horário
   const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
@@ -562,12 +569,12 @@ export function gerarCupomCozinhaGrande(
   if (pedido.dataEntrega) {
     linhas.push(formatarDataEntregaCompleta(pedido.dataEntrega, pedido.horarioEntrega));
   }
-  linhas.push('-------------------------------------');
+  linhas.push(linhaDivisoria('-'));
 
   // Nome do cliente em destaque
   linhas.push(`CLIENTE: ${pedido.cliente.nome.toUpperCase()}`);
   linhas.push(`TELEFONE: ${formatarTelefone(pedido.cliente.telefone)}`);
-  linhas.push('-------------------------------------');
+  linhas.push(linhaDivisoria('-'));
   
   // Lista de itens - formato simples e grande (ORDENADOS: TORTAS, SALGADINHOS, DOCINHOS)
   linhas.push('ITENS:');
@@ -597,12 +604,20 @@ export function gerarCupomCozinhaGrande(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
+    // Mostrar nome COMPLETO - NUNCA TRUNCAR
     const produto = nomeCompleto.toUpperCase();
     
-    // Formato mais destacado para itens - mostrar nome completo, quebrar se necessário
+    // Formato destacado para itens
+    // Prefixo: "  > QTD  " onde QTD pode variar de 4 a 8+ caracteres
     const prefix = `  > ${qtdStr}  `;
-    const nomeLinhas = quebrarLinha(produto, 40 - prefix.length);
+    // Largura disponível para nome: LARGURA_PAPEL - prefix.length
+    // Isso garante que o nome completo caiba, quebrando em linhas se necessário
+    const larguraNome = LARGURA_PAPEL - prefix.length;
+    const nomeLinhas = quebrarLinha(produto, larguraNome);
+    
+    // Primeira linha: prefixo + primeira parte do nome
     linhas.push(prefix + nomeLinhas[0]);
+    // Linhas seguintes: indentar para alinhar com o nome
     for (let i = 1; i < nomeLinhas.length; i++) {
       linhas.push(' '.repeat(prefix.length) + nomeLinhas[i]);
     }
@@ -612,7 +627,7 @@ export function gerarCupomCozinhaGrande(
     }
   }
   
-  linhas.push('-------------------------------------');
+  linhas.push(linhaDivisoria('-'));
   
   // Observações gerais
   if (pedido.observacoes) {
@@ -621,7 +636,7 @@ export function gerarCupomCozinhaGrande(
     linhas.push('');
   }
   
-  linhas.push('========================================');
+  linhas.push(linhaDivisoria('='));
   
   return linhas.join('\n');
 }
