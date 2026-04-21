@@ -308,7 +308,7 @@ export default function ImpressaoManager() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="bg-gray-100 dark:bg-gray-800">
-                <CupomVisual conteudo={cupomCozinha} titulo="Comanda Cozinha" isComandaCozinha />
+                <CupomVisual conteudo={cupomCozinha} titulo="Comanda Cozinha" fonteGrande />
               </div>
             </CardContent>
             <div className="p-3 border-t border-border">
