@@ -508,17 +508,17 @@ export default function NovoOrcamento() {
     return produto?.precosTamanhos || null;
   }, [produtos]);
 
-  // Função para iniciar edição de item
+  // Função para iniciar edição de item (para TODOS os produtos)
   const handleEditarItem = useCallback((index: number) => {
     const item = itens[index];
-    if (item && item.tamanho) {
+    if (item) {
       setEditandoItem(index);
-      setNovoTamanho(item.tamanho);
+      setNovoTamanho(item.tamanho || '');
       setNovaObservacao(item.observacao || '');
     }
   }, [itens]);
 
-  // Função para salvar edição do item
+  // Função para salvar edição do item (para TODOS os produtos)
   const handleSalvarEdicao = useCallback((index: number) => {
     const item = itens[index];
     if (!item) return;
@@ -526,24 +526,23 @@ export default function NovoOrcamento() {
     const precos = obterPrecosTamanhos(item.produtoId);
     let novoValorUnit = item.valorUnit;
     let novoSubtotal = item.subtotal;
+    let novoNome = item.nome;
 
-    // Se mudou o tamanho, atualizar preço
-    if (novoTamanho && novoTamanho !== item.tamanho && precos) {
+    // Se o produto tem tamanhos e o tamanho foi alterado, atualizar preço
+    if (precos && novoTamanho && novoTamanho !== item.tamanho) {
       const novoPreco = precos[novoTamanho];
       if (novoPreco !== undefined && novoPreco !== null && !isNaN(novoPreco) && novoPreco > 0) {
         novoValorUnit = novoPreco;
         novoSubtotal = novoPreco; // Para tortas, quantidade é sempre 1
       }
+      // Atualizar nome com novo tamanho
+      novoNome = item.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`);
     }
 
-    // Atualizar nome se tamanho mudou
-    const novoNome = novoTamanho !== item.tamanho 
-      ? item.nome.replace(/\([A-Z]+\)$/, `(${novoTamanho})`)
-      : item.nome;
-
+    // Atualizar item com observação (para todos os produtos)
     atualizarItem(index, {
       nome: novoNome,
-      tamanho: novoTamanho,
+      tamanho: novoTamanho || undefined,
       observacao: novaObservacao || undefined,
       valorUnit: novoValorUnit,
       subtotal: novoSubtotal,
@@ -1164,21 +1163,25 @@ export default function NovoOrcamento() {
                           {editandoItem === index ? (
                             /* Modo edição */
                             <div className="space-y-2">
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <span className="text-[10px] text-muted-foreground mr-1">Tamanho:</span>
-                                {tamanhosDisponiveis.map(tam => (
-                                  <Button
-                                    key={tam}
-                                    type="button"
-                                    variant={novoTamanho === tam ? 'default' : 'outline'}
-                                    size="sm"
-                                    className={`h-6 w-6 p-0 text-[10px] font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
-                                    onClick={() => setNovoTamanho(tam)}
-                                  >
-                                    {tam}
-                                  </Button>
-                                ))}
-                              </div>
+                              {/* Tamanho - apenas para produtos com tamanhos */}
+                              {tamanhosDisponiveis.length > 0 && (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-[10px] text-muted-foreground mr-1">Tamanho:</span>
+                                  {tamanhosDisponiveis.map(tam => (
+                                    <Button
+                                      key={tam}
+                                      type="button"
+                                      variant={novoTamanho === tam ? 'default' : 'outline'}
+                                      size="sm"
+                                      className={`h-6 w-6 p-0 text-[10px] font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
+                                      onClick={() => setNovoTamanho(tam)}
+                                    >
+                                      {tam}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Observação - para TODOS os produtos */}
                               <Input
                                 placeholder="Observação..."
                                 className="h-6 text-[10px]"
@@ -1206,17 +1209,16 @@ export default function NovoOrcamento() {
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                   <span className="font-semibold text-xs text-primary">{formatarMoeda(item.subtotal)}</span>
-                                  {item.tamanho && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
-                                      onClick={() => handleEditarItem(index)}
-                                      title="Editar tamanho/observação"
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                    </Button>
-                                  )}
+                                  {/* Botão de editar - para TODOS os produtos */}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
+                                    onClick={() => handleEditarItem(index)}
+                                    title="Editar observação/tamanho"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1338,21 +1340,25 @@ export default function NovoOrcamento() {
                           {editandoItem === index ? (
                             /* Modo edição */
                             <div className="space-y-2">
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <span className="text-xs text-muted-foreground mr-1">Tamanho:</span>
-                                {tamanhosDisponiveis.map(tam => (
-                                  <Button
-                                    key={tam}
-                                    type="button"
-                                    variant={novoTamanho === tam ? 'default' : 'outline'}
-                                    size="sm"
-                                    className={`h-7 w-7 p-0 text-xs font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
-                                    onClick={() => setNovoTamanho(tam)}
-                                  >
-                                    {tam}
-                                  </Button>
-                                ))}
-                              </div>
+                              {/* Tamanho - apenas para produtos com tamanhos */}
+                              {tamanhosDisponiveis.length > 0 && (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-xs text-muted-foreground mr-1">Tamanho:</span>
+                                  {tamanhosDisponiveis.map(tam => (
+                                    <Button
+                                      key={tam}
+                                      type="button"
+                                      variant={novoTamanho === tam ? 'default' : 'outline'}
+                                      size="sm"
+                                      className={`h-7 w-7 p-0 text-xs font-bold ${novoTamanho === tam ? 'btn-padaria' : ''}`}
+                                      onClick={() => setNovoTamanho(tam)}
+                                    >
+                                      {tam}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Observação - para TODOS os produtos */}
                               <Input
                                 placeholder="Observação..."
                                 className="h-8 text-sm"
@@ -1380,17 +1386,16 @@ export default function NovoOrcamento() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold text-sm text-primary">{formatarMoeda(item.subtotal)}</span>
-                                  {item.tamanho && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
-                                      onClick={() => handleEditarItem(index)}
-                                      title="Editar tamanho/observação"
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                    </Button>
-                                  )}
+                                  {/* Botão de editar - para TODOS os produtos */}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                    onClick={() => handleEditarItem(index)}
+                                    title="Editar observação/tamanho"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
