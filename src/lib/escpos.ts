@@ -195,21 +195,32 @@ function truncar(texto: string, tamanho: number): string {
 }
 
 // Quebrar texto em múltiplas linhas sem truncar (para endereços)
+// NUNCA corta palavras no meio - pula a palavra inteira para a próxima linha
 function quebrarLinha(texto: string, largura: number = LARGURA_PAPEL): string[] {
   if (texto.length <= largura) return [texto];
   const linhas: string[] = [];
-  let restante = texto;
-  while (restante.length > 0) {
-    if (restante.length <= largura) {
-      linhas.push(restante);
-      break;
+  const palavras = texto.split(' ');
+  let linhaAtual = '';
+  
+  for (const palavra of palavras) {
+    if (linhaAtual.length === 0) {
+      // Linha vazia - colocar a palavra
+      linhaAtual = palavra;
+    } else if ((linhaAtual + ' ' + palavra).length <= largura) {
+      // Palavra cabe na linha atual
+      linhaAtual += ' ' + palavra;
+    } else {
+      // Palavra não cabe - finalizar linha atual e começar nova
+      linhas.push(linhaAtual);
+      linhaAtual = palavra;
     }
-    // Tentar quebrar no último espaço antes da largura
-    let posicaoQuebra = restante.lastIndexOf(' ', largura);
-    if (posicaoQuebra <= 0) posicaoQuebra = largura;
-    linhas.push(restante.substring(0, posicaoQuebra).trim());
-    restante = restante.substring(posicaoQuebra).trim();
   }
+  
+  // Adicionar última linha se não estiver vazia
+  if (linhaAtual.length > 0) {
+    linhas.push(linhaAtual);
+  }
+  
   return linhas;
 }
 
