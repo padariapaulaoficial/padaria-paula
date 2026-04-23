@@ -22,6 +22,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useOrcamentoStore } from '@/store/useOrcamentoStore';
 import { useAppStore } from '@/store/useAppStore';
 import { useToast } from '@/hooks/use-toast';
@@ -188,6 +198,10 @@ export default function NovoOrcamento() {
   // Estados de controle
   const [salvando, setSalvando] = useState(false);
   const [etapa, setEtapa] = useState<'cliente' | 'produtos'>('cliente');
+  
+  // Estado para confirmação de exclusão
+  const [itemParaExcluir, setItemParaExcluir] = useState<number | null>(null);
+  const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
   
   // Estado unificado para seleções - mais eficiente
   const [selecoes, setSelecoes] = useState<Record<string, {quantidade: number, tamanho?: string, observacao?: string}>>({});
@@ -513,6 +527,26 @@ export default function NovoOrcamento() {
     } finally {
       setSalvando(false);
     }
+  };
+
+  // Abrir diálogo de confirmação de exclusão
+  const handleAbrirDialogExcluir = (index: number) => {
+    setItemParaExcluir(index);
+    setDialogExcluirOpen(true);
+  };
+
+  // Confirmar exclusão do item
+  const handleConfirmarExclusao = () => {
+    if (itemParaExcluir !== null) {
+      const itemRemovido = itens[itemParaExcluir];
+      removerItem(itemParaExcluir);
+      toast({
+        title: 'Item removido!',
+        description: `${itemRemovido?.nome || 'Item'} foi removido do orçamento.`,
+      });
+    }
+    setItemParaExcluir(null);
+    setDialogExcluirOpen(false);
   };
 
   const dataMinima = new Date().toISOString().split('T')[0];
@@ -1247,7 +1281,7 @@ export default function NovoOrcamento() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
-                                onClick={() => removerItem(index)}
+                                onClick={() => handleAbrirDialogExcluir(index)}
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
@@ -1372,7 +1406,7 @@ export default function NovoOrcamento() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                onClick={() => removerItem(index)}
+                                onClick={() => handleAbrirDialogExcluir(index)}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
@@ -1449,6 +1483,32 @@ export default function NovoOrcamento() {
         onSave={handleSalvarEdicao}
         onCancel={handleCancelarEdicao}
       />
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={dialogExcluirOpen} onOpenChange={setDialogExcluirOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este item do orçamento?
+              <br />
+              <strong>{itemParaExcluir !== null ? itens[itemParaExcluir]?.nome : ''}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarExclusao}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

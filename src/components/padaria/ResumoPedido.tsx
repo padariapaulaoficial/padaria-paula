@@ -36,6 +36,10 @@ export default function ResumoPedido() {
   const [novoPeso, setNovoPeso] = useState('');
   const [dialogFinalizarOpen, setDialogFinalizarOpen] = useState(false);
   
+  // Estado para confirmação de exclusão
+  const [itemParaExcluir, setItemParaExcluir] = useState<number | null>(null);
+  const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
+  
   // Estado para edição de tamanho/observação de torta especial
   const [editandoTamanho, setEditandoTamanho] = useState<number | null>(null);
   const [novoTamanho, setNovoTamanho] = useState<string>('');
@@ -294,6 +298,26 @@ export default function ResumoPedido() {
     setNovaObservacao('');
   };
 
+  // Abrir diálogo de confirmação de exclusão
+  const handleAbrirDialogExcluir = (index: number) => {
+    setItemParaExcluir(index);
+    setDialogExcluirOpen(true);
+  };
+
+  // Confirmar exclusão do item
+  const handleConfirmarExclusao = () => {
+    if (itemParaExcluir !== null) {
+      const itemRemovido = itens[itemParaExcluir];
+      removerItem(itemParaExcluir);
+      toast({
+        title: 'Item removido!',
+        description: `${itemRemovido?.nome || 'Item'} foi removido do pedido.`,
+      });
+    }
+    setItemParaExcluir(null);
+    setDialogExcluirOpen(false);
+  };
+
   // Se não tem cliente, voltar para cadastro
   if (!cliente) {
     return (
@@ -473,7 +497,7 @@ export default function ResumoPedido() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                onClick={() => removerItem(index)}
+                                onClick={() => handleAbrirDialogExcluir(index)}
                                 title="Excluir item"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -534,7 +558,7 @@ export default function ResumoPedido() {
                                   size="sm"
                                   variant="ghost"
                                   className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => removerItem(index)}
+                                  onClick={() => handleAbrirDialogExcluir(index)}
                                   title="Excluir item"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -693,6 +717,32 @@ export default function ResumoPedido() {
               ) : (
                 'Finalizar'
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={dialogExcluirOpen} onOpenChange={setDialogExcluirOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este item do pedido?
+              <br />
+              <strong>{itemParaExcluir !== null ? itens[itemParaExcluir]?.nome : ''}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarExclusao}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

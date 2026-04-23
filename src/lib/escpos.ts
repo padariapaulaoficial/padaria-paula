@@ -64,47 +64,47 @@ const LARGURA_PAPEL = 48;
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
-// 1. TORTAS ESPECIAIS (0)
-// 2. TORTAS (1)
-// 3. SALGADINHOS (2)
-// 4. SALGADOS (3)
-// 5. DOCINHOS (4)
-// 6. DOCES (5)
-// 7. BEBIDAS (6)
-// 8. OUTROS (99)
+// 1. TORTAS (0)
+// 2. DOCINHOS (1)
+// 3. SALGADINHOS/SALGADOS (2)
+// 4. PAES (3)
+// 5. OUTROS (4)
+// 6. BEBIDAS (5)
 // ============================================
 const ORDEM_CATEGORIAS: Record<string, number> = {
-  // 1. TORTAS ESPECIAIS
+  // 1. TORTAS (inclui especiais)
   'TORTA ESPECIAL': 0,
   'TORTAS ESPECIAIS': 0,
+  'TORTAS': 0,
+  'TORTA': 0,
   
-  // 2. TORTAS
-  'TORTAS': 1,
-  'TORTA': 1,
+  // 2. DOCINHOS
+  'DOCINHOS': 1,
+  'DOCINHO': 1,
+  'DOCES': 1,
+  'DOCE': 1,
   
-  // 3. SALGADINHOS
+  // 3. SALGADINHOS/SALGADOS (TABUA DE FRIOS = salgado)
   'SALGADINHOS': 2,
   'SALGADINHO': 2,
+  'SALGADOS': 2,
+  'SALGADO': 2,
+  'TABUA DE FRIOS': 2,
+  'TABUA': 2,
   
-  // 4. SALGADOS
-  'SALGADOS': 3,
-  'SALGADO': 3,
+  // 4. PAES
+  'PAES': 3,
+  'PAO': 3,
+  'PÃO': 3,
+  'PÃES': 3,
   
-  // 5. DOCINHOS
-  'DOCINHOS': 4,
-  'DOCINHO': 4,
+  // 5. OUTROS
+  'OUTROS': 4,
+  'OUTRO': 4,
   
-  // 6. DOCES
-  'DOCES': 5,
-  'DOCE': 5,
-  
-  // 7. BEBIDAS
-  'BEBIDAS': 6,
-  'BEBIDA': 6,
-  
-  // 8. OUTROS
-  'OUTROS': 99,
-  'OUTRO': 99,
+  // 6. BEBIDAS
+  'BEBIDAS': 5,
+  'BEBIDA': 5,
 };
 
 // Função para obter a ordem de um item baseado na categoria real do produto
@@ -390,13 +390,32 @@ export function gerarCupomCliente(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    // Truncar nome para 22 caracteres para manter alinhamento
-    const nome = truncar(nomeCompleto, 22).padEnd(22);
+    
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);
     
-    linhas.push(`${nome} ${qtd} ${unit} ${sub}`);
+    // Espaço disponível para o nome na primeira linha: 48 - 7(qtd) - 8(unit) - 8(sub) - 3(espaços) = 22
+    const espacoNome = 22;
+    
+    if (nomeCompleto.length <= espacoNome) {
+      // Nome cabe na linha: formato normal
+      const nome = nomeCompleto.padEnd(espacoNome);
+      linhas.push(`${nome} ${qtd} ${unit} ${sub}`);
+    } else {
+      // Nome não cabe: mostrar qtd e valor na primeira linha com parte do nome
+      // Formato: "NOME LONGO AQUI...    1un  129,00  129,00"
+      //          "CONTINUACAO DO NOME"
+      const nomeLinha1 = nomeCompleto.substring(0, espacoNome);
+      const nomeLinha2 = nomeCompleto.substring(espacoNome);
+      
+      // Primeira linha com qtd e valor
+      linhas.push(`${nomeLinha1} ${qtd} ${unit} ${sub}`);
+      // Segunda linha com restante do nome (se não vazio)
+      if (nomeLinha2.trim()) {
+        linhas.push(nomeLinha2);
+      }
+    }
     
     if (item.observacao) {
       linhas.push(`  >> ${item.observacao}`);
@@ -1031,13 +1050,30 @@ export function gerarCupomOrcamento(
     const nomeCompleto = item.tamanho 
       ? `${item.produto.nome} ${item.tamanho}`
       : item.produto.nome;
-    // Truncar nome para 22 caracteres para manter alinhamento
-    const nome = truncar(nomeCompleto, 22).padEnd(22);
+    
     const qtd = formatarQuantidadeProduto(item.quantidade, item.produto.tipoVenda).padStart(5).padEnd(7);
     const unit = formatarValorSemCifrao(item.valorUnit).padStart(8);
     const sub = formatarValorSemCifrao(item.subtotal).padStart(8);
     
-    linhas.push(`${nome} ${qtd} ${unit} ${sub}`);
+    // Espaço disponível para o nome na primeira linha: 48 - 7(qtd) - 8(unit) - 8(sub) - 3(espaços) = 22
+    const espacoNome = 22;
+    
+    if (nomeCompleto.length <= espacoNome) {
+      // Nome cabe na linha: formato normal
+      const nome = nomeCompleto.padEnd(espacoNome);
+      linhas.push(`${nome} ${qtd} ${unit} ${sub}`);
+    } else {
+      // Nome não cabe: mostrar qtd e valor na primeira linha com parte do nome
+      const nomeLinha1 = nomeCompleto.substring(0, espacoNome);
+      const nomeLinha2 = nomeCompleto.substring(espacoNome);
+      
+      // Primeira linha com qtd e valor
+      linhas.push(`${nomeLinha1} ${qtd} ${unit} ${sub}`);
+      // Segunda linha com restante do nome (se não vazio)
+      if (nomeLinha2.trim()) {
+        linhas.push(nomeLinha2);
+      }
+    }
     
     if (item.observacao) {
       linhas.push(`  >> ${item.observacao}`);
