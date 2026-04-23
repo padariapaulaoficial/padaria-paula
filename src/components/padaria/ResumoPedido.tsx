@@ -4,7 +4,7 @@
 // Confirmação e finalização do pedido
 
 import { useState, useEffect } from 'react';
-import { Check, Loader2, ShoppingBag, Scale, Edit2, Truck, Store, Calendar, MapPin, AlertTriangle, Clock } from 'lucide-react';
+import { Check, Loader2, ShoppingBag, Scale, Edit2, Truck, Store, Calendar, MapPin, AlertTriangle, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -28,7 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ordenarItensPorCategoria } from '@/lib/escpos';
 
 export default function ResumoPedido() {
-  const { cliente, entrega, itens, total, totalPedida, observacoes, setObservacoes, atualizarPesoFinal, atualizarItem, resetPedido } = usePedidoStore();
+  const { cliente, entrega, itens, total, totalPedida, observacoes, setObservacoes, atualizarPesoFinal, atualizarItem, resetPedido, removerItem } = usePedidoStore();
   const { setTela } = useAppStore();
   const { toast } = useToast();
   const [salvando, setSalvando] = useState(false);
@@ -459,15 +459,26 @@ export default function ResumoPedido() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{item.nome}</span>
                           {item.tamanho && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0"
-                              onClick={() => handleEditarTamanho(index)}
-                              title="Editar tamanho/observação"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleEditarTamanho(index)}
+                                title="Editar tamanho/observação"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => removerItem(index)}
+                                title="Excluir item"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
                           )}
                         </div>
                         
@@ -518,6 +529,15 @@ export default function ResumoPedido() {
                                   title="Ajustar peso final"
                                 >
                                   <Edit2 className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removerItem(index)}
+                                  title="Excluir item"
+                                >
+                                  <Trash2 className="w-3 h-3" />
                                 </Button>
                               </div>
                             )}
