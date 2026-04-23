@@ -661,106 +661,12 @@ export function gerarCupomCozinhaGrande(
 }
 
 /**
- * Formata o conteúdo do cupom de cozinha com fontes diferenciadas
- * Itens ficam com fonte maior para facilitar leitura de idosos
- * 
- * Seções do cupom:
- * - header-info: Pedido Nº, Entrega, Data (18px bold)
- * - client-data: Cliente, Telefone (18px bold)
- * - item: Produtos (22px bold)
- * - observacoes: Observações (16px italic)
+ * Formata o conteúdo do cupom de cozinha
+ * TUDO em 18px negrito para fácil leitura
  */
 function formatarCupomCozinhaHTML(conteudo: string): string {
   const linhas = conteudo.split('\n');
-  const linhasFormatadas: string[] = [];
-  let inItemsSection = false;
-  let inObservacoes = false;
-  let sectionState: 'header' | 'client' | 'items' | 'end' = 'header'; // Estado mais explícito
-
-  for (let i = 0; i < linhas.length; i++) {
-    const linha = linhas[i];
-    const linhaTrim = linha.trim();
-
-    // Detectar início da seção de itens (transição cliente -> itens)
-    if (linhaTrim === 'ITENS:') {
-      sectionState = 'items';
-      inObservacoes = false;
-      linhasFormatadas.push(`<div class="header">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Detectar início das observações (após itens)
-    if (linhaTrim.startsWith('OBS:') || linhaTrim === 'OBSERVAÇÕES:') {
-      sectionState = 'end';
-      inObservacoes = true;
-      linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Detectar transição header -> cliente (primeiro ----- após início)
-    if (sectionState === 'header' && linha.includes('-----')) {
-      sectionState = 'client';
-      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Detectar transição cliente -> items (----- antes de ITENS:)
-    if (sectionState === 'client' && linha.includes('-----')) {
-      // Verificar se a próxima linha é ITENS:
-      const proximaLinha = linhas[i + 1] || '';
-      if (proximaLinha.trim() === 'ITENS:') {
-        linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-        continue;
-      }
-    }
-
-    // Detectar fim da seção de itens (linha divisória após os itens, antes de OBS ou fim)
-    if (sectionState === 'items' && linha.includes('-----')) {
-      const proximaLinha = linhas[i + 1] || '';
-      if (proximaLinha.trim().startsWith('OBS:') ||
-          proximaLinha.trim().startsWith('OBSERVAÇÕES:') ||
-          proximaLinha.includes('=====')) {
-        sectionState = 'end';
-        linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-        continue;
-      }
-    }
-
-    // Linhas divisórias (=====)
-    if (linha.includes('=====')) {
-      sectionState = 'end';
-      linhasFormatadas.push(`<div class="divisor">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linha dentro da seção de itens - aplicar classe especial
-    if (sectionState === 'items') {
-      linhasFormatadas.push(`<div class="item">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas de observação
-    if (inObservacoes) {
-      linhasFormatadas.push(`<div class="observacoes">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas do cabeçalho (Pedido Nº, Entrega, Data)
-    if (sectionState === 'header') {
-      linhasFormatadas.push(`<div class="header-info">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas dos dados do cliente
-    if (sectionState === 'client') {
-      linhasFormatadas.push(`<div class="client-data">${escapeHtml(linha)}</div>`);
-      continue;
-    }
-
-    // Linhas normais (fallback)
-    linhasFormatadas.push(`<div>${escapeHtml(linha)}</div>`);
-  }
-
+  const linhasFormatadas = linhas.map(linha => `<div>${escapeHtml(linha)}</div>`);
   return linhasFormatadas.join('\n');
 }
 
@@ -786,7 +692,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
     if (isComandaCozinha) {
-      // Para comanda de cozinha: fontes diferenciadas
+      // Para comanda de cozinha: TUDO em 18px negrito
       const htmlContent = formatarCupomCozinhaHTML(conteudo);
       janela.document.write(`
         <!DOCTYPE html>
@@ -796,7 +702,8 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
             <style>
               body {
                 font-family: 'Courier New', monospace;
-                font-size: 14px;
+                font-size: 18px;
+                font-weight: bold;
                 line-height: 1.4;
                 margin: 0;
                 padding: 10px;
@@ -804,52 +711,8 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
               div {
                 white-space: pre;
               }
-              .header-info {
-                font-size: 18px;
-                font-weight: bold;
-              }
-              .client-data {
-                font-size: 18px;
-                font-weight: bold;
-              }
-              .header {
-                font-size: 22px;
-                font-weight: bold;
-              }
-              .item {
-                font-size: 22px;
-                font-weight: bold;
-                line-height: 1.6;
-              }
-              .observacoes {
-                font-size: 16px;
-                font-style: italic;
-              }
-              .divisor {
-                font-size: 14px;
-              }
               @media print {
                 body { padding: 0; }
-                .header-info {
-                  font-size: 18px;
-                  font-weight: bold;
-                }
-                .client-data {
-                  font-size: 18px;
-                  font-weight: bold;
-                }
-                .header {
-                  font-size: 22px;
-                  font-weight: bold;
-                }
-                .item {
-                  font-size: 22px;
-                  font-weight: bold;
-                }
-                .observacoes {
-                  font-size: 16px;
-                  font-style: italic;
-                }
                 @page { margin: 0; size: 80mm auto; }
               }
             </style>
