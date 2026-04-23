@@ -566,6 +566,52 @@ export default function HistoricoPedidos() {
     setNovaObservacaoModal('');
   }, []);
 
+  // Excluir item do pedido
+  const handleExcluirItem = async (item: ItemPedido) => {
+    if (!pedidoSelecionado) return;
+    
+    setSalvando(true);
+    showLoading('Excluindo item...');
+    
+    try {
+      const response = await fetch('/api/pedidos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: pedidoSelecionado.id,
+          itensParaRemover: [item.id],
+        }),
+      });
+      
+      const pedidoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(pedidoAtualizado.error || 'Erro ao excluir item');
+      }
+      
+      // Atualizar lista local
+      setPedidos(prev => prev.map(p => p.id === pedidoAtualizado.id ? pedidoAtualizado : p));
+      setPedidoSelecionado(pedidoAtualizado);
+      
+      toast({
+        title: 'Item excluído!',
+        description: `${item.produto.nome} foi removido do pedido.`,
+        duration: 3000,
+      });
+      
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+      toast({
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSalvando(false);
+      hideLoading();
+    }
+  };
+
   // Imprimir cupom do cliente
   const handleImprimirCliente = (pedido: Pedido) => {
     if (!config) return;
@@ -1544,15 +1590,26 @@ export default function HistoricoPedidos() {
                             {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
                           </span>
                           {pedidoSelecionado.status !== 'ENTREGUE' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-4 w-4 p-0 text-muted-foreground hover:text-primary" 
-                              onClick={() => handleEditarItem(item)}
-                              title="Editar item"
-                            >
-                              <Edit2 className="w-2.5 h-2.5" />
-                            </Button>
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-4 w-4 p-0 text-muted-foreground hover:text-primary" 
+                                onClick={() => handleEditarItem(item)}
+                                title="Editar item"
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive" 
+                                onClick={() => handleExcluirItem(item)}
+                                title="Excluir item"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </Button>
+                            </>
                           )}
                         </div>
                         <span className="text-[9px] text-muted-foreground">

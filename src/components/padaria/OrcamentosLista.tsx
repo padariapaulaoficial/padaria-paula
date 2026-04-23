@@ -607,6 +607,62 @@ export default function OrcamentosLista() {
     }
   };
 
+  // Excluir item do orçamento
+  const handleExcluirItem = async (item: ItemOrcamento) => {
+    if (!orcamentoSelecionado) return;
+    
+    // Verificar se restará pelo menos um item
+    if (orcamentoSelecionado.itens.length <= 1) {
+      toast({
+        title: 'Não permitido',
+        description: 'O orçamento deve ter pelo menos um item.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setProcessando(true);
+    showLoading('Excluindo item...');
+    
+    try {
+      const response = await fetch('/api/orcamentos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orcamentoSelecionado.id,
+          itensParaRemover: [item.id],
+        }),
+      });
+      
+      const orcamentoAtualizado = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(orcamentoAtualizado.error || 'Erro ao excluir item');
+      }
+      
+      // Atualizar lista local
+      setOrcamentos(prev => prev.map(o => o.id === orcamentoAtualizado.id ? orcamentoAtualizado : o));
+      setOrcamentoSelecionado(orcamentoAtualizado);
+      
+      toast({
+        title: 'Item excluído!',
+        description: `${item.produto.nome} foi removido do orçamento.`,
+        duration: 3000,
+      });
+      
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+      toast({
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessando(false);
+      hideLoading();
+    }
+  };
+
   // Adicionar produto ao orçamento
   const handleAdicionarProduto = async () => {
     if (!orcamentoSelecionado || !produtoSelecionado) return;
@@ -1125,15 +1181,26 @@ export default function OrcamentosLista() {
                             {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
                           </span>
                           {orcamentoSelecionado.status === 'PENDENTE' && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-4 w-4 p-0 text-muted-foreground hover:text-primary" 
-                              onClick={() => handleEditarItem(item)}
-                              title="Editar item"
-                            >
-                              <Edit2 className="w-2.5 h-2.5" />
-                            </Button>
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-4 w-4 p-0 text-muted-foreground hover:text-primary" 
+                                onClick={() => handleEditarItem(item)}
+                                title="Editar item"
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive" 
+                                onClick={() => handleExcluirItem(item)}
+                                title="Excluir item"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </Button>
+                            </>
                           )}
                         </div>
                         <span className="text-[9px] text-muted-foreground">
