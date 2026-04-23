@@ -929,11 +929,12 @@ export default function HistoricoPedidos() {
     const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
     
     // Data de entrega formatada
-    const dataEntrega = pedido.dataEntrega 
+    const dataEntrega = pedido.dataEntrega
       ? new Date(pedido.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')
       : 'a combinar';
     const horarioEntrega = pedido.horarioEntrega || 'a combinar';
-    
+    const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
+
     // Lista de itens ordenados
     let itensStr = '';
     const itensOrdenados = ordenarItensPorCategoria(pedido.itens);
@@ -953,7 +954,7 @@ export default function HistoricoPedidos() {
     mensagem += `Podemos confirmar seu pedido?\n\n`;
     mensagem += `📦 *Pedido #${formatarNumeroPedido(pedido.numero)}*\n\n`;
     mensagem += `*Itens:*\n${itensStr}\n`;
-    mensagem += `📅 *Entrega:* ${dataEntrega}\n`;
+    mensagem += `📅 *${tipoEntrega === 'RETIRA' ? 'Retirada' : 'Tele Entrega'}:* ${dataEntrega}\n`;
     mensagem += `⏰ *Horário:* ${horarioEntrega}\n`;
     mensagem += `💰 *Total:* ${formatarMoeda(pedido.total)}\n\n`;
     mensagem += `Por favor, confirme se está tudo correto.\n\n`;
