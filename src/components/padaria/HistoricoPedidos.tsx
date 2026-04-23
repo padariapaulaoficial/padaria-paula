@@ -517,7 +517,9 @@ export default function HistoricoPedidos() {
           id: pedidoSelecionado.id,
           itens: [{
             id: itemEditando.id,
+            produtoId: itemEditando.produtoId,
             quantidade: novaQtd,
+            valorUnit: novoValorUnit,
             subtotal: novoSubtotal,
             tamanho: novoTamanho,
             observacao: novaObservacaoModal || undefined,

@@ -446,6 +446,7 @@ export default function OrcamentosLista() {
           id: orcamentoSelecionado.id,
           itens: [{
             id: itemEditando.id,
+            produtoId: itemEditando.produtoId,
             quantidade: novaQtd,
             subtotal: novoSubtotal,
             tamanho: novoTamanho,
