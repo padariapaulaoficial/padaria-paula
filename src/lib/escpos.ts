@@ -700,19 +700,37 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
           <head>
             <title>${titulo}</title>
             <style>
+              * {
+                font-size: 18px !important;
+                font-weight: bold !important;
+              }
               body {
                 font-family: 'Courier New', monospace;
-                font-size: 18px;
-                font-weight: bold;
+                font-size: 18px !important;
+                font-weight: bold !important;
                 line-height: 1.4;
                 margin: 0;
                 padding: 10px;
               }
-              div {
+              div, p, span, pre {
+                font-size: 18px !important;
+                font-weight: bold !important;
                 white-space: pre;
               }
               @media print {
-                body { padding: 0; }
+                * {
+                  font-size: 18px !important;
+                  font-weight: bold !important;
+                }
+                body {
+                  padding: 0;
+                  font-size: 18px !important;
+                  font-weight: bold !important;
+                }
+                div, p, span, pre {
+                  font-size: 18px !important;
+                  font-weight: bold !important;
+                }
                 @page { margin: 0; size: 80mm auto; }
               }
             </style>
