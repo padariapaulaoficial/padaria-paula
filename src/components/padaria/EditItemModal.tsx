@@ -12,31 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { formatarMoeda } from '@/store/usePedidoStore';
-
-// Opções de KG para edição
-const OPCOES_KG = [
-  { valor: 0.5, label: '500g' },
-  { valor: 1.0, label: '1kg' },
-  { valor: 1.5, label: '1.5kg' },
-  { valor: 2.0, label: '2kg' },
-  { valor: 2.5, label: '2.5kg' },
-  { valor: 3.0, label: '3kg' },
-  { valor: 4.0, label: '4kg' },
-  { valor: 5.0, label: '5kg' },
-  { valor: 6.0, label: '6kg' },
-  { valor: 7.0, label: '7kg' },
-  { valor: 8.0, label: '8kg' },
-  { valor: 9.0, label: '9kg' },
-  { valor: 10.0, label: '10kg' },
-];
 
 interface EditItemModalProps {
   open: boolean;
@@ -212,36 +188,52 @@ export default function EditItemModal({
 
           {/* =====================================================
               EDIÇÃO PARA PRODUTOS POR PESO (KG)
-              - Seletor de peso
+              - Input de peso livre (permite qualquer valor)
               - Preço = peso x valorUnit
               ===================================================== */}
           {isKG && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
-                Quantidade (Peso)
+                Quantidade (Peso em KG)
               </label>
-              <Select
-                value={novaQuantidade.toString()}
-                onValueChange={(value) => setNovaQuantidade(parseFloat(value) || 0)}
-              >
-                <SelectTrigger className="h-10 w-full text-sm font-medium">
-                  <SelectValue placeholder="Selecione o peso" />
-                </SelectTrigger>
-                <SelectContent className="max-h-48">
-                  {OPCOES_KG.map((opcao) => (
-                    <SelectItem key={opcao.valor} value={opcao.valor.toString()} className="text-sm">
-                      {opcao.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 w-10 p-0"
+                  onClick={() => setNovaQuantidade(Math.max(0.1, parseFloat((novaQuantidade - 0.1).toFixed(2))))}
+                  disabled={novaQuantidade <= 0.1}
+                >
+                  -
+                </Button>
+                <Input
+                  type="number"
+                  min="0.1"
+                  step="0.01"
+                  className="h-10 w-24 text-center text-sm font-medium"
+                  value={novaQuantidade || ''}
+                  onChange={(e) => setNovaQuantidade(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0.00"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 w-10 p-0"
+                  onClick={() => setNovaQuantidade(parseFloat((novaQuantidade + 0.1).toFixed(2)))}
+                >
+                  +
+                </Button>
+                <span className="text-sm text-muted-foreground font-medium">kg</span>
+              </div>
+
               {/* Mostrar preço calculado */}
               {novaQuantidade > 0 && (
                 <div className="bg-muted/30 rounded-lg p-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Peso:</span>
-                    <span className="font-medium">{novaQuantidade}kg</span>
+                    <span className="font-medium">{novaQuantidade.toFixed(2)}kg</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Preço/kg:</span>
