@@ -5,47 +5,79 @@ import { create } from 'zustand';
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
-// 1. TORTAS ESPECIAIS (0)
-// 2. TORTAS (1)
-// 3. SALGADINHOS (2)
-// 4. SALGADOS (3)
-// 5. DOCINHOS (4)
-// 6. DOCES (5)
-// 7. BEBIDAS (6)
-// 8. OUTROS (99)
+// 1. TORTAS E TABUAS
+// 2. BOLOS E CUCA
+// 3. SALGADOS FRITOS
+// 4. SALGADOS ASSADOS
+// 5. DOCES FOLHADOS
+// 6. DOCES
+// 7. PAES
+// 8. BEBIDAS
+// 9. DESCARTAVEIS
+// 10. OUTROS
 // ============================================
 export const ORDEM_CATEGORIAS: Record<string, number> = {
-  // 1. TORTAS ESPECIAIS
+  // 0. TORTAS ESPECIAIS (com tamanho) - sempre primeiro
   'TORTA ESPECIAL': 0,
   'TORTAS ESPECIAIS': 0,
   
-  // 2. TORTAS
+  // 1. TORTAS E TABUAS
+  'TORTAS E TABUAS': 1,
+  'TORTA E TABUA': 1,
   'TORTAS': 1,
   'TORTA': 1,
+  'TABUAS': 1,
+  'TABUA': 1,
   
-  // 3. SALGADINHOS
-  'SALGADINHOS': 2,
-  'SALGADINHO': 2,
+  // 2. BOLOS E CUCA
+  'BOLOS E CUCA': 2,
+  'BOLO E CUCA': 2,
+  'BOLOS': 2,
+  'BOLO': 2,
+  'CUCAS': 2,
+  'CUCA': 2,
   
-  // 4. SALGADOS
-  'SALGADOS': 3,
-  'SALGADO': 3,
+  // 3. SALGADOS FRITOS
+  'SALGADOS FRITOS': 3,
+  'SALGADO FRITO': 3,
+  'FRITOS': 3,
+  'FRITO': 3,
   
-  // 5. DOCINHOS
-  'DOCINHOS': 4,
-  'DOCINHO': 4,
+  // 4. SALGADOS ASSADOS
+  'SALGADOS ASSADOS': 4,
+  'SALGADO ASSADO': 4,
+  'ASSADOS': 4,
+  'ASSADO': 4,
+  
+  // 5. DOCES FOLHADOS
+  'DOCES FOLHADOS': 5,
+  'DOCE FOLHADO': 5,
+  'FOLHADOS': 5,
+  'FOLHADO': 5,
   
   // 6. DOCES
-  'DOCES': 5,
-  'DOCE': 5,
+  'DOCES': 6,
+  'DOCE': 6,
+  'DOCINHOS': 6,
+  'DOCINHO': 6,
   
-  // 7. BEBIDAS
-  'BEBIDAS': 6,
-  'BEBIDA': 6,
+  // 7. PAES
+  'PÃES': 7,
+  'PAES': 7,
+  'PÃO': 7,
+  'PAO': 7,
   
-  // 8. OUTROS
-  'OUTROS': 99,
-  'OUTRO': 99,
+  // 8. BEBIDAS
+  'BEBIDAS': 8,
+  'BEBIDA': 8,
+  
+  // 9. DESCARTAVEIS
+  'DESCARTÁVEIS': 9,
+  'DESCARTAVEIS': 9,
+  
+  // 10. OUTROS
+  'OUTROS': 10,
+  'OUTRO': 10,
 };
 
 // Função para obter ordem de um item baseado no nome e tamanho

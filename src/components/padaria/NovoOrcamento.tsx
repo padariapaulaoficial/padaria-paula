@@ -41,63 +41,119 @@ import EditItemModal from './EditItemModal';
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
-// 1. TORTAS ESPECIAIS (0)
-// 2. TORTAS (1)
-// 3. SALGADINHOS (2)
-// 4. SALGADOS (3)
-// 5. DOCINHOS (4)
-// 6. DOCES (5)
-// 7. BEBIDAS (6)
-// 8. OUTROS (99)
+// 1. TORTAS E TABUAS
+// 2. BOLOS E CUCA
+// 3. SALGADOS FRITOS
+// 4. SALGADOS ASSADOS
+// 5. DOCES FOLHADOS
+// 6. DOCES
+// 7. PAES
+// 8. BEBIDAS
+// 9. DESCARTAVEIS
+// 10. OUTROS
 // ============================================
 const ORDEM_CATEGORIAS: Record<string, number> = {
-  // 1. TORTAS ESPECIAIS
+  // 0. TORTAS ESPECIAIS (com tamanho) - sempre primeiro
   'Tortas Especiais': 0,
   'TORTAS ESPECIAIS': 0,
   'Torta Especial': 0,
   'TORTA ESPECIAL': 0,
   
-  // 2. TORTAS
+  // 1. TORTAS E TABUAS
+  'Tortas e Tabuas': 1,
+  'TORTAS E TABUAS': 1,
+  'Torta e Tabua': 1,
+  'TORTA E TABUA': 1,
   'Tortas': 1,
   'TORTAS': 1,
   'Torta': 1,
   'TORTA': 1,
+  'Tabuas': 1,
+  'TABUAS': 1,
+  'Tabua': 1,
+  'TABUA': 1,
   
-  // 3. SALGADINHOS
-  'Salgadinhos': 2,
-  'SALGADINHOS': 2,
-  'Salgadinho': 2,
-  'SALGADINHO': 2,
+  // 2. BOLOS E CUCA
+  'Bolos e Cuca': 2,
+  'BOLOS E CUCA': 2,
+  'Bolo e Cuca': 2,
+  'BOLO E CUCA': 2,
+  'Bolos': 2,
+  'BOLOS': 2,
+  'Bolo': 2,
+  'BOLO': 2,
+  'Cucas': 2,
+  'CUCAS': 2,
+  'Cuca': 2,
+  'CUCA': 2,
   
-  // 4. SALGADOS
-  'Salgados': 3,
-  'SALGADOS': 3,
-  'Salgado': 3,
-  'SALGADO': 3,
+  // 3. SALGADOS FRITOS
+  'Salgados Fritos': 3,
+  'SALGADOS FRITOS': 3,
+  'Salgado Frito': 3,
+  'SALGADO FRITO': 3,
+  'Fritos': 3,
+  'FRITOS': 3,
+  'Frito': 3,
+  'FRITO': 3,
   
-  // 5. DOCINHOS
-  'Docinhos': 4,
-  'DOCINHOS': 4,
-  'Docinho': 4,
-  'DOCINHO': 4,
+  // 4. SALGADOS ASSADOS
+  'Salgados Assados': 4,
+  'SALGADOS ASSADOS': 4,
+  'Salgado Assado': 4,
+  'SALGADO ASSADO': 4,
+  'Assados': 4,
+  'ASSADOS': 4,
+  'Assado': 4,
+  'ASSADO': 4,
+  
+  // 5. DOCES FOLHADOS
+  'Doces Folhados': 5,
+  'DOCES FOLHADOS': 5,
+  'Doce Folhado': 5,
+  'DOCE FOLHADO': 5,
+  'Folhados': 5,
+  'FOLHADOS': 5,
+  'Folhado': 5,
+  'FOLHADO': 5,
   
   // 6. DOCES
-  'Doces': 5,
-  'DOCES': 5,
-  'Doce': 5,
-  'DOCE': 5,
+  'Doces': 6,
+  'DOCES': 6,
+  'Doce': 6,
+  'DOCE': 6,
+  'Docinhos': 6,
+  'DOCINHOS': 6,
+  'Docinho': 6,
+  'DOCINHO': 6,
   
-  // 7. BEBIDAS
-  'Bebidas': 6,
-  'BEBIDAS': 6,
-  'Bebida': 6,
-  'BEBIDA': 6,
+  // 7. PAES
+  'Pães': 7,
+  'PÃES': 7,
+  'Pão': 7,
+  'PÃO': 7,
+  'Paes': 7,
+  'PAES': 7,
+  'Pao': 7,
+  'PAO': 7,
   
-  // 8. OUTROS
-  'Outros': 99,
-  'OUTROS': 99,
-  'Outro': 99,
-  'OUTRO': 99,
+  // 8. BEBIDAS
+  'Bebidas': 8,
+  'BEBIDAS': 8,
+  'Bebida': 8,
+  'BEBIDA': 8,
+  
+  // 9. DESCARTAVEIS
+  'Descartáveis': 9,
+  'DESCARTÁVEIS': 9,
+  'Descartáveis': 9,
+  'DESCARTAVEIS': 9,
+  
+  // 10. OUTROS
+  'Outros': 10,
+  'OUTROS': 10,
+  'Outro': 10,
+  'OUTRO': 10,
 };
 
 // Função para obter ordem de uma categoria
