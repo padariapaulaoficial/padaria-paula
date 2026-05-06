@@ -729,7 +729,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
     if (isComandaCozinha) {
-      // Para comanda de cozinha: TUDO em 18px negrito
+      // Para comanda de cozinha: TUDO em 20px negrito
       const htmlContent = formatarCupomCozinhaHTML(conteudo);
       janela.document.write(`
         <!DOCTYPE html>
@@ -738,34 +738,34 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
             <title>${titulo}</title>
             <style>
               * {
-                font-size: 18px !important;
+                font-size: 20px !important;
                 font-weight: bold !important;
               }
               body {
                 font-family: 'Courier New', monospace;
-                font-size: 18px !important;
+                font-size: 20px !important;
                 font-weight: bold !important;
                 line-height: 1.4;
                 margin: 0;
                 padding: 10px;
               }
               div, p, span, pre {
-                font-size: 18px !important;
+                font-size: 20px !important;
                 font-weight: bold !important;
                 white-space: pre;
               }
               @media print {
                 * {
-                  font-size: 18px !important;
+                  font-size: 20px !important;
                   font-weight: bold !important;
                 }
                 body {
                   padding: 0;
-                  font-size: 18px !important;
+                  font-size: 20px !important;
                   font-weight: bold !important;
                 }
                 div, p, span, pre {
-                  font-size: 18px !important;
+                  font-size: 20px !important;
                   font-weight: bold !important;
                 }
                 @page { margin: 0; size: 80mm auto; }
