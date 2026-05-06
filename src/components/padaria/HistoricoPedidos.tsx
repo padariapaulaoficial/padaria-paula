@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
@@ -929,12 +928,11 @@ export default function HistoricoPedidos() {
     const telefoneCompleto = telefone.length === 11 ? `55${telefone}` : telefone;
     
     // Data de entrega formatada
-    const dataEntrega = pedido.dataEntrega
+    const dataEntrega = pedido.dataEntrega 
       ? new Date(pedido.dataEntrega + 'T12:00:00').toLocaleDateString('pt-BR')
       : 'a combinar';
     const horarioEntrega = pedido.horarioEntrega || 'a combinar';
-    const tipoEntrega = pedido.tipoEntrega || 'RETIRA';
-
+    
     // Lista de itens ordenados
     let itensStr = '';
     const itensOrdenados = ordenarItensPorCategoria(pedido.itens);
@@ -954,7 +952,7 @@ export default function HistoricoPedidos() {
     mensagem += `Podemos confirmar seu pedido?\n\n`;
     mensagem += `📦 *Pedido #${formatarNumeroPedido(pedido.numero)}*\n\n`;
     mensagem += `*Itens:*\n${itensStr}\n`;
-    mensagem += `📅 *${tipoEntrega === 'RETIRA' ? 'Retirada' : 'Tele Entrega'}:* ${dataEntrega}\n`;
+    mensagem += `📅 *Entrega:* ${dataEntrega}\n`;
     mensagem += `⏰ *Horário:* ${horarioEntrega}\n`;
     mensagem += `💰 *Total:* ${formatarMoeda(pedido.total)}\n\n`;
     mensagem += `Por favor, confirme se está tudo correto.\n\n`;
@@ -1384,7 +1382,7 @@ export default function HistoricoPedidos() {
           <RefreshCw className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
-        <ScrollArea className="h-[calc(100vh-280px)]">
+        <div className="h-[calc(100vh-280px)] overflow-y-auto overflow-x-hidden pr-1">
           <div className="space-y-2 pr-2">
             {pedidosFiltrados.length === 0 ? (
               <Card className="p-8 text-center card-padaria">
@@ -1463,7 +1461,7 @@ export default function HistoricoPedidos() {
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
       )}
 
       {/* Dialog de detalhes otimizado para tela única - NOVA ESTRUTURA */}
@@ -1586,14 +1584,14 @@ export default function HistoricoPedidos() {
                 </div>
                 <div className="bg-muted/30 rounded-lg p-1.5 space-y-0.5 max-h-32 overflow-y-auto">
                   {ordenarItensPorCategoria(pedidoSelecionado.itens).map((item) => (
-                    <div key={item.id} className="flex justify-between items-start gap-2 py-0.5 border-b border-border/20 last:border-0">
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <span className="text-[10px] font-medium truncate max-w-[120px]">
+                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/20 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-medium truncate">
                             {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
                           </span>
                           {pedidoSelecionado.status !== 'ENTREGUE' && (
-                            <div className="flex gap-0.5 shrink-0">
+                            <>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -1612,17 +1610,17 @@ export default function HistoricoPedidos() {
                               >
                                 <Trash2 className="w-2.5 h-2.5" />
                               </Button>
-                            </div>
+                            </>
                           )}
                         </div>
-                        <span className="text-[9px] text-muted-foreground block">
+                        <span className="text-[9px] text-muted-foreground">
                           {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
                         </span>
                         {item.observacao && (
                           <span className="text-[8px] text-orange-600 italic block truncate">Obs: {item.observacao}</span>
                         )}
                       </div>
-                      <span className="text-[10px] font-semibold shrink-0">{formatarMoeda(item.subtotal)}</span>
+                      <span className="text-[10px] font-semibold ml-1">{formatarMoeda(item.subtotal)}</span>
                     </div>
                   ))}
                 </div>
