@@ -46,10 +46,23 @@ export async function GET() {
         "valorUnit" DOUBLE PRECISION NOT NULL,
         "ativo" BOOLEAN NOT NULL DEFAULT true,
         "categoria" TEXT,
+        "categoriaId" TEXT,
         "imagem" TEXT,
         "tipoProduto" TEXT NOT NULL DEFAULT 'NORMAL',
         "tamanhos" TEXT,
         "precosTamanhos" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Criar tabela Categoria
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Categoria" (
+        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+        "nome" TEXT NOT NULL UNIQUE,
+        "ordem" INTEGER NOT NULL DEFAULT 0,
+        "ativo" BOOLEAN NOT NULL DEFAULT true,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
@@ -144,6 +157,19 @@ export async function GET() {
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Orcamento_status_idx" ON "Orcamento"("status");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ItemOrcamento_orcamentoId_idx" ON "ItemOrcamento"("orcamentoId");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ItemOrcamento_produtoId_idx" ON "ItemOrcamento"("produtoId");`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Categoria_nome_idx" ON "Categoria"("nome");`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Categoria_ordem_idx" ON "Categoria"("ordem");`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Produto_categoriaId_idx" ON "Produto"("categoriaId");`);
+
+    // Adicionar coluna categoriaId na tabela Produto se não existir
+    await db.$executeRawUnsafe(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Produto' AND column_name = 'categoriaId') THEN
+          ALTER TABLE "Produto" ADD COLUMN "categoriaId" TEXT;
+        END IF;
+      END $$;
+    `);
 
     return NextResponse.json({
       success: true,
