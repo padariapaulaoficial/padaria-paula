@@ -92,45 +92,57 @@ const ORDEM_CATEGORIAS: Record<string, number> = {
   'CUCAS': 2,
   'CUCA': 2,
 
-  // 3. SALGADOS
-  'SALGADOS': 3,
-  'SALGADO': 3,
-  'SALGADINHOS': 3,
-  'SALGADINHO': 3,
-  'SALGADOS UNITARIOS': 3,
-  'SALGADO UNITARIO': 3,
+  // 3. SALGADOS FRITOS
+  'SALGADOS FRITOS': 3,
+  'SALGADO FRITO': 3,
+  'FRITOS': 3,
+  'FRITO': 3,
 
-  // 4. DOCES FOLHADOS
-  'DOCES FOLHADOS': 4,
-  'DOCE FOLHADO': 4,
-  'FOLHADOS': 4,
-  'FOLHADO': 4,
+  // 4. SALGADOS ASSADOS
+  'SALGADOS ASSADOS': 4,
+  'SALGADO ASSADO': 4,
+  'ASSADOS': 4,
+  'ASSADO': 4,
 
-  // 5. DOCES
-  'DOCES': 5,
-  'DOCE': 5,
-  'DOCINHOS': 5,
-  'DOCINHO': 5,
+  // 5. SALGADOS (geral)
+  'SALGADOS': 5,
+  'SALGADO': 5,
+  'SALGADINHOS': 5,
+  'SALGADINHO': 5,
+  'SALGADOS UNITARIOS': 5,
+  'SALGADO UNITARIO': 5,
 
-  // 6. PAES
-  'PÃES': 6,
-  'PÃO': 6,
-  'PAES': 6,
-  'PAO': 6,
+  // 6. DOCES FOLHADOS
+  'DOCES FOLHADOS': 6,
+  'DOCE FOLHADO': 6,
+  'FOLHADOS': 6,
+  'FOLHADO': 6,
 
-  // 7. BEBIDAS
-  'BEBIDAS': 7,
-  'BEBIDA': 7,
+  // 7. DOCES
+  'DOCES': 7,
+  'DOCE': 7,
+  'DOCINHOS': 7,
+  'DOCINHO': 7,
 
-  // 8. DESCARTAVEIS
-  'DESCARTÁVEIS': 8,
-  'DESCARTAVEL': 8,
-  'DESCARTAVEIS': 8,
-  'DESCARTAVEL': 8,
+  // 8. PAES
+  'PÃES': 8,
+  'PÃO': 8,
+  'PAES': 8,
+  'PAO': 8,
 
-  // 9. OUTROS
-  'OUTROS': 9,
-  'OUTRO': 9,
+  // 9. BEBIDAS
+  'BEBIDAS': 9,
+  'BEBIDA': 9,
+
+  // 10. DESCARTAVEIS
+  'DESCARTÁVEIS': 10,
+  'DESCARTAVEL': 10,
+  'DESCARTAVEIS': 10,
+  'DESCARTAVEL': 10,
+
+  // 11. OUTROS
+  'OUTROS': 11,
+  'OUTRO': 11,
 };
 
 // Função para obter a ordem de um item baseado na categoria real do produto
@@ -161,33 +173,43 @@ function obterOrdemItem(categoria?: string | null, tamanho?: string | null, nome
     if (nomeUpper.includes('BOLO') || nomeUpper.includes('CUCA')) {
       return 2;
     }
-    // Salgados
-    if (nomeUpper.includes('SALGADO') || nomeUpper.includes('RISOLE') || 
+    // Salgados FRITOS
+    if (nomeUpper.includes('RISOLE') || nomeUpper.includes('RISOLÉ') ||
         nomeUpper.includes('BOLINHA') || nomeUpper.includes('CROQUETE') ||
-        nomeUpper.includes('PASTEL') || nomeUpper.includes('ESFIHA') ||
-        nomeUpper.includes('KIBE') || nomeUpper.includes('EMPADA')) {
+        nomeUpper.includes('PASTEL') || nomeUpper.includes('ENROLADINHO') ||
+        nomeUpper.includes('KIBE') || nomeUpper.includes('QUIBE')) {
       return 3;
+    }
+    // Salgados ASSADOS
+    if (nomeUpper.includes('ESFIHA') || nomeUpper.includes('ESFIHA') ||
+        nomeUpper.includes('EMPADA') || nomeUpper.includes('QUICHE') ||
+        nomeUpper.includes('BARQUETE') || nomeUpper.includes('FOGAZZA')) {
+      return 4;
+    }
+    // Salgados (geral - sem especificação)
+    if (nomeUpper.includes('SALGADO') || nomeUpper.includes('SALGADINHO')) {
+      return 5;
     }
     // Doces Folhados
     if (nomeUpper.includes('FOLHADO') || nomeUpper.includes('MIL FOLHAS')) {
-      return 4;
+      return 6;
     }
     // Doces
     if (nomeUpper.includes('DOCE') || nomeUpper.includes('DOCINHO') ||
         nomeUpper.includes('BRIGADEIRO') || nomeUpper.includes('BEIJINHO') ||
         nomeUpper.includes('BOMBOCAM')) {
-      return 5;
+      return 7;
     }
     // Pães
     if (nomeUpper.includes('PÃO') || nomeUpper.includes('PAO') || 
         nomeUpper.includes('BAGUETE') || nomeUpper.includes('CIABATTA')) {
-      return 6;
+      return 8;
     }
     // Bebidas
     if (nomeUpper.includes('REFRIGERANTE') || nomeUpper.includes('SUCO') ||
         nomeUpper.includes('AGUA') || nomeUpper.includes('ÁGUA') ||
         nomeUpper.includes('CAFE') || nomeUpper.includes('CAFÉ')) {
-      return 7;
+      return 9;
     }
   }
   
