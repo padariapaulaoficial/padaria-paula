@@ -8,13 +8,14 @@ import { db } from '@/lib/db';
 const CATEGORIAS_INICIAIS = [
   { nome: 'Tortas e Tabuas', ordem: 1 },
   { nome: 'Bolos e Cuca', ordem: 2 },
-  { nome: 'Salgados', ordem: 3 },
-  { nome: 'Doces Folhados', ordem: 4 },
-  { nome: 'Doces', ordem: 5 },
-  { nome: 'Pães', ordem: 6 },
-  { nome: 'Bebidas', ordem: 7 },
-  { nome: 'Descartáveis', ordem: 8 },
-  { nome: 'Outros', ordem: 9 },
+  { nome: 'Salgados fritos', ordem: 3 },
+  { nome: 'Salgados assados', ordem: 4 },
+  { nome: 'Doces Folhados', ordem: 5 },
+  { nome: 'Doces', ordem: 6 },
+  { nome: 'Pães', ordem: 7 },
+  { nome: 'Bebidas', ordem: 8 },
+  { nome: 'Descartáveis', ordem: 9 },
+  { nome: 'Outros', ordem: 10 },
 ];
 
 // POST - Popular categorias iniciais

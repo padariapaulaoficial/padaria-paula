@@ -111,7 +111,7 @@ interface Bairro {
   ativo: boolean;
 }
 
-const CATEGORIAS = ['Tortas', 'Docinhos', 'Salgadinhos', 'Salgados Unitários', 'Pães', 'Bolos', 'Bebidas', 'Outros'];
+const CATEGORIAS = ['Tortas e Tabuas', 'Bolos e Cuca', 'Salgados fritos', 'Salgados assados', 'Doces Folhados', 'Doces', 'Pães', 'Bebidas', 'Descartáveis', 'Outros'];
 const TIPOS_VENDA = [
   { value: 'KG', label: 'Quilograma (kg)' },
   { value: 'UNIDADE', label: 'Unidade' },

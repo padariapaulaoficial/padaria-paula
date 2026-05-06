@@ -45,11 +45,12 @@ import { formatarMoeda } from '@/store/usePedidoStore';
 // Tamanhos fixos para produtos especiais (tortas)
 const TAMANHOS_FIXOS = ['PP', 'P', 'M', 'G', 'GG'];
 
-// Categorias oficiais (ordem 1-9)
+// Categorias oficiais (ordem 1-10)
 const CATEGORIAS = [
   'Tortas e Tabuas',
   'Bolos e Cuca',
-  'Salgados',
+  'Salgados fritos',
+  'Salgados assados',
   'Doces Folhados',
   'Doces',
   'Pães',
@@ -72,11 +73,12 @@ const MAPEAMENTO_CATEGORIAS: Record<string, string> = {
   'Bolo': 'Bolos e Cuca',
   'Cucas': 'Bolos e Cuca',
   'Cuca': 'Bolos e Cuca',
-  // Salgados
-  'Salgadinhos': 'Salgados',
-  'Salgadinho': 'Salgados',
-  'Salgados Unitários': 'Salgados',
-  'Salgado Unitário': 'Salgados',
+  // Salgados fritos (padrão para salgados antigos)
+  'Salgadinhos': 'Salgados fritos',
+  'Salgadinho': 'Salgados fritos',
+  'Salgados Unitários': 'Salgados fritos',
+  'Salgado Unitário': 'Salgados fritos',
+  'Salgados': 'Salgados fritos',
   // Doces
   'Docinhos': 'Doces',
   'Docinho': 'Doces',
