@@ -773,11 +773,39 @@ export function gerarCupomCozinhaGrande(
 
 /**
  * Formata o conteúdo do cupom de cozinha
- * TUDO em 18px negrito para fácil leitura
+ * ITENS em 18px negrito, resto em 14px negrito
  */
 function formatarCupomCozinhaHTML(conteudo: string): string {
   const linhas = conteudo.split('\n');
-  const linhasFormatadas = linhas.map(linha => `<div>${escapeHtml(linha)}</div>`);
+  let dentroDosItens = false;
+  
+  const linhasFormatadas = linhas.map(linha => {
+    // Detecta início da seção de itens
+    if (linha.includes('ITENS:') || linha.includes('ITENS DO PEDIDO:')) {
+      dentroDosItens = true;
+      return `<div class="cabecalho">${escapeHtml(linha)}</div>`;
+    }
+    
+    // Detecta fim da seção de itens (linha divisória após os itens)
+    if (dentroDosItens && (linha.match(/^-+$/) || linha.match(/^=+$/))) {
+      dentroDosItens = false;
+      return `<div>${escapeHtml(linha)}</div>`;
+    }
+    
+    // Linhas de itens: começam com "  >" ou são continuação/observação
+    if (dentroDosItens && (linha.trim().startsWith('>') || linha.includes('->') || linha.match(/^\s{8,}[A-Z]/))) {
+      return `<div class="item-grande">${escapeHtml(linha)}</div>`;
+    }
+    
+    // Linha pontilhada entre categorias
+    if (linha.match(/^\.+$/)) {
+      return `<div>${escapeHtml(linha)}</div>`;
+    }
+    
+    // Demais linhas
+    return `<div>${escapeHtml(linha)}</div>`;
+  });
+  
   return linhasFormatadas.join('\n');
 }
 
@@ -795,7 +823,7 @@ function escapeHtml(texto: string): string {
 
 /**
  * Abre diálogo de impressão do navegador
- * Para comanda de cozinha: itens com fonte maior para idosos
+ * Para comanda de cozinha: itens em 18px, resto em 14px
  */
 export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): void {
   const isComandaCozinha = titulo.toLowerCase().includes('cozinha');
@@ -803,7 +831,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
     if (isComandaCozinha) {
-      // Para comanda de cozinha: fonte 14px negrito (cabe no papel 80mm)
+      // Para comanda de cozinha: ITENS em 18px, resto em 14px
       const htmlContent = formatarCupomCozinhaHTML(conteudo);
       janela.document.write(`
         <!DOCTYPE html>
@@ -819,7 +847,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-family: 'Courier New', monospace;
                 font-size: 14px !important;
                 font-weight: bold !important;
-                line-height: 1.3;
+                line-height: 1.4;
                 margin: 0;
                 padding: 5px;
                 max-width: 80mm;
@@ -828,6 +856,12 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-size: 14px !important;
                 font-weight: bold !important;
                 white-space: pre;
+              }
+              /* ITENS em 18px */
+              .item-grande {
+                font-size: 18px !important;
+                font-weight: bold !important;
+                line-height: 1.3;
               }
               @media print {
                 * {
@@ -842,6 +876,10 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 }
                 div, p, span, pre {
                   font-size: 14px !important;
+                  font-weight: bold !important;
+                }
+                .item-grande {
+                  font-size: 18px !important;
                   font-weight: bold !important;
                 }
                 @page { margin: 0; size: 80mm auto; }
