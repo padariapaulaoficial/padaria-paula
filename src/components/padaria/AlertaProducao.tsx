@@ -8,7 +8,6 @@ import { Bell, AlertCircle, X, Calendar, Clock, Package, Check } from 'lucide-re
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { formatarMoeda } from '@/store/usePedidoStore';
 import { formatarNumeroPedido } from '@/lib/escpos';
@@ -121,8 +120,8 @@ export default function AlertaProducao() {
 
         {/* Lista de pedidos */}
         {expandido && (
-          <ScrollArea className="mt-2 max-h-48">
-            <div className="space-y-2">
+          <div className="mt-2 max-h-48 overflow-y-auto overflow-x-hidden">
+            <div className="space-y-2 pr-2">
               {pedidosAlerta.map((pedido) => (
                 <div
                   key={pedido.id}
@@ -177,7 +176,7 @@ export default function AlertaProducao() {
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </CardContent>
     </Card>
