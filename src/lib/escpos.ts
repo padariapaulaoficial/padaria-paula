@@ -134,17 +134,65 @@ const ORDEM_CATEGORIAS: Record<string, number> = {
 };
 
 // Função para obter a ordem de um item baseado na categoria real do produto
-function obterOrdemItem(categoria?: string | null, tamanho?: string | null): number {
+function obterOrdemItem(categoria?: string | null, tamanho?: string | null, nomeProduto?: string): number {
   // Tortas especiais (com tamanho) sempre primeiro
   if (tamanho) {
     return 0;
   }
   
-  // Usar a categoria real do produto
-  const catUpper = categoria?.toUpperCase() || 'OUTROS';
+  // Se tem categoria definida, usar ela
+  if (categoria) {
+    const catUpper = categoria.toUpperCase();
+    const ordem = ORDEM_CATEGORIAS[catUpper];
+    if (ordem !== undefined) {
+      return ordem;
+    }
+  }
   
-  // Obter ordem das categorias (default 99 para categorias não mapeadas)
-  return ORDEM_CATEGORIAS[catUpper] ?? 99;
+  // Se não tem categoria, inferir pelo nome do produto
+  if (nomeProduto) {
+    const nomeUpper = nomeProduto.toUpperCase();
+    
+    // Tortas
+    if (nomeUpper.includes('TORTA') || nomeUpper.includes('TABUA')) {
+      return 1;
+    }
+    // Bolos e Cuca
+    if (nomeUpper.includes('BOLO') || nomeUpper.includes('CUCA')) {
+      return 2;
+    }
+    // Salgados
+    if (nomeUpper.includes('SALGADO') || nomeUpper.includes('RISOLE') || 
+        nomeUpper.includes('BOLINHA') || nomeUpper.includes('CROQUETE') ||
+        nomeUpper.includes('PASTEL') || nomeUpper.includes('ESFIHA') ||
+        nomeUpper.includes('KIBE') || nomeUpper.includes('EMPADA')) {
+      return 3;
+    }
+    // Doces Folhados
+    if (nomeUpper.includes('FOLHADO') || nomeUpper.includes('MIL FOLHAS')) {
+      return 4;
+    }
+    // Doces
+    if (nomeUpper.includes('DOCE') || nomeUpper.includes('DOCINHO') ||
+        nomeUpper.includes('BRIGADEIRO') || nomeUpper.includes('BEIJINHO') ||
+        nomeUpper.includes('BOMBOCAM')) {
+      return 5;
+    }
+    // Pães
+    if (nomeUpper.includes('PÃO') || nomeUpper.includes('PAO') || 
+        nomeUpper.includes('BAGUETE') || nomeUpper.includes('CIABATTA')) {
+      return 6;
+    }
+    // Bebidas
+    if (nomeUpper.includes('REFRIGERANTE') || nomeUpper.includes('SUCO') ||
+        nomeUpper.includes('AGUA') || nomeUpper.includes('ÁGUA') ||
+        nomeUpper.includes('CAFE') || nomeUpper.includes('CAFÉ')) {
+      return 7;
+    }
+  }
+  
+  // Default: OUTROS
+  return 99;
 }
 
 // Tipo para itens com estrutura aninhada (do banco de dados)
@@ -185,9 +233,9 @@ export function ordenarItensPorCategoria<T extends ItemAninhado | ItemPlano>(ite
     const nomeA = temEstruturaAninhada(a) ? a.produto.nome : a.nome;
     const nomeB = temEstruturaAninhada(b) ? b.produto.nome : b.nome;
     
-    // Obter ordem de cada item
-    const ordemA = obterOrdemItem(categoriaA, tamanhoA);
-    const ordemB = obterOrdemItem(categoriaB, tamanhoB);
+    // Obter ordem de cada item (incluindo nome para inferência)
+    const ordemA = obterOrdemItem(categoriaA, tamanhoA, nomeA);
+    const ordemB = obterOrdemItem(categoriaB, tamanhoB, nomeB);
     
     // Se mesma categoria, ordenar por nome
     if (ordemA === ordemB) {
@@ -646,8 +694,8 @@ export function gerarCupomCozinhaGrande(
   let categoriaAtual: number | null = null;
   
   for (const item of itensOrdenadosGrande) {
-    // Obter categoria do item
-    const categoriaItem = obterOrdemItem(item.produto.categoria, item.tamanho);
+    // Obter categoria do item (incluindo nome para inferência)
+    const categoriaItem = obterOrdemItem(item.produto.categoria, item.tamanho, item.produto.nome);
     
     // Se mudou de categoria, adicionar linha pontilhada
     if (categoriaAtual !== null && categoriaItem !== categoriaAtual) {
