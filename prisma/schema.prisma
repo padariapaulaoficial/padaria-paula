@@ -51,6 +51,7 @@ model Produto {
   valorUnit      Float
   ativo          Boolean         @default(true)
   categoria      String?
+  categoriaId    String?
   imagem         String?
   tipoProduto    String          @default("NORMAL")
   tamanhos       String?
@@ -59,6 +60,9 @@ model Produto {
   updatedAt      DateTime        @updatedAt
   itensPedido    ItemPedido[]
   itensOrcamento ItemOrcamento[]
+  categoriaRel   Categoria?      @relation(fields: [categoriaId], references: [id])
+
+  @@index([categoriaId])
 }
 
 model Pedido {
@@ -175,4 +179,18 @@ model ConfiguracaoCatalogo {
   diasFuncionamento         String?  @default("1,2,3,4,5,6") // 0=Dom, 1=Seg, etc
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+}
+
+// Categorias de produtos com ordenação
+model Categoria {
+  id        String    @id @default(cuid())
+  nome      String    @unique
+  ordem     Int       @default(0)
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  produtos  Produto[]
+
+  @@index([nome])
+  @@index([ordem])
 }

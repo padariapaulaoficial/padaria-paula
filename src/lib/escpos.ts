@@ -64,12 +64,16 @@ const LARGURA_PAPEL = 48;
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
-// 1. TORTAS (0)
-// 2. DOCINHOS (1)
-// 3. SALGADINHOS/SALGADOS (2)
-// 4. PAES (3)
-// 5. OUTROS (4)
-// 6. BEBIDAS (5)
+// 1. TORTAS E TÁBUAS
+// 2. BOLOS E CUCAS
+// 3. SALGADOS FRITOS
+// 4. SALGADOS ASSADOS
+// 5. DOCES FOLHADOS
+// 6. DOCES
+// 7. PÃES
+// 8. BEBIDAS
+// 9. DESCARTÁVEIS
+// 10. OUTROS
 // ============================================
 // Ordem oficial das categorias para impressão
 // Tortas especiais (com tamanho) sempre primeiro = ordem 0
@@ -104,45 +108,37 @@ const ORDEM_CATEGORIAS: Record<string, number> = {
   'ASSADOS': 4,
   'ASSADO': 4,
 
-  // 5. SALGADOS (geral)
-  'SALGADOS': 5,
-  'SALGADO': 5,
-  'SALGADINHOS': 5,
-  'SALGADINHO': 5,
-  'SALGADOS UNITARIOS': 5,
-  'SALGADO UNITARIO': 5,
+  // 5. DOCES FOLHADOS
+  'DOCES FOLHADOS': 5,
+  'DOCE FOLHADO': 5,
+  'FOLHADOS': 5,
+  'FOLHADO': 5,
 
-  // 6. DOCES FOLHADOS
-  'DOCES FOLHADOS': 6,
-  'DOCE FOLHADO': 6,
-  'FOLHADOS': 6,
-  'FOLHADO': 6,
+  // 6. DOCES
+  'DOCES': 6,
+  'DOCE': 6,
+  'DOCINHOS': 6,
+  'DOCINHO': 6,
 
-  // 7. DOCES
-  'DOCES': 7,
-  'DOCE': 7,
-  'DOCINHOS': 7,
-  'DOCINHO': 7,
+  // 7. PAES
+  'PÃES': 7,
+  'PÃO': 7,
+  'PAES': 7,
+  'PAO': 7,
 
-  // 8. PAES
-  'PÃES': 8,
-  'PÃO': 8,
-  'PAES': 8,
-  'PAO': 8,
+  // 8. BEBIDAS
+  'BEBIDAS': 8,
+  'BEBIDA': 8,
 
-  // 9. BEBIDAS
-  'BEBIDAS': 9,
-  'BEBIDA': 9,
+  // 9. DESCARTAVEIS
+  'DESCARTÁVEIS': 9,
+  'DESCARTAVEL': 9,
+  'DESCARTAVEIS': 9,
+  'DESCARTAVEL': 9,
 
-  // 10. DESCARTAVEIS
-  'DESCARTÁVEIS': 10,
-  'DESCARTAVEL': 10,
-  'DESCARTAVEIS': 10,
-  'DESCARTAVEL': 10,
-
-  // 11. OUTROS
-  'OUTROS': 11,
-  'OUTRO': 11,
+  // 10. OUTROS
+  'OUTROS': 10,
+  'OUTRO': 10,
 };
 
 // Função para obter a ordem de um item baseado na categoria real do produto
@@ -165,51 +161,47 @@ function obterOrdemItem(categoria?: string | null, tamanho?: string | null, nome
   if (nomeProduto) {
     const nomeUpper = nomeProduto.toUpperCase();
     
-    // Tortas
+    // 1. Tortas e Tabuas
     if (nomeUpper.includes('TORTA') || nomeUpper.includes('TABUA')) {
       return 1;
     }
-    // Bolos e Cuca
+    // 2. Bolos e Cuca
     if (nomeUpper.includes('BOLO') || nomeUpper.includes('CUCA')) {
       return 2;
     }
-    // Salgados FRITOS
+    // 3. Salgados FRITOS (risole, bolinha, croquete, pastel, enroladinho, kibe)
     if (nomeUpper.includes('RISOLE') || nomeUpper.includes('RISOLÉ') ||
         nomeUpper.includes('BOLINHA') || nomeUpper.includes('CROQUETE') ||
         nomeUpper.includes('PASTEL') || nomeUpper.includes('ENROLADINHO') ||
         nomeUpper.includes('KIBE') || nomeUpper.includes('QUIBE')) {
       return 3;
     }
-    // Salgados ASSADOS
+    // 4. Salgados ASSADOS (esfiha, empada, quiche, barquete, fogazza)
     if (nomeUpper.includes('ESFIHA') || nomeUpper.includes('ESFIHA') ||
         nomeUpper.includes('EMPADA') || nomeUpper.includes('QUICHE') ||
         nomeUpper.includes('BARQUETE') || nomeUpper.includes('FOGAZZA')) {
       return 4;
     }
-    // Salgados (geral - sem especificação)
-    if (nomeUpper.includes('SALGADO') || nomeUpper.includes('SALGADINHO')) {
+    // 5. Doces Folhados
+    if (nomeUpper.includes('FOLHADO') || nomeUpper.includes('MIL FOLHAS')) {
       return 5;
     }
-    // Doces Folhados
-    if (nomeUpper.includes('FOLHADO') || nomeUpper.includes('MIL FOLHAS')) {
-      return 6;
-    }
-    // Doces
+    // 6. Doces
     if (nomeUpper.includes('DOCE') || nomeUpper.includes('DOCINHO') ||
         nomeUpper.includes('BRIGADEIRO') || nomeUpper.includes('BEIJINHO') ||
         nomeUpper.includes('BOMBOCAM')) {
-      return 7;
+      return 6;
     }
-    // Pães
+    // 7. Pães
     if (nomeUpper.includes('PÃO') || nomeUpper.includes('PAO') || 
         nomeUpper.includes('BAGUETE') || nomeUpper.includes('CIABATTA')) {
-      return 8;
+      return 7;
     }
-    // Bebidas
+    // 8. Bebidas
     if (nomeUpper.includes('REFRIGERANTE') || nomeUpper.includes('SUCO') ||
         nomeUpper.includes('AGUA') || nomeUpper.includes('ÁGUA') ||
         nomeUpper.includes('CAFE') || nomeUpper.includes('CAFÉ')) {
-      return 9;
+      return 8;
     }
   }
   
