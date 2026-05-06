@@ -46,7 +46,6 @@ export async function GET() {
         "valorUnit" DOUBLE PRECISION NOT NULL,
         "ativo" BOOLEAN NOT NULL DEFAULT true,
         "categoria" TEXT,
-        "categoriaId" TEXT,
         "imagem" TEXT,
         "tipoProduto" TEXT NOT NULL DEFAULT 'NORMAL',
         "tamanhos" TEXT,
@@ -159,17 +158,6 @@ export async function GET() {
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ItemOrcamento_produtoId_idx" ON "ItemOrcamento"("produtoId");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Categoria_nome_idx" ON "Categoria"("nome");`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Categoria_ordem_idx" ON "Categoria"("ordem");`);
-    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Produto_categoriaId_idx" ON "Produto"("categoriaId");`);
-
-    // Adicionar coluna categoriaId na tabela Produto se não existir
-    await db.$executeRawUnsafe(`
-      DO $$ 
-      BEGIN 
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Produto' AND column_name = 'categoriaId') THEN
-          ALTER TABLE "Produto" ADD COLUMN "categoriaId" TEXT;
-        END IF;
-      END $$;
-    `);
 
     return NextResponse.json({
       success: true,
