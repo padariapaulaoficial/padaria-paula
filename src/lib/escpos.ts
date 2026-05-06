@@ -71,40 +71,66 @@ const LARGURA_PAPEL = 48;
 // 5. OUTROS (4)
 // 6. BEBIDAS (5)
 // ============================================
+// Ordem oficial das categorias para impressão
+// Tortas especiais (com tamanho) sempre primeiro = ordem 0
 const ORDEM_CATEGORIAS: Record<string, number> = {
-  // 1. TORTAS (inclui especiais)
-  'TORTA ESPECIAL': 0,
-  'TORTAS ESPECIAIS': 0,
-  'TORTAS': 0,
-  'TORTA': 0,
-  
-  // 2. DOCINHOS
-  'DOCINHOS': 1,
-  'DOCINHO': 1,
-  'DOCES': 1,
-  'DOCE': 1,
-  
-  // 3. SALGADINHOS/SALGADOS (TABUA DE FRIOS = salgado)
-  'SALGADINHOS': 2,
-  'SALGADINHO': 2,
-  'SALGADOS': 2,
-  'SALGADO': 2,
-  'TABUA DE FRIOS': 2,
-  'TABUA': 2,
-  
-  // 4. PAES
-  'PAES': 3,
-  'PAO': 3,
-  'PÃO': 3,
-  'PÃES': 3,
-  
-  // 5. OUTROS
-  'OUTROS': 4,
-  'OUTRO': 4,
-  
-  // 6. BEBIDAS
-  'BEBIDAS': 5,
-  'BEBIDA': 5,
+  // 1. TORTAS E TABUAS
+  'TORTAS E TABUAS': 1,
+  'TORTA E TABUA': 1,
+  'TORTAS': 1,
+  'TORTA': 1,
+  'TABUAS': 1,
+  'TABUA': 1,
+  'TORTA ESPECIAL': 1,
+  'TORTAS ESPECIAIS': 1,
+
+  // 2. BOLOS E CUCA
+  'BOLOS E CUCA': 2,
+  'BOLO E CUCA': 2,
+  'BOLOS': 2,
+  'BOLO': 2,
+  'CUCAS': 2,
+  'CUCA': 2,
+
+  // 3. SALGADOS
+  'SALGADOS': 3,
+  'SALGADO': 3,
+  'SALGADINHOS': 3,
+  'SALGADINHO': 3,
+  'SALGADOS UNITARIOS': 3,
+  'SALGADO UNITARIO': 3,
+
+  // 4. DOCES FOLHADOS
+  'DOCES FOLHADOS': 4,
+  'DOCE FOLHADO': 4,
+  'FOLHADOS': 4,
+  'FOLHADO': 4,
+
+  // 5. DOCES
+  'DOCES': 5,
+  'DOCE': 5,
+  'DOCINHOS': 5,
+  'DOCINHO': 5,
+
+  // 6. PAES
+  'PÃES': 6,
+  'PÃO': 6,
+  'PAES': 6,
+  'PAO': 6,
+
+  // 7. BEBIDAS
+  'BEBIDAS': 7,
+  'BEBIDA': 7,
+
+  // 8. DESCARTAVEIS
+  'DESCARTÁVEIS': 8,
+  'DESCARTAVEL': 8,
+  'DESCARTAVEIS': 8,
+  'DESCARTAVEL': 8,
+
+  // 9. OUTROS
+  'OUTROS': 9,
+  'OUTRO': 9,
 };
 
 // Função para obter a ordem de um item baseado na categoria real do produto

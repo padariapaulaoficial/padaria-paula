@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   User, Phone, MapPin, Truck, Store, Calendar,
   Cake, Candy, Cookie, Coffee, Croissant, Refrigerator,
-  PartyPopper, MoreHorizontal, ShoppingCart, Edit2
+  PartyPopper, MoreHorizontal, ShoppingCart, Edit2, Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,63 +21,114 @@ import ProdutosPorCategoria from './ProdutosPorCategoria';
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
-// 1. TORTAS ESPECIAIS (0)
-// 2. TORTAS (1)
-// 3. SALGADINHOS (2)
-// 4. SALGADOS (3)
-// 5. DOCINHOS (4)
-// 6. DOCES (5)
-// 7. BEBIDAS (6)
-// 8. OUTROS (99)
+// 1. TORTAS E TABUAS (1)
+// 2. BOLOS E CUCA (2)
+// 3. SALGADOS (3)
+// 4. DOCES FOLHADOS (4)
+// 5. DOCES (5)
+// 6. PAES (6)
+// 7. BEBIDAS (7)
+// 8. DESCARTAVEIS (8)
+// 9. OUTROS (9)
 // ============================================
 const ORDEM_CATEGORIAS: Record<string, number> = {
-  // 1. TORTAS ESPECIAIS
-  'Tortas Especiais': 0,
-  'TORTAS ESPECIAIS': 0,
-  'Torta Especial': 0,
-  'TORTA ESPECIAL': 0,
-  
-  // 2. TORTAS
+  // 1. TORTAS E TABUAS
+  'Tortas e Tabuas': 1,
+  'TORTAS E TABUAS': 1,
+  'Torta e Tabua': 1,
+  'TORTA E TABUA': 1,
   'Tortas': 1,
   'TORTAS': 1,
   'Torta': 1,
   'TORTA': 1,
-  
-  // 3. SALGADINHOS
-  'Salgadinhos': 2,
-  'SALGADINHOS': 2,
-  'Salgadinho': 2,
-  'SALGADINHO': 2,
-  
-  // 4. SALGADOS
+  'Tabuas': 1,
+  'TABUAS': 1,
+  'Tabua': 1,
+  'TABUA': 1,
+  'Tortas Especiais': 1,
+  'TORTAS ESPECIAIS': 1,
+  'Torta Especial': 1,
+  'TORTA ESPECIAL': 1,
+
+  // 2. BOLOS E CUCA
+  'Bolos e Cuca': 2,
+  'BOLOS E CUCA': 2,
+  'Bolo e Cuca': 2,
+  'BOLO E CUCA': 2,
+  'Bolos': 2,
+  'BOLOS': 2,
+  'Bolo': 2,
+  'BOLO': 2,
+  'Cucas': 2,
+  'CUCAS': 2,
+  'Cuca': 2,
+  'CUCA': 2,
+
+  // 3. SALGADOS
   'Salgados': 3,
   'SALGADOS': 3,
   'Salgado': 3,
   'SALGADO': 3,
-  
-  // 5. DOCINHOS
-  'Docinhos': 4,
-  'DOCINHOS': 4,
-  'Docinho': 4,
-  'DOCINHO': 4,
-  
-  // 6. DOCES
+  'Salgadinhos': 3,
+  'SALGADINHOS': 3,
+  'Salgadinho': 3,
+  'SALGADINHO': 3,
+  'Salgados Unitários': 3,
+  'SALGADOS UNITARIOS': 3,
+  'Salgado Unitário': 3,
+  'SALGADO UNITARIO': 3,
+
+  // 4. DOCES FOLHADOS
+  'Doces Folhados': 4,
+  'DOCES FOLHADOS': 4,
+  'Doce Folhado': 4,
+  'DOCE FOLHADO': 4,
+  'Folhados': 4,
+  'FOLHADOS': 4,
+  'Folhado': 4,
+  'FOLHADO': 4,
+
+  // 5. DOCES
   'Doces': 5,
   'DOCES': 5,
   'Doce': 5,
   'DOCE': 5,
-  
+  'Docinhos': 5,
+  'DOCINHOS': 5,
+  'Docinho': 5,
+  'DOCINHO': 5,
+
+  // 6. PAES
+  'Pães': 6,
+  'PÃES': 6,
+  'Pão': 6,
+  'PÃO': 6,
+  'Paes': 6,
+  'PAES': 6,
+  'Pao': 6,
+  'PAO': 6,
+
   // 7. BEBIDAS
-  'Bebidas': 6,
-  'BEBIDAS': 6,
-  'Bebida': 6,
-  'BEBIDA': 6,
-  
-  // 8. OUTROS
-  'Outros': 99,
-  'OUTROS': 99,
-  'Outro': 99,
-  'OUTRO': 99,
+  'Bebidas': 7,
+  'BEBIDAS': 7,
+  'Bebida': 7,
+  'BEBIDA': 7,
+
+  // 8. DESCARTAVEIS
+  'Descartáveis': 8,
+  'DESCARTÁVEIS': 8,
+  'Descartável': 8,
+  'DESCARTÁVEL': 8,
+  'Descartaveis': 8,
+  'DESCARTAVEIS': 8,
+  'Descartavel': 8,
+  'DESCARTAVEL': 8,
+
+  // 9. OUTROS
+  'Outros': 9,
+  'OUTROS': 9,
+  'Outro': 9,
+  'OUTRO': 9,
 };
 
 // Função para obter ordem de uma categoria
@@ -100,40 +151,65 @@ interface Produto {
 
 // Configuração das categorias com ícones e cores
 const CONFIG_CATEGORIAS: Record<string, { icon: React.ReactNode; cor: string; bgCor: string }> = {
+  'Tortas e Tabuas': {
+    icon: <Cake className="w-8 h-8" />,
+    cor: 'text-amber-700',
+    bgCor: 'bg-amber-50 hover:bg-amber-100'
+  },
   'Tortas': {
     icon: <Cake className="w-8 h-8" />,
     cor: 'text-amber-700',
     bgCor: 'bg-amber-50 hover:bg-amber-100'
   },
-  'Docinhos': {
-    icon: <Candy className="w-8 h-8" />,
-    cor: 'text-pink-600',
-    bgCor: 'bg-pink-50 hover:bg-pink-100'
+  'Bolos e Cuca': {
+    icon: <Cake className="w-8 h-8" />,
+    cor: 'text-amber-600',
+    bgCor: 'bg-amber-50 hover:bg-amber-100'
+  },
+  'Bolos': {
+    icon: <Cake className="w-8 h-8" />,
+    cor: 'text-amber-600',
+    bgCor: 'bg-amber-50 hover:bg-amber-100'
+  },
+  'Salgados': {
+    icon: <Cookie className="w-8 h-8" />,
+    cor: 'text-orange-600',
+    bgCor: 'bg-orange-50 hover:bg-orange-100'
   },
   'Salgadinhos': {
     icon: <Cookie className="w-8 h-8" />,
     cor: 'text-orange-600',
     bgCor: 'bg-orange-50 hover:bg-orange-100'
   },
-  'Bebidas': {
-    icon: <Coffee className="w-8 h-8" />,
-    cor: 'text-blue-600',
-    bgCor: 'bg-blue-50 hover:bg-blue-100'
+  'Doces Folhados': {
+    icon: <Candy className="w-8 h-8" />,
+    cor: 'text-rose-600',
+    bgCor: 'bg-rose-50 hover:bg-rose-100'
+  },
+  'Doces': {
+    icon: <Candy className="w-8 h-8" />,
+    cor: 'text-pink-600',
+    bgCor: 'bg-pink-50 hover:bg-pink-100'
+  },
+  'Docinhos': {
+    icon: <Candy className="w-8 h-8" />,
+    cor: 'text-pink-600',
+    bgCor: 'bg-pink-50 hover:bg-pink-100'
   },
   'Pães': {
     icon: <Croissant className="w-8 h-8" />,
     cor: 'text-amber-800',
     bgCor: 'bg-amber-50 hover:bg-amber-100'
   },
-  'Frios': {
-    icon: <Refrigerator className="w-8 h-8" />,
-    cor: 'text-cyan-600',
-    bgCor: 'bg-cyan-50 hover:bg-cyan-100'
+  'Bebidas': {
+    icon: <Coffee className="w-8 h-8" />,
+    cor: 'text-blue-600',
+    bgCor: 'bg-blue-50 hover:bg-blue-100'
   },
-  'Kits Festa': {
-    icon: <PartyPopper className="w-8 h-8" />,
-    cor: 'text-purple-600',
-    bgCor: 'bg-purple-50 hover:bg-purple-100'
+  'Descartáveis': {
+    icon: <Package className="w-8 h-8" />,
+    cor: 'text-gray-600',
+    bgCor: 'bg-gray-50 hover:bg-gray-100'
   },
   'Outros': {
     icon: <MoreHorizontal className="w-8 h-8" />,
