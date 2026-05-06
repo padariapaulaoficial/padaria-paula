@@ -537,8 +537,8 @@ export default function AdminProdutos() {
       </Card>
 
       {/* Resumo por categoria */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {CATEGORIAS.slice(0, 4).map(cat => (
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {CATEGORIAS.map(cat => (
           <Card 
             key={cat} 
             className="card-padaria cursor-pointer hover:border-primary/50 transition-colors"
