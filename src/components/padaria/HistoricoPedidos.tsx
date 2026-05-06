@@ -1586,14 +1586,14 @@ export default function HistoricoPedidos() {
                 </div>
                 <div className="bg-muted/30 rounded-lg p-1.5 space-y-0.5 max-h-32 overflow-y-auto">
                   {ordenarItensPorCategoria(pedidoSelecionado.itens).map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-0.5 border-b border-border/20 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] font-medium truncate">
+                    <div key={item.id} className="flex justify-between items-start gap-2 py-0.5 border-b border-border/20 last:border-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[10px] font-medium truncate max-w-[120px]">
                             {item.produto.nome}{item.tamanho && <span className="text-primary ml-0.5">({item.tamanho})</span>}
                           </span>
                           {pedidoSelecionado.status !== 'ENTREGUE' && (
-                            <>
+                            <div className="flex gap-0.5 shrink-0">
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -1612,17 +1612,17 @@ export default function HistoricoPedidos() {
                               >
                                 <Trash2 className="w-2.5 h-2.5" />
                               </Button>
-                            </>
+                            </div>
                           )}
                         </div>
-                        <span className="text-[9px] text-muted-foreground">
+                        <span className="text-[9px] text-muted-foreground block">
                           {formatarQuantidade(item.quantidade, item.produto.tipoVenda as 'KG' | 'UNIDADE')} × {formatarMoeda(item.valorUnit)}
                         </span>
                         {item.observacao && (
                           <span className="text-[8px] text-orange-600 italic block truncate">Obs: {item.observacao}</span>
                         )}
                       </div>
-                      <span className="text-[10px] font-semibold ml-1">{formatarMoeda(item.subtotal)}</span>
+                      <span className="text-[10px] font-semibold shrink-0">{formatarMoeda(item.subtotal)}</span>
                     </div>
                   ))}
                 </div>

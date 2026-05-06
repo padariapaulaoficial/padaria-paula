@@ -537,16 +537,16 @@ export default function AdminProdutos() {
       </Card>
 
       {/* Resumo por categoria */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
         {CATEGORIAS.map(cat => (
           <Card 
             key={cat} 
             className="card-padaria cursor-pointer hover:border-primary/50 transition-colors"
             onClick={() => { setFiltroCategoria(cat); setModalProdutos(true); }}
           >
-            <CardContent className="p-3 text-center">
-              <p className="text-2xl font-bold text-primary">{contagemPorCategoria[cat] || 0}</p>
-              <p className="text-xs text-muted-foreground">{cat}</p>
+            <CardContent className="p-2 text-center">
+              <p className="text-xl font-bold text-primary">{contagemPorCategoria[cat] || 0}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">{cat}</p>
             </CardContent>
           </Card>
         ))}
