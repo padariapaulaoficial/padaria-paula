@@ -58,6 +58,42 @@ const CATEGORIAS = [
   'Outros',
 ];
 
+// Mapeamento de categorias antigas para novas
+const MAPEAMENTO_CATEGORIAS: Record<string, string> = {
+  // Tortas e Tabuas
+  'Tortas': 'Tortas e Tabuas',
+  'Torta': 'Tortas e Tabuas',
+  'Tortas Especiais': 'Tortas e Tabuas',
+  'Torta Especial': 'Tortas e Tabuas',
+  'Tabuas': 'Tortas e Tabuas',
+  'Tabua': 'Tortas e Tabuas',
+  // Bolos e Cuca
+  'Bolos': 'Bolos e Cuca',
+  'Bolo': 'Bolos e Cuca',
+  'Cucas': 'Bolos e Cuca',
+  'Cuca': 'Bolos e Cuca',
+  // Salgados
+  'Salgadinhos': 'Salgados',
+  'Salgadinho': 'Salgados',
+  'Salgados Unitários': 'Salgados',
+  'Salgado Unitário': 'Salgados',
+  // Doces
+  'Docinhos': 'Doces',
+  'Docinho': 'Doces',
+  // Pães
+  'Pães': 'Pães',
+  'Pão': 'Pães',
+  'Paes': 'Pães',
+  'Pao': 'Pães',
+};
+
+// Função para normalizar categoria
+function normalizarCategoria(categoria: string | null): string {
+  if (!categoria) return 'Outros';
+  const cat = categoria.trim();
+  return MAPEAMENTO_CATEGORIAS[cat] || cat;
+}
+
 // Tipos de venda
 const TIPOS_VENDA = [
   { value: 'KG', label: 'Quilograma (kg)' },
@@ -178,19 +214,20 @@ export default function AdminProdutos() {
   const produtosFiltrados = useMemo(() => {
     return produtos.filter(p => {
       const matchBusca = !busca || p.nome.toLowerCase().includes(busca.toLowerCase());
-      const matchCategoria = filtroCategoria === 'TODOS' || p.categoria === filtroCategoria;
-      const matchStatus = filtroStatus === 'TODOS' || 
-        (filtroStatus === 'ATIVO' && p.ativo) || 
+      const categoriaNormalizada = normalizarCategoria(p.categoria);
+      const matchCategoria = filtroCategoria === 'TODOS' || categoriaNormalizada === filtroCategoria;
+      const matchStatus = filtroStatus === 'TODOS' ||
+        (filtroStatus === 'ATIVO' && p.ativo) ||
         (filtroStatus === 'INATIVO' && !p.ativo);
       return matchBusca && matchCategoria && matchStatus;
     });
   }, [produtos, busca, filtroCategoria, filtroStatus]);
 
-  // Contagem por categoria
+  // Contagem por categoria (normalizada para novas categorias)
   const contagemPorCategoria = useMemo(() => {
     const contagem: Record<string, number> = { TODOS: produtos.length };
     produtos.forEach(p => {
-      const cat = p.categoria || 'Outros';
+      const cat = normalizarCategoria(p.categoria);
       contagem[cat] = (contagem[cat] || 0) + 1;
     });
     return contagem;
