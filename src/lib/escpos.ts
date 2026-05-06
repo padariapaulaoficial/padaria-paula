@@ -642,7 +642,19 @@ export function gerarCupomCozinhaGrande(
   });
   const itensOrdenadosGrande = ordenarItensPorCategoria(itensValidosGrande);
   
+  // Agrupar itens por categoria e adicionar separadores
+  let categoriaAtual: number | null = null;
+  
   for (const item of itensOrdenadosGrande) {
+    // Obter categoria do item
+    const categoriaItem = obterOrdemItem(item.produto.categoria, item.tamanho);
+    
+    // Se mudou de categoria, adicionar linha pontilhada
+    if (categoriaAtual !== null && categoriaItem !== categoriaAtual) {
+      linhas.push(linhaDivisoria('.'));
+    }
+    categoriaAtual = categoriaItem;
+    
     const qtdProd = item.quantidadePedida || item.quantidade;
     
     let qtdStr: string;
