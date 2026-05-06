@@ -789,7 +789,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
     if (isComandaCozinha) {
-      // Para comanda de cozinha: TUDO em 20px negrito
+      // Para comanda de cozinha: fonte 14px negrito (cabe no papel 80mm)
       const htmlContent = formatarCupomCozinhaHTML(conteudo);
       janela.document.write(`
         <!DOCTYPE html>
@@ -798,34 +798,36 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
             <title>${titulo}</title>
             <style>
               * {
-                font-size: 20px !important;
+                font-size: 14px !important;
                 font-weight: bold !important;
               }
               body {
                 font-family: 'Courier New', monospace;
-                font-size: 20px !important;
+                font-size: 14px !important;
                 font-weight: bold !important;
-                line-height: 1.4;
+                line-height: 1.3;
                 margin: 0;
-                padding: 10px;
+                padding: 5px;
+                max-width: 80mm;
               }
               div, p, span, pre {
-                font-size: 20px !important;
+                font-size: 14px !important;
                 font-weight: bold !important;
                 white-space: pre;
               }
               @media print {
                 * {
-                  font-size: 20px !important;
+                  font-size: 14px !important;
                   font-weight: bold !important;
                 }
                 body {
                   padding: 0;
-                  font-size: 20px !important;
+                  font-size: 14px !important;
                   font-weight: bold !important;
+                  max-width: 80mm;
                 }
                 div, p, span, pre {
-                  font-size: 20px !important;
+                  font-size: 14px !important;
                   font-weight: bold !important;
                 }
                 @page { margin: 0; size: 80mm auto; }
