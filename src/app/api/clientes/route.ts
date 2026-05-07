@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     // Listar todos os clientes (últimos 100)
     const clientes = await db.cliente.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 500,
       include: {
         _count: {
           select: { pedidos: true }
