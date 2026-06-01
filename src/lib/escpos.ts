@@ -773,37 +773,69 @@ export function gerarCupomCozinhaGrande(
 
 /**
  * Formata o conteúdo do cupom de cozinha
- * ITENS em 18px negrito, resto em 14px negrito
+ * Estilos iguais ao preview (CupomVisual.tsx):
+ * - Cabeçalho/Cliente: 18px negrito
+ * - Itens: 22px negrito
+ * - Observações: 16px itálico
+ * - Separadores: 12px normal
+ * - Fim: 12px normal
  */
 function formatarCupomCozinhaHTML(conteudo: string): string {
   const linhas = conteudo.split('\n');
-  let dentroDosItens = false;
+  let secaoAtual: 'header' | 'client' | 'items' | 'end' = 'header';
   
-  const linhasFormatadas = linhas.map(linha => {
-    // Detecta início da seção de itens
-    if (linha.includes('ITENS:') || linha.includes('ITENS DO PEDIDO:')) {
-      dentroDosItens = true;
+  const linhasFormatadas = linhas.map((linha, i) => {
+    const linhaUpper = linha.toUpperCase().trim();
+    
+    // Detectar mudança de seção
+    if (linhaUpper.startsWith('CLIENTE:') || linhaUpper.startsWith('TELEFONE:')) {
+      secaoAtual = 'client';
+    } else if (linhaUpper === 'ITENS:' || linhaUpper === 'ITENS DO PEDIDO:') {
+      secaoAtual = 'items';
+    } else if (linha.match(/^={10,}$/) && i > 5) {
+      const linhasRestantes = linhas.slice(i + 1).filter(l => l.trim());
+      if (linhasRestantes.length === 0 || linhasRestantes.every(l => l.match(/^={10,}$/))) {
+        secaoAtual = 'end';
+      }
+    }
+    
+    // Linha de observação (contém "->" ou começa com "OBS:")
+    if (linha.includes('->') || linhaUpper.startsWith('OBS:')) {
+      return `<div class="observacao">${escapeHtml(linha)}</div>`;
+    }
+    
+    // Linha "ITENS:" ou "ITENS DO PEDIDO:"
+    if (linhaUpper === 'ITENS:' || linhaUpper === 'ITENS DO PEDIDO:') {
       return `<div class="cabecalho">${escapeHtml(linha)}</div>`;
     }
     
-    // Detecta fim da seção de itens (linha divisória após os itens)
-    if (dentroDosItens && (linha.match(/^-+$/) || linha.match(/^=+$/))) {
-      dentroDosItens = false;
-      return `<div>${escapeHtml(linha)}</div>`;
-    }
-    
-    // Linhas de itens: começam com "  >" ou são continuação/observação
-    if (dentroDosItens && (linha.trim().startsWith('>') || linha.includes('->') || linha.match(/^\s{8,}[A-Z]/))) {
-      return `<div class="item-grande">${escapeHtml(linha)}</div>`;
+    // Linha de separador
+    if (linha.match(/^-{5,}$/) || linha.match(/^={5,}$/)) {
+      return `<div class="separador">${escapeHtml(linha)}</div>`;
     }
     
     // Linha pontilhada entre categorias
     if (linha.match(/^\.+$/)) {
-      return `<div>${escapeHtml(linha)}</div>`;
+      return `<div class="separador">${escapeHtml(linha)}</div>`;
     }
     
-    // Demais linhas
-    return `<div>${escapeHtml(linha)}</div>`;
+    // Linha de item (começa com ">" e está na seção de itens)
+    if ((linha.trim().startsWith('>') || linha.match(/^\s*>\s/)) && secaoAtual === 'items') {
+      return `<div class="item-grande">${escapeHtml(linha)}</div>`;
+    }
+    
+    // Qualquer linha com conteúdo na seção de itens (que não é obs ou separador)
+    if (secaoAtual === 'items' && linha.trim()) {
+      return `<div class="item-grande">${escapeHtml(linha)}</div>`;
+    }
+    
+    // Fim do documento
+    if (secaoAtual === 'end') {
+      return `<div class="fim">${escapeHtml(linha)}</div>`;
+    }
+    
+    // Cabeçalho e cliente
+    return `<div class="cabecalho">${escapeHtml(linha)}</div>`;
   });
   
   return linhasFormatadas.join('\n');
@@ -823,7 +855,7 @@ function escapeHtml(texto: string): string {
 
 /**
  * Abre diálogo de impressão do navegador
- * Para comanda de cozinha: itens em 18px, resto em 14px
+ * Para comanda de cozinha: estilos iguais ao preview (CupomVisual.tsx)
  */
 export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): void {
   const isComandaCozinha = titulo.toLowerCase().includes('cozinha');
@@ -831,7 +863,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
   const janela = window.open('', '_blank', 'width=320,height=600');
   if (janela) {
     if (isComandaCozinha) {
-      // Para comanda de cozinha: ITENS em 18px, resto em 14px
+      // Para comanda de cozinha: estilos iguais ao preview
       const htmlContent = formatarCupomCozinhaHTML(conteudo);
       janela.document.write(`
         <!DOCTYPE html>
@@ -840,47 +872,90 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
             <title>${titulo}</title>
             <style>
               * {
-                font-size: 16px !important;
-                font-weight: bold !important;
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
               }
               body {
-                font-family: 'Courier New', monospace;
-                font-size: 16px !important;
-                font-weight: bold !important;
-                line-height: 1.4;
+                font-family: 'Courier New', 'Lucida Console', 'Consolas', monospace;
+                color: #1a1a1a;
+                letter-spacing: 0.03em;
+                line-height: 1.5;
                 margin: 0;
                 padding: 5px;
                 max-width: 80mm;
               }
-              div, p, span, pre {
-                font-size: 16px !important;
-                font-weight: bold !important;
-                white-space: pre;
-              }
-              /* ITENS em 18px */
-              .item-grande {
+              /* Cabeçalho e Cliente: 18px negrito */
+              .cabecalho {
                 font-size: 18px !important;
-                font-weight: bold !important;
-                line-height: 1.3;
+                font-weight: 700 !important;
+                line-height: 1.5 !important;
+                white-space: pre !important;
+                letter-spacing: 0.03em !important;
+              }
+              /* Itens: 22px negrito */
+              .item-grande {
+                font-size: 22px !important;
+                font-weight: 700 !important;
+                line-height: 1.6 !important;
+                white-space: pre !important;
+                letter-spacing: 0.03em !important;
+              }
+              /* Observações: 16px itálico */
+              .observacao {
+                font-size: 16px !important;
+                font-weight: 400 !important;
+                font-style: italic !important;
+                line-height: 1.5 !important;
+                white-space: pre !important;
+                letter-spacing: 0.03em !important;
+              }
+              /* Separadores: 12px normal */
+              .separador {
+                font-size: 12px !important;
+                font-weight: 400 !important;
+                line-height: 1.2 !important;
+                white-space: pre !important;
+                letter-spacing: 0.03em !important;
+              }
+              /* Fim do documento: 12px normal */
+              .fim {
+                font-size: 12px !important;
+                font-weight: 400 !important;
+                line-height: 1.4 !important;
+                white-space: pre !important;
+                letter-spacing: 0.03em !important;
               }
               @media print {
-                * {
-                  font-size: 16px !important;
-                  font-weight: bold !important;
-                }
                 body {
                   padding: 0;
-                  font-size: 16px !important;
-                  font-weight: bold !important;
                   max-width: 80mm;
                 }
-                div, p, span, pre {
-                  font-size: 16px !important;
-                  font-weight: bold !important;
+                .cabecalho {
+                  font-size: 18px !important;
+                  font-weight: 700 !important;
+                  line-height: 1.5 !important;
                 }
                 .item-grande {
-                  font-size: 18px !important;
-                  font-weight: bold !important;
+                  font-size: 22px !important;
+                  font-weight: 700 !important;
+                  line-height: 1.6 !important;
+                }
+                .observacao {
+                  font-size: 16px !important;
+                  font-weight: 400 !important;
+                  font-style: italic !important;
+                  line-height: 1.5 !important;
+                }
+                .separador {
+                  font-size: 12px !important;
+                  font-weight: 400 !important;
+                  line-height: 1.2 !important;
+                }
+                .fim {
+                  font-size: 12px !important;
+                  font-weight: 400 !important;
+                  line-height: 1.4 !important;
                 }
                 @page { margin: 0; size: 80mm auto; }
               }
