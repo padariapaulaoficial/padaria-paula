@@ -893,17 +893,17 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 white-space: pre !important;
                 letter-spacing: 0.03em !important;
               }
-              /* Itens: 22px negrito */
+              /* Itens: 21px negrito */
               .item-grande {
-                font-size: 22px !important;
+                font-size: 21px !important;
                 font-weight: 700 !important;
                 line-height: 1.6 !important;
                 white-space: pre !important;
                 letter-spacing: 0.03em !important;
               }
-              /* Observações: 16px itálico */
+              /* Observações: 18px itálico */
               .observacao {
-                font-size: 16px !important;
+                font-size: 18px !important;
                 font-weight: 400 !important;
                 font-style: italic !important;
                 line-height: 1.5 !important;
@@ -937,12 +937,12 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                   line-height: 1.5 !important;
                 }
                 .item-grande {
-                  font-size: 22px !important;
+                  font-size: 21px !important;
                   font-weight: 700 !important;
                   line-height: 1.6 !important;
                 }
                 .observacao {
-                  font-size: 16px !important;
+                  font-size: 18px !important;
                   font-weight: 400 !important;
                   font-style: italic !important;
                   line-height: 1.5 !important;
