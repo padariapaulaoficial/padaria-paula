@@ -63,7 +63,7 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
           fontSize: 18,
           lineHeight: 1.5,
           fontStyle: 'italic',
-          fontWeight: 400,
+          fontWeight: 700,
         };
       }
       // Linha de item (começa com ">" e está na seção de itens)

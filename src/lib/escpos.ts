@@ -738,8 +738,8 @@ export function gerarCupomCozinhaGrande(
     const produto = nomeCompleto.toUpperCase();
     
     // Formato destacado para itens
-    // Prefixo: "> QTD  " onde QTD pode variar de 4 a 8+ caracteres
-    const prefix = `> ${qtdStr}  `;
+    // Prefixo: " > QTD " onde QTD pode variar de 4 a 8+ caracteres
+    const prefix = ` > ${qtdStr} `;
     // Largura disponível para nome: LARGURA_PAPEL - prefix.length
     // Isso garante que o nome completo caiba, quebrando em linhas se necessário
     const larguraNome = LARGURA_PAPEL - prefix.length;
@@ -899,16 +899,17 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-weight: 700 !important;
                 line-height: 1.6 !important;
                 white-space: pre-wrap !important;
-                word-break: break-word !important;
+                word-break: break-all !important;
                 letter-spacing: 0.03em !important;
               }
-              /* Observações: 18px itálico */
+              /* Observações: 18px itálico negrito */
               .observacao {
                 font-size: 18px !important;
-                font-weight: 400 !important;
+                font-weight: 700 !important;
                 font-style: italic !important;
                 line-height: 1.5 !important;
-                white-space: pre !important;
+                white-space: pre-wrap !important;
+                word-break: break-word !important;
                 letter-spacing: 0.03em !important;
               }
               /* Separadores: 12px normal */
@@ -942,11 +943,11 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                   font-weight: 700 !important;
                   line-height: 1.6 !important;
                   white-space: pre-wrap !important;
-                  word-break: break-word !important;
+                  word-break: break-all !important;
                 }
                 .observacao {
                   font-size: 18px !important;
-                  font-weight: 400 !important;
+                  font-weight: 700 !important;
                   font-style: italic !important;
                   line-height: 1.5 !important;
                 }
