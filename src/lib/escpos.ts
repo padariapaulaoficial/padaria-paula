@@ -738,8 +738,8 @@ export function gerarCupomCozinhaGrande(
     const produto = nomeCompleto.toUpperCase();
     
     // Formato destacado para itens
-    // Prefixo: "  > QTD  " onde QTD pode variar de 4 a 8+ caracteres
-    const prefix = `  > ${qtdStr}  `;
+    // Prefixo: "> QTD  " onde QTD pode variar de 4 a 8+ caracteres
+    const prefix = `> ${qtdStr}  `;
     // Largura disponível para nome: LARGURA_PAPEL - prefix.length
     // Isso garante que o nome completo caiba, quebrando em linhas se necessário
     const larguraNome = LARGURA_PAPEL - prefix.length;
@@ -753,7 +753,7 @@ export function gerarCupomCozinhaGrande(
     }
     
     if (item.observacao) {
-      linhas.push(`       -> ${item.observacao.toUpperCase()}`);
+      linhas.push(`  -> ${item.observacao.toUpperCase()}`);
     }
   }
   
@@ -898,7 +898,8 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-size: 21px !important;
                 font-weight: 700 !important;
                 line-height: 1.6 !important;
-                white-space: pre !important;
+                white-space: pre-wrap !important;
+                word-break: break-word !important;
                 letter-spacing: 0.03em !important;
               }
               /* Observações: 18px itálico */
@@ -940,6 +941,8 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                   font-size: 21px !important;
                   font-weight: 700 !important;
                   line-height: 1.6 !important;
+                  white-space: pre-wrap !important;
+                  word-break: break-word !important;
                 }
                 .observacao {
                   font-size: 18px !important;

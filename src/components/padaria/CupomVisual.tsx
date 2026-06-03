@@ -2,7 +2,7 @@
 
 // CupomVisual - Padaria Paula
 // Visualização de cupom estilo papel térmico realista
-// Comanda da Cozinha: Cabeçalho 18px negrito, Cliente 18px negrito, Itens 22px negrito, Obs 16px itálico
+// Comanda da Cozinha: Cabeçalho 18px negrito, Cliente 18px negrito, Itens 21px negrito, Obs 18px itálico
 
 interface CupomVisualProps {
   conteudo: string;
@@ -60,17 +60,17 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
       if (linha.includes('->') || linhaUpper.startsWith('OBS:')) {
         estilo = {
           ...estilo,
-          fontSize: 16,
+          fontSize: 18,
           lineHeight: 1.5,
           fontStyle: 'italic',
           fontWeight: 400,
         };
       }
-      // Linha de item (começa com "  >" e está na seção de itens)
+      // Linha de item (começa com ">" e está na seção de itens)
       else if ((linha.trim().startsWith('>') || linha.match(/^\s*>\s/)) && secaoAtual === 'items') {
         estilo = {
           ...estilo,
-          fontSize: 22,
+          fontSize: 21,
           lineHeight: 1.6,
           fontWeight: 700,
         };
@@ -156,7 +156,7 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
         else if (linha.trim()) {
           estilo = {
             ...estilo,
-            fontSize: 22,
+            fontSize: 21,
             lineHeight: 1.6,
             fontWeight: 700,
           };
