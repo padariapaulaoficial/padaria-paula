@@ -849,6 +849,11 @@ function formatarCupomCozinhaHTML(conteudo: string): string {
       }
     }
     
+    // Linha de título do pedido (PEDIDO Nº) - centralizada via CSS
+    if (linhaUpper.includes('PEDIDO Nº') || linhaUpper.includes('PEDIDO N.')) {
+      return `<div class="titulo-pedido">${escapeHtml(linha.trim())}</div>`;
+    }
+    
     // Linha de observação (contém "->" ou começa com "OBS:")
     if (linha.includes('->') || linhaUpper.startsWith('OBS:')) {
       return `<div class="observacao">${escapeHtml(linha)}</div>`;
@@ -942,6 +947,14 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 white-space: pre !important;
                 letter-spacing: 0.03em !important;
               }
+              /* Título PEDIDO Nº: 18px negrito centralizado */
+              .titulo-pedido {
+                font-size: 18px !important;
+                font-weight: 700 !important;
+                line-height: 1.5 !important;
+                text-align: center !important;
+                letter-spacing: 0.03em !important;
+              }
               /* Itens: 21px negrito - quebra por palavras, sem letter-spacing */
               .item-grande {
                 font-size: 21px !important;
@@ -986,6 +999,12 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                   font-size: 18px !important;
                   font-weight: 700 !important;
                   line-height: 1.5 !important;
+                }
+                .titulo-pedido {
+                  font-size: 18px !important;
+                  font-weight: 700 !important;
+                  line-height: 1.5 !important;
+                  text-align: center !important;
                 }
                 .item-grande {
                   font-size: 21px !important;
