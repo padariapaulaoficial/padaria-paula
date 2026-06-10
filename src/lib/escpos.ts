@@ -726,9 +726,9 @@ export function gerarCupomCozinhaGrande(
 ): string {
   const linhas: string[] = [];
 
-  // Cabeçalho - usar largura completa do papel (48 caracteres)
+  // Cabeçalho - centralização via CSS (text-align: center)
   linhas.push(linhaDivisoria('='));
-  linhas.push(centralizar(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`));
+  linhas.push(`PEDIDO Nº ${formatarNumeroPedido(pedido.numero)}`);
   linhas.push(linhaDivisoria('='));
 
   // Tipo de entrega com data e horário
@@ -787,20 +787,9 @@ export function gerarCupomCozinhaGrande(
     // Mostrar nome COMPLETO - NUNCA TRUNCAR
     const produto = nomeCompleto.toUpperCase();
     
-    // Formato destacado para itens
-    // Prefixo: "> QTD " onde QTD pode variar de 4 a 8+ caracteres
-    const prefix = `> ${qtdStr} `;
-    // Largura disponível para nome: LARGURA_PAPEL - prefix.length
-    // Isso garante que o nome completo caiba, quebrando em linhas se necessário
-    const larguraNome = LARGURA_PAPEL - prefix.length;
-    const nomeLinhas = quebrarLinha(produto, larguraNome);
-    
-    // Primeira linha: prefixo + primeira parte do nome
-    linhas.push(prefix + nomeLinhas[0]);
-    // Linhas seguintes: indentar com 2 espaços para aproveitar espaço
-    for (let i = 1; i < nomeLinhas.length; i++) {
-      linhas.push('  ' + nomeLinhas[i]);
-    }
+    // Item em linha única - CSS faz a quebra automática no ponto certo
+    // (pre-wrap + overflow-wrap: break-word respeita a largura real da impressora)
+    linhas.push(`> ${qtdStr} ${produto}`);
     
     if (item.observacao) {
       linhas.push(`  -> ${item.observacao.toUpperCase()}`);
