@@ -60,7 +60,7 @@ export type PedidoCompleto = {
 };
 
 // Largura do papel 80mm em caracteres (fonte normal)
-const LARGURA_PAPEL = 48;
+const LARGURA_PAPEL = 52;
 
 // ============================================
 // ORDEM DE CATEGORIAS - REGRA OBRIGATÓRIA:
@@ -292,24 +292,74 @@ function quebrarLinha(texto: string, largura: number = LARGURA_PAPEL): string[] 
   
   for (const palavra of palavras) {
     if (linhaAtual.length === 0) {
-      // Linha vazia - colocar a palavra
-      linhaAtual = palavra;
+      // Palavra sozinha maior que a linha - quebrar por sílabas
+      if (palavra.length > largura) {
+        const silabas = quebrarPorSilabas(palavra, largura);
+        for (let s = 0; s < silabas.length - 1; s++) {
+          linhas.push(silabas[s]);
+        }
+        linhaAtual = silabas[silabas.length - 1];
+      } else {
+        linhaAtual = palavra;
+      }
     } else if ((linhaAtual + ' ' + palavra).length <= largura) {
       // Palavra cabe na linha atual
       linhaAtual += ' ' + palavra;
-    } else {
-      // Palavra não cabe - finalizar linha atual e começar nova
+    } else if (palavra.length <= largura) {
+      // Palavra não cabe mas cabe sozinha na próxima linha
       linhas.push(linhaAtual);
       linhaAtual = palavra;
+    } else {
+      // Palavra maior que a linha - quebrar por sílabas
+      linhas.push(linhaAtual);
+      linhaAtual = '';
+      const silabas = quebrarPorSilabas(palavra, largura);
+      for (let s = 0; s < silabas.length - 1; s++) {
+        linhas.push(silabas[s]);
+      }
+      linhaAtual = silabas[silabas.length - 1];
     }
   }
   
-  // Adicionar última linha se não estiver vazia
   if (linhaAtual.length > 0) {
     linhas.push(linhaAtual);
   }
   
   return linhas;
+}
+
+// Quebrar palavra longa por sílabas (ex: COBERTURA -> COBER- | TURA)
+function quebrarPorSilabas(palavra: string, largura: number): string[] {
+  const resultado: string[] = [];
+  let restante = palavra;
+  
+  while (restante.length > largura) {
+    // Tentar quebrar em limite de sílaba: encontrar a última vogal antes do limite
+    let posicaoQuebra = largura - 1; // -1 para deixar espaço pro hífen
+    
+    // Procurar uma vogal antes da posição de quebra para separar sílaba
+    const vogais = 'AEIOUÃÕÂâÊêÎîÔôÛûÁáÉéÍíÓóÚú';
+    let melhorPosicao = -1;
+    for (let i = posicaoQuebra - 1; i >= 1; i--) {
+      if (vogais.includes(restante[i])) {
+        melhorPosicao = i + 1; // Quebrar depois da vogal
+        break;
+      }
+    }
+    
+    if (melhorPosicao > 0 && melhorPosicao < posicaoQuebra) {
+      posicaoQuebra = melhorPosicao;
+    }
+    
+    resultado.push(restante.substring(0, posicaoQuebra) + '-');
+    restante = restante.substring(posicaoQuebra);
+  }
+  
+  if (restante.length > 0) {
+    resultado.push(restante);
+  }
+  
+  return resultado.length > 0 ? resultado : [palavra];
 }
 
 // Formatar CPF
@@ -738,8 +788,8 @@ export function gerarCupomCozinhaGrande(
     const produto = nomeCompleto.toUpperCase();
     
     // Formato destacado para itens
-    // Prefixo: " > QTD " onde QTD pode variar de 4 a 8+ caracteres
-    const prefix = ` > ${qtdStr} `;
+    // Prefixo: "> QTD " onde QTD pode variar de 4 a 8+ caracteres
+    const prefix = `> ${qtdStr} `;
     // Largura disponível para nome: LARGURA_PAPEL - prefix.length
     // Isso garante que o nome completo caiba, quebrando em linhas se necessário
     const larguraNome = LARGURA_PAPEL - prefix.length;
@@ -747,9 +797,9 @@ export function gerarCupomCozinhaGrande(
     
     // Primeira linha: prefixo + primeira parte do nome
     linhas.push(prefix + nomeLinhas[0]);
-    // Linhas seguintes: indentar para alinhar com o nome
+    // Linhas seguintes: indentar com 2 espaços para aproveitar espaço
     for (let i = 1; i < nomeLinhas.length; i++) {
-      linhas.push(' '.repeat(prefix.length) + nomeLinhas[i]);
+      linhas.push('  ' + nomeLinhas[i]);
     }
     
     if (item.observacao) {
@@ -775,8 +825,8 @@ export function gerarCupomCozinhaGrande(
  * Formata o conteúdo do cupom de cozinha
  * Estilos iguais ao preview (CupomVisual.tsx):
  * - Cabeçalho/Cliente: 18px negrito
- * - Itens: 22px negrito
- * - Observações: 16px itálico
+ * - Itens: 21px negrito (sem letter-spacing, quebra por palavras)
+ * - Observações: 18px itálico negrito (sem letter-spacing)
  * - Separadores: 12px normal
  * - Fim: 12px normal
  */
@@ -879,10 +929,9 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
               body {
                 font-family: 'Courier New', 'Lucida Console', 'Consolas', monospace;
                 color: #1a1a1a;
-                letter-spacing: 0.03em;
                 line-height: 1.5;
                 margin: 0;
-                padding: 5px;
+                padding: 2px;
                 max-width: 80mm;
               }
               /* Cabeçalho e Cliente: 18px negrito */
@@ -893,14 +942,15 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 white-space: pre !important;
                 letter-spacing: 0.03em !important;
               }
-              /* Itens: 21px negrito */
+              /* Itens: 21px negrito - quebra por palavras, sem letter-spacing */
               .item-grande {
                 font-size: 21px !important;
                 font-weight: 700 !important;
                 line-height: 1.6 !important;
                 white-space: pre-wrap !important;
-                word-break: break-all !important;
-                letter-spacing: 0.03em !important;
+                overflow-wrap: break-word !important;
+                word-break: normal !important;
+                letter-spacing: 0 !important;
               }
               /* Observações: 18px itálico negrito */
               .observacao {
@@ -909,8 +959,9 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-style: italic !important;
                 line-height: 1.5 !important;
                 white-space: pre-wrap !important;
-                word-break: break-word !important;
-                letter-spacing: 0.03em !important;
+                overflow-wrap: break-word !important;
+                word-break: normal !important;
+                letter-spacing: 0 !important;
               }
               /* Separadores: 12px normal */
               .separador {
@@ -918,7 +969,6 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-weight: 400 !important;
                 line-height: 1.2 !important;
                 white-space: pre !important;
-                letter-spacing: 0.03em !important;
               }
               /* Fim do documento: 12px normal */
               .fim {
@@ -926,7 +976,6 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 font-weight: 400 !important;
                 line-height: 1.4 !important;
                 white-space: pre !important;
-                letter-spacing: 0.03em !important;
               }
               @media print {
                 body {
@@ -942,14 +991,16 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                   font-size: 21px !important;
                   font-weight: 700 !important;
                   line-height: 1.6 !important;
-                  white-space: pre-wrap !important;
-                  word-break: break-all !important;
+                  overflow-wrap: break-word !important;
+                  word-break: normal !important;
                 }
                 .observacao {
                   font-size: 18px !important;
                   font-weight: 700 !important;
                   font-style: italic !important;
                   line-height: 1.5 !important;
+                  overflow-wrap: break-word !important;
+                  word-break: normal !important;
                 }
                 .separador {
                   font-size: 12px !important;
