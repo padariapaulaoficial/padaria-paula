@@ -911,7 +911,7 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
       const htmlContent = formatarCupomCozinhaHTML(conteudo);
       janela.document.write(`
         <!DOCTYPE html>
-        <html>
+        <html lang="pt-BR">
           <head>
             <title>${titulo}</title>
             <style>
@@ -944,14 +944,18 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                 text-align: center !important;
                 letter-spacing: 0.03em !important;
               }
-              /* Itens: 21px negrito - quebra por palavras, sem letter-spacing */
+              /* Itens: 21px negrito - fonte proporcional Arial + hifenização automática (pt-BR) */
               .item-grande {
+                font-family: 'Arial', 'Helvetica', sans-serif !important;
                 font-size: 21px !important;
                 font-weight: 700 !important;
                 line-height: 1.6 !important;
                 white-space: pre-wrap !important;
                 overflow-wrap: break-word !important;
                 word-break: normal !important;
+                hyphens: auto !important;
+                -webkit-hyphens: auto !important;
+                -ms-hyphens: auto !important;
                 letter-spacing: 0 !important;
               }
               /* Observações: 18px itálico negrito */
@@ -996,11 +1000,15 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
                   text-align: center !important;
                 }
                 .item-grande {
+                  font-family: 'Arial', 'Helvetica', sans-serif !important;
                   font-size: 21px !important;
                   font-weight: 700 !important;
                   line-height: 1.6 !important;
                   overflow-wrap: break-word !important;
                   word-break: normal !important;
+                  hyphens: auto !important;
+                  -webkit-hyphens: auto !important;
+                  -ms-hyphens: auto !important;
                 }
                 .observacao {
                   font-size: 18px !important;

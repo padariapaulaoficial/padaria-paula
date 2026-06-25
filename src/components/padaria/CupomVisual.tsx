@@ -70,9 +70,13 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
       else if ((linha.trim().startsWith('>') || linha.match(/^\s*>\s/)) && secaoAtual === 'items') {
         estilo = {
           ...estilo,
+          fontFamily: "'Arial', 'Helvetica', sans-serif",
           fontSize: 21,
           lineHeight: 1.6,
           fontWeight: 700,
+          hyphens: 'auto',
+          WebkitHyphens: 'auto',
+          MsHyphens: 'auto',
         };
       }
       // Linha "ITENS:"
@@ -156,9 +160,13 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
         else if (linha.trim()) {
           estilo = {
             ...estilo,
+            fontFamily: "'Arial', 'Helvetica', sans-serif",
             fontSize: 21,
             lineHeight: 1.6,
             fontWeight: 700,
+            hyphens: 'auto',
+            WebkitHyphens: 'auto',
+            MsHyphens: 'auto',
           };
         }
         else {
@@ -266,7 +274,7 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
               backgroundColor: '#fefefe',
             }}
           >
-            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            <div lang="pt-BR" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {linhasEstilizadas.map((linha, index) => (
                 <div key={index} style={linha.estilo}>
                   {linha.texto || '\u00A0'}
