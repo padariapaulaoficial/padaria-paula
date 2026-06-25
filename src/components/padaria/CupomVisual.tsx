@@ -194,7 +194,7 @@ export default function CupomVisual({ conteudo, titulo, fonteGrande = false }: C
         fontFamily: "'Courier New', 'Lucida Console', 'Consolas', monospace",
         fontSize: 11,
         lineHeight: 1.4,
-        fontWeight: 400,
+        fontWeight: 700,
         color: '#1a1a1a',
         letterSpacing: '0.03em',
       } as React.CSSProperties,

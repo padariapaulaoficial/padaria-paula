@@ -1045,7 +1045,8 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
             <style>
               body {
                 font-family: 'Courier New', monospace;
-                font-size: 12px;
+                font-size: 11px;
+                font-weight: bold;
                 line-height: 1.6;
                 margin: 0;
                 padding: 10px;
@@ -1053,9 +1054,11 @@ export function imprimirViaDialogo(conteudo: string, titulo: string = 'Cupom'): 
               pre {
                 white-space: pre-wrap;
                 margin: 0;
+                font-weight: bold;
               }
               @media print {
-                body { padding: 0; font-size: 11px; }
+                body { padding: 0; font-size: 11px; font-weight: bold; }
+                pre { font-weight: bold; }
                 @page { margin: 0; size: 80mm auto; }
               }
             </style>
