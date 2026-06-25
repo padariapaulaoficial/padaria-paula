@@ -777,7 +777,7 @@ export function gerarCupomCozinhaGrande(
         : kg.toFixed(3).replace(/\.?0+$/, '').replace('.', ',');
       qtdStr = `${kgStr} KG`;
     } else {
-      qtdStr = `${Math.round(qtdProd)} UN`;
+      qtdStr = `${Math.round(qtdProd)}`;
     }
     
     // Incluir tamanho no nome se existir (para tortas especiais)
