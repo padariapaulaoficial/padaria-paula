@@ -285,6 +285,7 @@ export async function PUT(request: NextRequest) {
       valorEntrada, formaPagamentoEntrada, dataEntrada,
       alertaProducaoEnviado,
       dataEntrega, horarioEntrega, valorTeleEntrega, tipoEntrega,
+      enderecoEntrega, bairroEntrega,
       statusPagamento
     } = body;
     
@@ -306,11 +307,13 @@ export async function PUT(request: NextRequest) {
     if (dataEntrada !== undefined) data.dataEntrada = dataEntrada ? new Date(dataEntrada) : null;
     if (alertaProducaoEnviado !== undefined) data.alertaProducaoEnviado = alertaProducaoEnviado;
     
-    // Campos de entrega (edição de data/horário/tipo/valor)
+    // Campos de entrega (edição de data/horário/tipo/valor/endereço)
     if (tipoEntrega !== undefined) data.tipoEntrega = tipoEntrega;
     if (dataEntrega !== undefined) data.dataEntrega = dataEntrega;
     if (horarioEntrega !== undefined) data.horarioEntrega = horarioEntrega || null;
     if (valorTeleEntrega !== undefined) data.valorTeleEntrega = valorTeleEntrega ? parseFloat(valorTeleEntrega) : null;
+    if (enderecoEntrega !== undefined) data.enderecoEntrega = enderecoEntrega || null;
+    if (bairroEntrega !== undefined) data.bairroEntrega = bairroEntrega || null;
     
     // Flag para indicar se precisa recalcular o total
     let recalcularTotal = tipoEntrega !== undefined || valorTeleEntrega !== undefined;

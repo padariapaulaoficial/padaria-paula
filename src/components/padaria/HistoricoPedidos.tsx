@@ -222,6 +222,8 @@ export default function HistoricoPedidos() {
   const [editDataEntrega, setEditDataEntrega] = useState('');
   const [editHorarioEntrega, setEditHorarioEntrega] = useState('');
   const [editValorTeleEntrega, setEditValorTeleEntrega] = useState('');
+  const [editEnderecoEntrega, setEditEnderecoEntrega] = useState('');
+  const [editBairroEntrega, setEditBairroEntrega] = useState('');
   const [salvandoEntrega, setSalvandoEntrega] = useState(false);
   
   // Diálogos separados
@@ -1234,6 +1236,9 @@ export default function HistoricoPedidos() {
       setEditDataEntrega(pedidoSelecionado.dataEntrega || '');
       setEditHorarioEntrega(pedidoSelecionado.horarioEntrega || '');
       setEditValorTeleEntrega((pedidoSelecionado as any).valorTeleEntrega ? String((pedidoSelecionado as any).valorTeleEntrega) : '');
+      // Default: usa o endereço de entrega existente; se vazio, usa o endereço de cadastro do cliente
+      setEditEnderecoEntrega(pedidoSelecionado.enderecoEntrega || pedidoSelecionado.cliente?.endereco || '');
+      setEditBairroEntrega(pedidoSelecionado.bairroEntrega || pedidoSelecionado.cliente?.bairro || '');
       setDialogEntregaOpen(true);
     }
   };
@@ -1269,6 +1274,8 @@ export default function HistoricoPedidos() {
           dataEntrega: editDataEntrega,
           horarioEntrega: editHorarioEntrega || null,
           valorTeleEntrega: editTipoEntrega === 'TELE_ENTREGA' ? parseFloat(editValorTeleEntrega.replace(',', '.')) || 0 : null,
+          enderecoEntrega: editTipoEntrega === 'TELE_ENTREGA' ? editEnderecoEntrega : null,
+          bairroEntrega: editTipoEntrega === 'TELE_ENTREGA' ? editBairroEntrega : null,
         }),
       });
       
@@ -2255,22 +2262,48 @@ export default function HistoricoPedidos() {
 
             {/* Valor da Tele-Entrega - só mostra se for TELE_ENTREGA */}
             {editTipoEntrega === 'TELE_ENTREGA' && (
-              <div>
-                <Label className="text-xs font-medium mb-1 block">Valor da Taxa de Entrega</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    className="h-9 text-sm pl-10"
-                    value={editValorTeleEntrega}
-                    onChange={(e) => setEditValorTeleEntrega(e.target.value)}
-                  />
+              <>
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Valor da Taxa de Entrega</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      className="h-9 text-sm pl-10"
+                      value={editValorTeleEntrega}
+                      onChange={(e) => setEditValorTeleEntrega(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Este valor será somado ao total do pedido.</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">Este valor será somado ao total do pedido.</p>
-              </div>
+
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Endereço de Entrega</Label>
+                  <Input
+                    type="text"
+                    placeholder="Endereço completo"
+                    className="h-9 text-sm"
+                    value={editEnderecoEntrega}
+                    onChange={(e) => setEditEnderecoEntrega(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Pré-preenchido com o endereço de cadastro do cliente.</p>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Bairro</Label>
+                  <Input
+                    type="text"
+                    placeholder="Bairro"
+                    className="h-9 text-sm"
+                    value={editBairroEntrega}
+                    onChange={(e) => setEditBairroEntrega(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Pode ser diferente do bairro de cadastro. Não altera o cadastro do cliente.</p>
+                </div>
+              </>
             )}
           </div>
           
